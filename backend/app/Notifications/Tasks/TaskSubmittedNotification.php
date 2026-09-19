@@ -1,0 +1,37 @@
+<?php
+
+namespace App\Notifications\Tasks;
+
+use App\Models\TaskAssignment;
+use App\Models\User;
+
+class TaskSubmittedNotification extends JpcNotification
+{
+    use BuildsTaskNotification;
+
+    public function __construct(
+        protected TaskAssignment $assignment,
+        protected User $recipient,
+    ) {}
+
+    public function toJpcDatabase(object $notifiable): array
+    {
+        $task = $this->assignment->task;
+
+        return [
+            'type' => 'task_submitted',
+            'title' => 'Submission awaiting review',
+            'message' => "{$this->employeeName($this->assignment)} submitted {$this->taskCode($task)} — {$task->title} for review.",
+            'data' => [
+                'task_id' => $task->id,
+                'task_code' => $task->task_code,
+                'task_title' => $task->title,
+                'submitted_by' => $this->employeeName($this->assignment),
+                'remarks' => $this->assignment->remarks,
+            ],
+            'priority' => 'normal',
+            'task_id' => $task->id,
+            'reminder_days' => null,
+        ];
+    }
+}

@@ -1,0 +1,48 @@
+# Dependencies
+/vendor
+node_modules/
+
+# Build artifacts
+/dist
+/public/build
+/public/hot
+
+# Environment files (never commit secrets)
+.env
+.env.local
+.env.*.local
+.env.backup
+.env.production
+
+# Logs
+*.log
+/storage/logs/*
+!/storage/logs/.gitignore
+
+# Cache / temp
+.phpunit.cache/
+.phpunit.result.cache
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/framework/testing/*
+/storage/*.key
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE files
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Misc
+npm-debug.log*
+yarn-error.log*
+coverage/
