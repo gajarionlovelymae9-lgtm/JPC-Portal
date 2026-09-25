@@ -1,0 +1,1 @@
+<?php namespace App\Http\Requests\Ai; use Illuminate\Foundation\Http\FormRequest; class SendChatMessageRequest extends FormRequest { public function authorize() { return true; } public function rules() { return [ "conversation_id" => "nullable|exists:ai_chat_conversations,id", "message" => "required|string|min:1|max:2000" ]; } }

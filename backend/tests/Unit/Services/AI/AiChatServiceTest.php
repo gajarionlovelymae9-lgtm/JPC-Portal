@@ -1,0 +1,1 @@
+<?php namespace Tests\Unit\Services\AI; use Tests\TestCase; class AiChatServiceTest extends TestCase { public function test_service() { $this->assertTrue(true); } }

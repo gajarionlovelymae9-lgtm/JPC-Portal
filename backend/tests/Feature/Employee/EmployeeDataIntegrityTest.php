@@ -139,7 +139,7 @@ class EmployeeDataIntegrityTest extends TestCase
             ->where('table_schema', $database)
             ->where('table_name', $table)
             ->distinct()
-            ->pluck('index_name')
+            ->pluck('INDEX_NAME')
             ->all();
 
         foreach ($expected as $index) {

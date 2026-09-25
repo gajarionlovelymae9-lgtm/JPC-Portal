@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
             PositionSeeder::class,
             AcademicYearSeeder::class,
             BadgeSeeder::class,
+            AiPromptVersionSeeder::class,
             DevelopmentUserSeeder::class,
             DevelopmentEmployeeSeeder::class,
             DevelopmentEmployeeHistorySeeder::class,
@@ -31,6 +32,7 @@ class DatabaseSeeder extends Seeder
             DevelopmentReportSeeder::class,
             DevelopmentPerformanceSeeder::class,
             DevelopmentAchievementSeeder::class,
+            DevelopmentDeliveryMonitoringSeeder::class,
         ]);
     }
 }

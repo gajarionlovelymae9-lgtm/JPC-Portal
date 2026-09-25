@@ -29,36 +29,35 @@ class DepartmentTargetService
 
         if ($targets->isEmpty()) {
             // Provide a default annual target if table is empty
-            $targets = collect([
+$targets = collect([
                 (object)[
                     'id' => 1,
-                    'name' => 'Annual Academic & Operational Deliverables',
-                    'description' => 'Complete all scheduled departmental deliverables, student reports, and curriculum updates for the academic year.',
+                    'target_name' => 'Annual Academic & Operational Deliverables',
+                    'target_description' => 'Complete all scheduled departmental deliverables, student reports, and curriculum updates for the academic year.',
                     'target_value' => max(10, $totalCount),
-                    'academic_year' => '2026-2027',
-                    'deadline' => '2027-05-31',
+                    'end_date' => '2027-05-31',
                 ]
             ]);
         }
 
-        return $targets->map(function ($t) use ($completedCount, $totalCount) {
-            $val = max(1, (int) ($t->target_value ?? $t->target ?? 10));
+return $targets->map(function ($t) use ($completedCount, $totalCount) {
+            $val = max(1, (int) ($t->target_value ?? 10));
             $completed = min($val, $completedCount);
             $progress = round(($completed / $val) * 100, 1);
             $isAtRisk = $progress < 50 && Carbon::now()->month >= 6;
 
             return [
                 'id' => $t->id,
-                'name' => $t->name ?? $t->title ?? 'Department Target',
-                'description' => $t->description ?? null,
-                'academic_year' => $t->academic_year ?? '2026-2027',
+                'name' => $t->target_name ?? 'Department Target',
+                'description' => $t->target_description ?? null,
+                'academic_year' => '2026-2027',
                 'target' => $val,
                 'completed' => $completed,
                 'remaining' => max(0, $val - $completed),
                 'progress_percent' => $progress,
                 'is_at_risk' => $isAtRisk,
                 'status' => $progress >= 100 ? 'Completed' : ($isAtRisk ? 'At Risk' : 'In Progress'),
-                'deadline' => $t->deadline ?? '2027-05-31',
+                'deadline' => $t->end_date ?? '2027-05-31',
             ];
         })->toArray();
     }

@@ -59,6 +59,10 @@ export const PATHS = {
   adminOcrMonitoring: '/admin/ai/ocr',
   adminEscalations: '/admin/escalations',
   adminExports: '/admin/exports',
+  adminSystemHealth: '/admin/system-health',
+  adminMaintenance: '/admin/maintenance',
+  adminFeedback: '/admin/feedback',
+  feedback: '/feedback',
 
   // Notification & Communication (Phase 3.3-Z)
   notificationPreferences: '/settings/notifications',
@@ -66,10 +70,53 @@ export const PATHS = {
   adminAnnouncements: '/admin/announcements',
   adminNotificationMonitoring: '/admin/notifications',
 
+  // Phase 4 AI / OCR / NLP Engine
+  reportAnalysis: '/reports/:reportId/analysis',
+  reportAiReview: '/reports/:reportId/ai-review',
+
+  // Phase 7 AI Assistant & Analytics
+  aiChat: '/ai/chat',
+  aiInsights: '/ai/insights',
+
+  // Phase 8 Data Quality & Integrity Monitoring
+  dataQualityDashboard: '/data-quality',
+  dataQualityIssues: '/data-quality/issues',
+  dataQualityIssueDetail: '/data-quality/issues/:id',
+  dataQualityScans: '/data-quality/scans',
+
+  // Phase 9 Advanced Reporting & Management Intelligence
+  reportingHub: '/reporting',
+  reportingEmployee: '/reporting/employee',
+  reportingDepartment: '/reporting/department',
+  reportingMonthly: '/reporting/monthly',
+  reportingAchievements: '/reporting/achievements',
+  reportingLate: '/reporting/late',
+  reportingPending: '/reporting/pending',
+  reportingTargets: '/reporting/targets',
+  reportingDataQuality: '/reporting/data-quality',
+  reportingManagementSummary: '/reporting/management-summary',
+  reportingAnalytics: '/reporting/analytics',
+  reportingExports: '/reporting/exports',
+
+  // Phase 5 Report Workflow & Review Workspace
+  reportReviewWorkspace: '/reports/:reportId/review-workspace',
+
   // Management dashboards
   adminDashboard: '/admin/dashboard',
   hrDashboard: '/hr/dashboard',
 } as const
+
+export function reportAnalysisPath(reportId: number | string): string {
+  return `/reports/${reportId}/analysis`
+}
+
+export function reportAiReviewPath(reportId: number | string): string {
+  return `/reports/${reportId}/ai-review`
+}
+
+export function reportReviewWorkspacePath(reportId: number | string): string {
+  return `/reports/${reportId}/review-workspace`
+}
 
 export function taskDetailPath(taskId: number | string): string {
   return `/tasks/${taskId}`

@@ -1,0 +1,1 @@
+<?php namespace App\Http\Requests\Ai; use Illuminate\Foundation\Http\FormRequest; class GenerateReportSummaryRequest extends FormRequest { public function authorize() { return true; } public function rules() { return [ "report_id" => "required|exists:reports,id" ]; } }

@@ -26,10 +26,9 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            $table->index('department_id');
-            $table->index('position_id');
-            $table->index('employment_status');
-            $table->index('last_name');
+            $table->index('department_id');          // → employees_department_id_index
+            $table->index('position_id');             // → employees_position_id_index
+            $table->index('employment_status');       // → employees_employment_status_index
         });
     }
 

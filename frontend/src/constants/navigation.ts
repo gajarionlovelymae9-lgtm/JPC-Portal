@@ -41,6 +41,12 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
   { path: '/admin/escalations', label: 'Escalations Center', key: 'admin-escalations', permission: 'tasks.view', roles: ['admin'] },
   { path: '/admin/exports', label: 'Executive Exports', key: 'admin-exports', permission: 'reports.view', roles: ['admin'] },
 
+  // Phase 13 — System Health, Maintenance & Feedback (admin)
+  { path: '/admin/system-health', label: 'System Health', key: 'admin-system-health', permission: 'dashboard.view', roles: ['admin'] },
+  { path: '/admin/maintenance', label: 'Maintenance', key: 'admin-maintenance', permission: 'dashboard.view', roles: ['admin'] },
+  { path: '/admin/feedback', label: 'Feedback Center', key: 'admin-feedback', permission: 'dashboard.view', roles: ['admin'] },
+  { path: '/feedback', label: 'Feedback', key: 'feedback', permission: 'dashboard.view' },
+
   // Notification & Communication (Phase 3.3-Z)
   { path: '/messages', label: 'Messages', key: 'messages', permission: 'notifications.view' },
   { path: '/settings/notifications', label: 'Alert Preferences', key: 'notif-preferences', permission: 'notifications.view' },
@@ -60,6 +66,23 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
   { path: '/settings', label: 'Settings', key: 'settings', permission: 'settings.view', roles: ['admin'] },
   { path: '/admin/dashboard', label: 'Admin Dashboard', key: 'management-dashboard', permission: 'analytics.view', roles: ['admin'] },
   { path: '/hr/dashboard', label: 'HR Dashboard', key: 'management-dashboard-hr', permission: 'analytics.view', roles: ['hr'] },
+  { path: '/ai/chat', label: 'AI Assistant', key: 'ai-assistant', permission: 'dashboard.view' },
+  { path: '/ai/insights', label: 'AI Insights', key: 'ai-insights', permission: 'analytics.view', roles: ['admin', 'hr', 'department_head'] },
+  { path: '/data-quality', label: 'Data Quality', key: 'data-quality', permission: 'dashboard.view', roles: ['admin', 'hr', 'department_head'] },
+
+  // Phase 9 Advanced Reporting & Management Intelligence
+  { path: '/reporting', label: 'Reporting Hub', key: 'reporting-hub', permission: 'reports.view' },
+  { path: '/reporting/employee', label: 'Employee Report', key: 'reporting-employee', permission: 'reports.view' },
+  { path: '/reporting/department', label: 'Department Report', key: 'reporting-department', permission: 'analytics.view' },
+  { path: '/reporting/monthly', label: 'Monthly Report', key: 'reporting-monthly', permission: 'analytics.view' },
+  { path: '/reporting/achievements', label: 'Achievement Report', key: 'reporting-achievements', permission: 'analytics.view' },
+  { path: '/reporting/late', label: 'Late Submissions', key: 'reporting-late', permission: 'analytics.view' },
+  { path: '/reporting/pending', label: 'Pending Reports', key: 'reporting-pending', permission: 'analytics.view' },
+  { path: '/reporting/targets', label: 'Target Report', key: 'reporting-targets', permission: 'analytics.view' },
+  { path: '/reporting/data-quality', label: 'Data Quality Report', key: 'reporting-data-quality', permission: 'analytics.view' },
+  { path: '/reporting/management-summary', label: 'Management Summary', key: 'reporting-management-summary', permission: 'analytics.view', roles: ['admin', 'hr'] },
+  { path: '/reporting/analytics', label: 'Analytics Hub', key: 'reporting-analytics', permission: 'analytics.view' },
+  { path: '/reporting/exports', label: 'Report Exports', key: 'reporting-exports', permission: 'reports.view' },
 ]
 
 export const SETTINGS_ITEM: NavigationItem = {

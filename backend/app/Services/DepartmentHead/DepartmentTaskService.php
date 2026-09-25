@@ -27,10 +27,10 @@ class DepartmentTaskService
         $query = Task::where(function ($q) use ($department) {
             $q->where('department_id', $department->id)
               ->orWhereNull('department_id');
-        })->with([
+})->with([
             'assignments.employee:id,first_name,last_name,employee_number',
             'department:id,name',
-            'creator:id,name',
+            'createdBy:id,name',
         ]);
 
         if (!empty($filters['status']) && $filters['status'] !== 'all') {
@@ -51,11 +51,11 @@ class DepartmentTaskService
 
         $tasks = $query->orderBy('created_at', 'desc')->get();
 
-        return $tasks->map(function ($t) {
+return $tasks->map(function ($t) {
             $totalAssignments = $t->assignments->count();
             $completedAssignments = $t->assignments->whereIn('status', ['completed', 'approved'])->count();
-            $avgProgress = $totalAssignments > 0 
-                ? round($t->assignments->avg('completion_percentage') ?? 0, 1)
+            $avgProgress = $totalAssignments > 0
+                ? round($t->assignments->avg('progress_percentage') ?? 0, 1)
                 : 0;
 
             return [
@@ -65,9 +65,9 @@ class DepartmentTaskService
                 'description' => $t->description,
                 'priority' => $t->priority ?? 'medium',
                 'status' => $t->status,
-                'start_date' => $t->assigned_date ? Carbon::parse($t->assigned_date)->format('Y-m-d') : null,
-                'deadline' => $t->deadline ? Carbon::parse($t->deadline)->format('Y-m-d') : null,
-                'is_overdue' => $t->deadline && Carbon::parse($t->deadline)->isPast() && $t->status !== 'completed',
+                'start_date' => $t->start_date ? Carbon::parse($t->start_date)->format('Y-m-d') : null,
+                'deadline' => $t->due_date ? Carbon::parse($t->due_date)->format('Y-m-d') : null,
+                'is_overdue' => $t->due_date && Carbon::parse($t->due_date)->isPast() && $t->status !== 'completed',
                 'average_progress' => $avgProgress,
                 'total_assigned' => $totalAssignments,
                 'completed_assigned' => $completedAssignments,
@@ -76,9 +76,9 @@ class DepartmentTaskService
                     'employee_id' => $a->employee_id,
                     'employee_name' => $a->employee ? $a->employee->first_name . ' ' . $a->employee->last_name : '—',
                     'employee_number' => $a->employee?->employee_number,
-                    'progress' => (int) ($a->completion_percentage ?? 0),
+                    'progress' => (int) ($a->progress_percentage ?? 0),
                     'status' => $a->status,
-                    'submitted_at' => $a->submitted_at,
+                    'submitted_at' => $a->completed_at,
                 ]),
                 'created_at' => $t->created_at?->toIso8601String(),
             ];
@@ -106,17 +106,19 @@ class DepartmentTaskService
             }
         }
 
-        return DB::transaction(function () use ($user, $department, $data, $employeeIds) {
+return DB::transaction(function () use ($user, $department, $data, $employeeIds) {
             $task = Task::create([
                 'title' => $data['title'],
                 'description' => $data['description'] ?? null,
                 'department_id' => $department->id,
                 'priority' => $data['priority'] ?? 'medium',
                 'status' => 'assigned',
-                'assigned_date' => $data['start_date'] ?? Carbon::now(),
-                'deadline' => $data['deadline'] ?? null,
-                'requirements' => $data['requirements'] ?? null,
-                'instructions' => $data['instructions'] ?? $data['references'] ?? null,
+                'start_date' => $data['start_date'] ?? Carbon::now(),
+                'due_date' => $data['deadline'] ?? null,
+                'required_output' => trim(implode("\n\n", array_filter([
+                    $data['requirements'] ?? null,
+                    $data['instructions'] ?? null,
+                ]))) ?: null,
                 'created_by' => $user->id,
             ]);
 
@@ -127,8 +129,8 @@ class DepartmentTaskService
                     'employee_id' => $empId,
                     'assigned_by' => $user->id,
                     'status' => 'assigned',
-                    'completion_percentage' => 0,
-                    'due_date' => $task->deadline,
+                    'progress_percentage' => 0,
+                    'due_date' => $task->due_date,
                 ]);
                 $assignments[] = $assignment;
             }
@@ -146,11 +148,11 @@ class DepartmentTaskService
                 ],
             ]);
 
-            return [
+return [
                 'id' => $task->id,
                 'title' => $task->title,
                 'status' => $task->status,
-                'deadline' => $task->deadline,
+                'deadline' => $task->due_date,
                 'assignments_count' => count($assignments),
             ];
         });
@@ -161,36 +163,35 @@ class DepartmentTaskService
         $department = $this->context->resolveDepartment($user);
         $this->context->authorizeTask($department, $task);
 
-        $task->load([
+$task->load([
             'assignments.employee.position:id,name',
             'department:id,name',
-            'creator:id,name',
+            'createdBy:id,name',
         ]);
 
-        return [
+return [
             'id' => $task->id,
             'title' => $task->title,
             'task_code' => $task->task_code ?? "TSK-{$task->id}",
             'description' => $task->description,
             'priority' => $task->priority ?? 'medium',
             'status' => $task->status,
-            'start_date' => $task->assigned_date ? Carbon::parse($task->assigned_date)->format('Y-m-d') : null,
-            'deadline' => $task->deadline ? Carbon::parse($task->deadline)->format('Y-m-d') : null,
-            'requirements' => $task->requirements,
-            'instructions' => $task->instructions,
+            'start_date' => $task->start_date ? Carbon::parse($task->start_date)->format('Y-m-d') : null,
+            'deadline' => $task->due_date ? Carbon::parse($task->due_date)->format('Y-m-d') : null,
+            'requirements' => $task->required_output,
+            'instructions' => $task->required_output,
             'department_name' => $task->department?->name,
-            'created_by_name' => $task->creator?->name,
+            'created_by_name' => $task->createdBy?->name,
             'assignments' => $task->assignments->map(fn ($a) => [
                 'id' => $a->id,
                 'employee_id' => $a->employee_id,
                 'employee_name' => $a->employee ? $a->employee->first_name . ' ' . $a->employee->last_name : '—',
                 'employee_number' => $a->employee?->employee_number,
                 'position' => $a->employee?->position?->name ?? 'Faculty',
-                'progress' => (int) ($a->completion_percentage ?? 0),
+                'progress' => (int) ($a->progress_percentage ?? 0),
                 'status' => $a->status,
                 'due_date' => $a->due_date ? Carbon::parse($a->due_date)->format('Y-m-d') : null,
-                'submitted_at' => $a->submitted_at,
-                'notes' => $a->notes,
+                'notes' => $a->remarks,
             ]),
         ];
     }
@@ -200,13 +201,15 @@ class DepartmentTaskService
         $department = $this->context->resolveDepartment($user);
         $this->context->authorizeTask($department, $task);
 
-        $task->update(array_filter([
+$task->update(array_filter([
             'title' => $data['title'] ?? null,
             'description' => $data['description'] ?? null,
             'priority' => $data['priority'] ?? null,
-            'deadline' => $data['deadline'] ?? null,
-            'requirements' => $data['requirements'] ?? null,
-            'instructions' => $data['instructions'] ?? null,
+            'due_date' => $data['deadline'] ?? null,
+            'required_output' => trim(implode("\n\n", array_filter([
+                $data['requirements'] ?? null,
+                $data['instructions'] ?? null,
+            ]))) ?: null,
         ]));
 
         return ['id' => $task->id, 'title' => $task->title, 'status' => $task->status];
@@ -221,14 +224,14 @@ class DepartmentTaskService
             $created = 0;
             foreach ($employeeIds as $empId) {
                 $exists = TaskAssignment::where('task_id', $task->id)->where('employee_id', $empId)->exists();
-                if (!$exists) {
+if (!$exists) {
                     TaskAssignment::create([
                         'task_id' => $task->id,
                         'employee_id' => $empId,
                         'assigned_by' => $user->id,
                         'status' => 'assigned',
-                        'completion_percentage' => 0,
-                        'due_date' => $task->deadline,
+                        'progress_percentage' => 0,
+                        'due_date' => $task->due_date,
                     ]);
                     $created++;
                 }

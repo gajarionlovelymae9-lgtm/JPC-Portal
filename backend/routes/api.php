@@ -9,6 +9,10 @@ use App\Http\Controllers\Api\V1\Admin\AdminDepartmentController;
 use App\Http\Controllers\Api\V1\Admin\AdminReportController as AdminReportPortalController;
 use App\Http\Controllers\Api\V1\Admin\AdminAiMonitoringController;
 use App\Http\Controllers\Api\V1\Admin\AdminEscalationController;
+use App\Http\Controllers\Api\V1\Admin\FeedbackController as AdminFeedbackController;
+use App\Http\Controllers\Api\V1\Admin\MaintenanceController;
+use App\Http\Controllers\Api\V1\Admin\SystemHealthController;
+use App\Http\Controllers\Api\V1\FeedbackController;
 use App\Http\Controllers\Api\V1\Dashboard\ManagementDashboardController;
 use App\Http\Controllers\Api\V1\DepartmentHead\DepartmentDashboardController;
 use App\Http\Controllers\Api\V1\DepartmentHead\DepartmentEmployeeController;
@@ -23,6 +27,7 @@ use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\Notifications\NotificationController;
 use App\Http\Controllers\Api\V1\Notifications\NotificationPreferenceController;
 use App\Http\Controllers\Api\V1\Reports\ReportController;
+use App\Http\Controllers\Api\V1\Reports\ReportWorkflowController;
 use App\Http\Controllers\Api\V1\SummaryController;
 use App\Http\Controllers\Api\V1\TaskAssignmentController;
 use App\Http\Controllers\Api\V1\TaskController;
@@ -32,6 +37,11 @@ use App\Http\Controllers\Api\V1\Admin\AdminNotificationController;
 use App\Http\Controllers\Api\V1\Admin\AdminAnnouncementController;
 use App\Http\Controllers\Api\V1\Messages\MessageController;
 use App\Http\Controllers\Api\V1\Notifications\AnnouncementController;
+use App\Http\Controllers\Api\V1\Performance\PerformanceController;
+use App\Http\Controllers\Api\V1\Performance\AchievementController;
+use App\Http\Controllers\Api\V1\Reporting\ReportingController;
+use App\Http\Controllers\Api\V1\Reporting\AnalyticsController;
+use App\Http\Controllers\Api\V1\Reporting\ReportExportController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -160,6 +170,8 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
                     ->name('dashboard');
                 Route::get('/{report}', [AiReportController::class, 'show'])
                     ->name('show');
+                Route::post('/{report}/documents', [AiReportController::class, 'uploadDocument'])
+                    ->name('documents.upload');
                 Route::post('/{report}/process', [AiReportController::class, 'process'])
                     ->name('process');
                 Route::post('/{report}/ocr', [AiReportController::class, 'ocr'])
@@ -172,7 +184,19 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
                     ->name('validation');
                 Route::get('/{report}/references', [AiReportController::class, 'references'])
                     ->name('references');
-                Route::get('/{report}/processing-status', [AiReportController::class, 'processingStatus'])
+                Route::get('/{report}/similarity', [AiReportController::class, 'similarity'])
+                    ->name('similarity');
+                Route::get('/{report}/findings', [AiReportController::class, 'findings'])
+                    ->name('findings');
+                Route::post('/{report}/findings/{finding}/review', [AiReportController::class, 'reviewFinding'])
+                    ->name('findings.review');
+                Route::post('/{report}/review', [AiReportController::class, 'review'])
+                    ->name('review');
+                Route::post('/{report}/retry', [AiReportController::class, 'retry'])
+                    ->name('retry');
+                Route::get('/{report}/versions/compare', [AiReportController::class, 'compare'])
+                    ->name('versions.compare');
+                Route::get('/{report}/processing-status', [AiReportController::class, 'show'])
                     ->name('processing-status');
             });
 
@@ -279,9 +303,199 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
                     ->middleware('permission:analytics.view')
                     ->name('department-performance');
             });
+
+            // Phase 5 — Report Submission, Review, Approval & Version Control
+            Route::post('/', [ReportWorkflowController::class, 'storeDraft'])
+                ->middleware('permission:reports.view')
+                ->name('draft.store');
+
+            Route::put('/{report}', [ReportWorkflowController::class, 'updateDraft'])
+                ->middleware('permission:reports.view')
+                ->name('draft.update');
+
+            Route::post('/{report}/submit', [ReportWorkflowController::class, 'submit'])
+                ->middleware('permission:reports.view')
+                ->name('submit');
+
+            Route::post('/{report}/revision', [ReportWorkflowController::class, 'submitRevision'])
+                ->middleware('permission:reports.view')
+                ->name('revision');
+
+            Route::post('/{report}/request-revision', [ReportWorkflowController::class, 'requestRevision'])
+                ->middleware('role:department_head,admin')
+                ->name('request-revision');
+
+            Route::post('/{report}/approve', [ReportWorkflowController::class, 'approve'])
+                ->middleware('role:department_head,admin')
+                ->name('approve');
+
+            Route::post('/{report}/reject', [ReportWorkflowController::class, 'reject'])
+                ->middleware('role:department_head,admin')
+                ->name('reject');
+
+            Route::post('/{report}/cancel', [ReportWorkflowController::class, 'cancel'])
+                ->middleware('permission:reports.view')
+                ->name('cancel');
+
+            Route::post('/{report}/archive', [ReportWorkflowController::class, 'archive'])
+                ->middleware('role:admin')
+                ->name('archive');
+
+            Route::get('/{report}/timeline', [ReportWorkflowController::class, 'timeline'])
+                ->middleware('permission:reports.view')
+                ->name('timeline');
+
+            Route::get('/{report}/versions', [ReportWorkflowController::class, 'versions'])
+                ->middleware('permission:reports.view')
+                ->name('versions.index');
+
+            Route::get('/{report}/versions-compare', [ReportWorkflowController::class, 'compareVersions'])
+                ->middleware('permission:reports.view')
+                ->name('versions.compare');
+
+            Route::get('/{report}/versions/{versionNumber}', [ReportWorkflowController::class, 'versionDetail'])
+                ->middleware('permission:reports.view')
+                ->name('versions.show');
+
+            Route::get('/{report}/comments', [ReportWorkflowController::class, 'comments'])
+                ->middleware('permission:reports.view')
+                ->name('comments.index');
+
+            Route::post('/{report}/comments', [ReportWorkflowController::class, 'storeComment'])
+                ->middleware('role:department_head,admin,hr')
+                ->name('comments.store');
+
+            Route::post('/{report}/comments/{comment}/resolve', [ReportWorkflowController::class, 'resolveComment'])
+                ->middleware('permission:reports.view')
+                ->name('comments.resolve');
         });
 
-                // Employee Portal (Phase 3.3-V) â€” self-service surface keyed off the
+        // Phase 9 — Advanced Reporting, Analytics, Export & Management Intelligence
+        //
+        // Self-service employee report lives behind reports.view; every other
+        // management report and all analytics behind analytics.view. Role
+        // scoping is enforced server-side by ResolvesReportingScope.
+        Route::prefix('reports')->name('phase9.reports.')->middleware('throttle:reports')->group(function () {
+            Route::get('/employee', [ReportingController::class, 'employee'])
+                ->middleware('permission:reports.view')
+                ->name('employee');
+
+            Route::get('/department', [ReportingController::class, 'department'])
+                ->middleware('permission:analytics.view')
+                ->name('department');
+
+            Route::get('/institution', [ReportingController::class, 'institution'])
+                ->middleware('permission:analytics.view')
+                ->name('institution');
+
+            Route::get('/monthly', [ReportingController::class, 'monthly'])
+                ->middleware('permission:analytics.view')
+                ->name('monthly');
+
+            Route::get('/achievements', [ReportingController::class, 'achievements'])
+                ->middleware('permission:analytics.view')
+                ->name('achievements');
+
+            Route::get('/late', [ReportingController::class, 'late'])
+                ->middleware('permission:analytics.view')
+                ->name('late');
+
+            Route::get('/pending', [ReportingController::class, 'pending'])
+                ->middleware('permission:analytics.view')
+                ->name('pending');
+
+            Route::get('/targets', [ReportingController::class, 'targets'])
+                ->middleware('permission:analytics.view')
+                ->name('targets');
+
+            Route::get('/data-quality', [ReportingController::class, 'dataQuality'])
+                ->middleware('permission:analytics.view')
+                ->name('data-quality');
+
+            Route::get('/management-summary', [ReportingController::class, 'managementSummary'])
+                ->middleware('permission:analytics.view')
+                ->name('management-summary');
+
+            Route::post('/comparison', [ReportingController::class, 'comparison'])
+                ->middleware('permission:analytics.view')
+                ->name('comparison');
+        });
+
+        Route::prefix('analytics')
+            ->name('phase9.analytics.')
+            ->middleware(['permission:analytics.view', 'throttle:reports'])
+            ->group(function () {
+                Route::get('/performance-trend', [AnalyticsController::class, 'performanceTrend'])->name('performance-trend');
+                Route::get('/completion-trend', [AnalyticsController::class, 'completionTrend'])->name('completion-trend');
+                Route::get('/submission-trend', [AnalyticsController::class, 'submissionTrend'])->name('submission-trend');
+                Route::post('/department-comparison', [AnalyticsController::class, 'departmentComparison'])->name('department-comparison');
+                Route::post('/employee-comparison', [AnalyticsController::class, 'employeeComparison'])->name('employee-comparison');
+                Route::post('/period-comparison', [AnalyticsController::class, 'periodComparison'])->name('period-comparison');
+                Route::get('/rankings', [AnalyticsController::class, 'rankings'])->name('rankings');
+                Route::get('/performance-distribution', [AnalyticsController::class, 'performanceDistribution'])->name('performance-distribution');
+            });
+
+        // Phase 9 — Async report export pipeline
+        Route::prefix('reports/exports')
+            ->name('phase9.exports.')
+            ->middleware(['permission:reports.view', 'throttle:reports-export'])
+            ->group(function () {
+                Route::get('/', [ReportExportController::class, 'index'])->name('index');
+                Route::post('/', [ReportExportController::class, 'queue'])->name('store');
+                Route::get('/{export}', [ReportExportController::class, 'show'])->name('show');
+                Route::get('/{export}/download', [ReportExportController::class, 'download'])->name('download');
+            });
+
+        // Phase 6 — Performance Monitoring, KPI, Productivity Score & Monthly Achievements
+        Route::prefix('performance')->name('performance.')->group(function () {
+            Route::get('/me', [PerformanceController::class, 'myPerformance'])
+                ->middleware('permission:reports.view')
+                ->name('me');
+
+            Route::get('/me/history', [PerformanceController::class, 'myHistory'])
+                ->middleware('permission:reports.view')
+                ->name('me.history');
+
+            Route::get('/', [PerformanceController::class, 'index'])
+                ->middleware('permission:analytics.view')
+                ->name('index');
+
+            Route::get('/rankings', [PerformanceController::class, 'rankings'])
+                ->middleware('permission:reports.view')
+                ->name('rankings');
+
+            Route::get('/employees/{employee}', [PerformanceController::class, 'show'])
+                ->middleware('permission:reports.view')
+                ->name('employees.show');
+
+            Route::get('/employees/{employee}/history', [PerformanceController::class, 'show'])
+                ->middleware('permission:reports.view')
+                ->name('employees.history');
+
+            Route::post('/recalculate', [PerformanceController::class, 'recalculate'])
+                ->middleware('role:admin,hr,department_head')
+                ->name('recalculate');
+
+            Route::get('/export', [PerformanceController::class, 'export'])
+                ->middleware(['permission:analytics.view', 'throttle:reports-export'])
+                ->name('export');
+        });
+
+        Route::prefix('achievements')->name('achievements.')->group(function () {
+            Route::get('/', [AchievementController::class, 'index'])
+                ->middleware('permission:reports.view')
+                ->name('index');
+
+            Route::get('/me', [AchievementController::class, 'myAchievements'])
+                ->middleware('permission:reports.view')
+                ->name('me');
+
+            Route::get('/monthly', [AchievementController::class, 'monthly'])
+                ->middleware('permission:reports.view')
+                ->name('monthly');
+        });
+
+        // Employee Portal (Phase 3.3-V) — self-service surface keyed off the
         // authenticated request user; every handler delegates to the service.
         Route::prefix('employee')->name('employee.')->group(function () {
             Route::get('/dashboard', [EmployeePortalController::class, 'dashboard'])
@@ -401,6 +615,25 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
             Route::put('/announcements/{announcement}', [AdminAnnouncementController::class, 'update'])->name('announcements.update');
             Route::delete('/announcements/{announcement}', [AdminAnnouncementController::class, 'destroy'])->name('announcements.destroy');
             Route::post('/announcements/{announcement}/publish', [AdminAnnouncementController::class, 'publish'])->name('announcements.publish');
+
+            // Phase 13 — System Health, Maintenance & Feedback (admin)
+            Route::get('/system-health', [SystemHealthController::class, 'index'])->name('system-health');
+            Route::get('/system-health/dashboard', [SystemHealthController::class, 'dashboard'])->name('system-health.dashboard');
+            Route::get('/system-health/database', [SystemHealthController::class, 'database'])->name('system-health.database');
+            Route::get('/system-health/queue', [SystemHealthController::class, 'queue'])->name('system-health.queue');
+            Route::get('/system-health/storage', [SystemHealthController::class, 'storage'])->name('system-health.storage');
+            Route::get('/system-health/ai', [SystemHealthController::class, 'ai'])->name('system-health.ai');
+            Route::get('/system-health/ocr', [SystemHealthController::class, 'ocr'])->name('system-health.ocr');
+            Route::get('/system-health/history', [SystemHealthController::class, 'history'])->name('system-health.history');
+
+            Route::get('/maintenance/logs', [MaintenanceController::class, 'index'])->name('maintenance.logs.index');
+            Route::post('/maintenance/logs', [MaintenanceController::class, 'store'])->name('maintenance.logs.store');
+            Route::get('/maintenance/logs/{maintenanceLog}', [MaintenanceController::class, 'show'])->name('maintenance.logs.show');
+
+            Route::get('/feedback', [AdminFeedbackController::class, 'index'])->name('feedback.index');
+            Route::get('/feedback/ai', [AdminFeedbackController::class, 'aiIndex'])->name('feedback.ai');
+            Route::get('/feedback/{feedback}', [AdminFeedbackController::class, 'show'])->name('feedback.show');
+            Route::patch('/feedback/{feedback}', [AdminFeedbackController::class, 'update'])->name('feedback.update');
         });
 
         // Phase 3.3-Z — Internal Messaging
@@ -420,6 +653,60 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::get('/announcements/active', [AnnouncementController::class, 'active'])
             ->middleware('permission:notifications.view')
             ->name('announcements.active');
+
+        // Phase 13 — User Feedback (any authenticated role) and AI quality feedback.
+        // AI feedback never mutates the original AI result or performance scores.
+        Route::prefix('feedback')->name('feedback.')->group(function () {
+            Route::post('/', [FeedbackController::class, 'store'])->name('store');
+            Route::get('/mine', [FeedbackController::class, 'mine'])->name('mine');
+            Route::post('/ai', [FeedbackController::class, 'storeAiFeedback'])->name('ai');
+        });
+    // Phase 7 — AI Chat Assistant & Intelligent Analytics
+    Route::prefix('ai')
+        ->name('ai.')
+        ->group(function () {
+            Route::post('/chat', [\App\Http\Controllers\Api\V1\Ai\AiChatController::class, 'send'])->name('chat.send');
+
+            Route::prefix('conversations')->name('conversations.')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Api\V1\Ai\AiConversationController::class, 'index'])->name('index');
+                Route::post('/', [\App\Http\Controllers\Api\V1\Ai\AiConversationController::class, 'store'])->name('store');
+                Route::get('/{conversation}', [\App\Http\Controllers\Api\V1\Ai\AiConversationController::class, 'show'])->name('show');
+                Route::delete('/{conversation}', [\App\Http\Controllers\Api\V1\Ai\AiConversationController::class, 'destroy'])->name('destroy');
+            });
+
+            Route::prefix('insights')->name('insights.')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Api\V1\Ai\AiInsightController::class, 'index'])->name('index');
+                Route::get('/performance', [\App\Http\Controllers\Api\V1\Ai\AiInsightController::class, 'performance'])->name('performance');
+                Route::get('/reports', [\App\Http\Controllers\Api\V1\Ai\AiInsightController::class, 'reports'])->name('reports');
+            });
+
+            Route::post('/reports/{report}/summarize', [\App\Http\Controllers\Api\V1\Ai\AiReportController::class, 'summarize'])->name('reports.summarize');
+        });
+
+        // Phase 8 — Data Quality, Validation & Integrity Monitoring
+        Route::prefix('data-quality')
+            ->name('data-quality.')
+            ->group(function () {
+                Route::get('/dashboard', [\App\Http\Controllers\Api\V1\DataQuality\DataQualityController::class, 'dashboard'])->name('dashboard');
+                Route::get('/statistics', [\App\Http\Controllers\Api\V1\DataQuality\DataQualityController::class, 'statistics'])->name('statistics');
+                Route::get('/trends', [\App\Http\Controllers\Api\V1\DataQuality\DataQualityController::class, 'trends'])->name('trends');
+                Route::get('/export', [\App\Http\Controllers\Api\V1\DataQuality\DataQualityController::class, 'export'])->name('export');
+
+                Route::prefix('issues')->name('issues.')->group(function () {
+                    Route::get('/', [\App\Http\Controllers\Api\V1\DataQuality\DataQualityIssueController::class, 'index'])->name('index');
+                    Route::get('/{issue}', [\App\Http\Controllers\Api\V1\DataQuality\DataQualityIssueController::class, 'show'])->name('show');
+                    Route::post('/{issue}/review', [\App\Http\Controllers\Api\V1\DataQuality\DataQualityIssueController::class, 'review'])->name('review');
+                    Route::post('/{issue}/confirm', [\App\Http\Controllers\Api\V1\DataQuality\DataQualityIssueController::class, 'confirm'])->name('confirm');
+                    Route::post('/{issue}/dismiss', [\App\Http\Controllers\Api\V1\DataQuality\DataQualityIssueController::class, 'dismiss'])->name('dismiss');
+                    Route::post('/{issue}/resolve', [\App\Http\Controllers\Api\V1\DataQuality\DataQualityIssueController::class, 'resolve'])->name('resolve');
+                });
+
+                Route::prefix('scans')->name('scans.')->group(function () {
+                    Route::get('/', [\App\Http\Controllers\Api\V1\DataQuality\DataQualityScanController::class, 'index'])->name('index');
+                    Route::post('/', [\App\Http\Controllers\Api\V1\DataQuality\DataQualityScanController::class, 'store'])->name('store');
+                    Route::get('/{scan}', [\App\Http\Controllers\Api\V1\DataQuality\DataQualityScanController::class, 'show'])->name('show');
+                });
+            });
     });
 });
 

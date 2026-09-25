@@ -1,0 +1,1 @@
+<?php namespace App\Policies; use App\Models\User; use App\Models\Report; class AiReportPolicy { public function summarize(User $user, Report $report) { if ($user->hasRole(["admin", "hr", "dept_head"])) return true; return $user->employee && $user->employee->id === $report->employee_id; } }

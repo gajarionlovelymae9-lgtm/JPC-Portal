@@ -20,6 +20,22 @@ use App\Policies\TaskReviewPolicy;
 use App\Services\AiReports\Ai\Contracts\AiProvider;
 use App\Services\AiReports\Ai\FakeAiProvider;
 use App\Services\AiReports\Ai\HttpAiProvider;
+use App\Services\AiReports\Ocr\Contracts\OcrProvider;
+use App\Services\AiReports\Ocr\FakeOcrProvider;
+use App\Services\AiReports\Ocr\GoogleVisionOcrService;
+use App\Services\AI\AiToolRegistry;
+use App\Services\AI\Tools\GetCriticalDataQualityIssuesTool;
+use App\Services\AI\Tools\GetDataQualityIssuesTool;
+use App\Services\AI\Tools\GetDataQualityStatisticsTool;
+use App\Services\AI\Tools\GetDataQualityTrendsTool;
+use App\Services\AI\Tools\GetDepartmentReportTool;
+use App\Services\AI\Tools\GetEmployeeProgressReportTool;
+use App\Services\AI\Tools\GetLateReportAnalyticsTool;
+use App\Services\AI\Tools\GetManagementSummaryTool;
+use App\Services\AI\Tools\GetMonthlyPerformanceReportTool;
+use App\Services\AI\Tools\GetPerformanceTrendTool;
+use App\Services\AI\Tools\GetRankingTool;
+use App\Services\AI\Tools\GetTargetAnalyticsTool;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -76,5 +92,49 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Report::class, ReportPolicy::class);
         Gate::policy(AiAnalysis::class, AiAnalysisPolicy::class);
         app()->bind(AiProvider::class, FakeAiProvider::class);
+
+        // OCR provider is chosen from configuration (fake by default so the
+        // whole pipeline runs offline; google_vision once credentials exist).
+        app()->bind(OcrProvider::class, function (): OcrProvider {
+            $provider = (string) config('ocr.ocr.provider', 'fake');
+
+            return $provider === 'google_vision'
+                ? app(GoogleVisionOcrService::class)
+                : app(FakeOcrProvider::class);
+        });
+
+        $this->registerAiTools();
+    }
+
+    /**
+     * Bind a singleton AiToolRegistry and register every tool implementation.
+     * Tools are resolved from the container so their service dependencies
+     * (ReportingService, AnalyticsService, ManagementSummaryService, DQ
+     * statistics) are injected automatically.
+     */
+    private function registerAiTools(): void
+    {
+        $this->app->singleton(AiToolRegistry::class);
+
+        $tools = [
+            GetMonthlyPerformanceReportTool::class,
+            GetEmployeeProgressReportTool::class,
+            GetDepartmentReportTool::class,
+            GetRankingTool::class,
+            GetPerformanceTrendTool::class,
+            GetLateReportAnalyticsTool::class,
+            GetTargetAnalyticsTool::class,
+            GetManagementSummaryTool::class,
+            GetDataQualityStatisticsTool::class,
+            GetDataQualityTrendsTool::class,
+            GetCriticalDataQualityIssuesTool::class,
+            GetDataQualityIssuesTool::class,
+        ];
+
+        $this->app->resolving(AiToolRegistry::class, function (AiToolRegistry $registry) use ($tools) {
+            foreach ($tools as $tool) {
+                $registry->register($this->app->make($tool));
+            }
+        });
     }
 }

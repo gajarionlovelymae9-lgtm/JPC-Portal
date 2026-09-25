@@ -7,7 +7,7 @@ use Illuminate\Console\Command;
 
 class SendDeadlineReminders extends Command
 {
-    protected $signature = 'app:send-deadline-reminders';
+    protected $signature = 'tasks:send-deadline-reminders';
     protected $description = 'Send deadline reminders (7d, 3d, 1d, due today) for active task assignments';
 
     public function handle(DeadlineReminderService $service): int

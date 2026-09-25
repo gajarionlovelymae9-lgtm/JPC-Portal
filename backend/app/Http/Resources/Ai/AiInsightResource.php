@@ -1,0 +1,1 @@
+<?php namespace App\Http\Resources\Ai; use Illuminate\Http\Resources\Json\JsonResource; class AiInsightResource extends JsonResource { public function toArray($request) { return [ "id" => $this->id, "type" => $this->type->value ?? $this->type, "content" => $this->content, "metadata" => $this->metadata, "generated_at" => $this->generated_at ]; } }

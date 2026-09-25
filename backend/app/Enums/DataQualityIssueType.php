@@ -2,128 +2,120 @@
 
 namespace App\Enums;
 
-/**
- * DataQualityIssueType — the single source of truth for all data-quality issue
- * categories detected by the Phase 8 validation engine (spec items 4, 53, 60,
- * 28, 65).
- *
- * The AI-assistant integration (Phase 7 / spec items 62-63) and the frontend
- * filter bar (spec item 38) MUST key their filters off these codes.
- */
 enum DataQualityIssueType: string
 {
-    // ---- Employee issues (spec item 4) ----
-    case MissingRequiredProfileData = 'MISSING_REQUIRED_PROFILE_DATA';
-    case DuplicateEmployee = 'DUPLICATE_EMPLOYEE';
-    case InvalidEmployeeStatus = 'INVALID_EMPLOYEE_STATUS';
-    case InvalidDepartment = 'INVALID_DEPARTMENT';
-    case InvalidPosition = 'INVALID_POSITION';
-    case MissingEmployeeNumber = 'MISSING_EMPLOYEE_NUMBER';
+    // Employee issues
+    case MISSING_EMPLOYEE_DATA = 'MISSING_EMPLOYEE_DATA';
+    case DUPLICATE_EMPLOYEE = 'DUPLICATE_EMPLOYEE';
+    case INVALID_EMPLOYEE_STATUS = 'INVALID_EMPLOYEE_STATUS';
+    case INVALID_DEPARTMENT = 'INVALID_DEPARTMENT';
+    case INVALID_POSITION = 'INVALID_POSITION';
+    case MISSING_EMPLOYEE_NUMBER = 'MISSING_EMPLOYEE_NUMBER';
+    case MISSING_REQUIRED_PROFILE_DATA = 'MISSING_REQUIRED_PROFILE_DATA';
 
-    // ---- Department issues ----
-    case InvalidDepartmentReference = 'INVALID_DEPARTMENT_REFERENCE';
-    case DuplicateDepartment = 'DUPLICATE_DEPARTMENT';
-    case InactiveDepartmentAssignment = 'INACTIVE_DEPARTMENT_ASSIGNMENT';
+    // Department issues
+    case INVALID_DEPARTMENT_REFERENCE = 'INVALID_DEPARTMENT_REFERENCE';
+    case DUPLICATE_DEPARTMENT = 'DUPLICATE_DEPARTMENT';
+    case INACTIVE_DEPARTMENT_ASSIGNMENT = 'INACTIVE_DEPARTMENT_ASSIGNMENT';
 
-    // ---- Task issues ----
-    case TaskWithoutAssignee = 'TASK_WITHOUT_ASSIGNEE';
-    case TaskWithInvalidAssignee = 'TASK_WITH_INVALID_ASSIGNEE';
-    case TaskWithoutDepartment = 'TASK_WITHOUT_DEPARTMENT';
-    case InvalidTaskDates = 'INVALID_TASK_DATES';
-    case DueDateBeforeStartDate = 'DUE_DATE_BEFORE_START_DATE';
-    case OverdueTaskWithInconsistentStatus = 'OVERDUE_TASK_WITH_INCONSISTENT_STATUS';
-    case DuplicateTask = 'DUPLICATE_TASK';
+    // Task issues
+    case TASK_WITHOUT_ASSIGNEE = 'TASK_WITHOUT_ASSIGNEE';
+    case TASK_WITH_INVALID_ASSIGNEE = 'TASK_WITH_INVALID_ASSIGNEE';
+    case TASK_WITHOUT_DEPARTMENT = 'TASK_WITHOUT_DEPARTMENT';
+    case INVALID_TASK_DATES = 'INVALID_TASK_DATES';
+    case DUE_DATE_BEFORE_START_DATE = 'DUE_DATE_BEFORE_START_DATE';
+    case OVERDUE_TASK_WITH_INCONSISTENT_STATUS = 'OVERDUE_TASK_WITH_INCONSISTENT_STATUS';
+    case DUPLICATE_TASK = 'DUPLICATE_TASK';
 
-    // ---- Target issues ----
-    case TargetWithoutEmployee = 'TARGET_WITHOUT_EMPLOYEE';
-    case TargetWithoutPeriod = 'TARGET_WITHOUT_PERIOD';
-    case InvalidTargetValue = 'INVALID_TARGET_VALUE';
-    case DuplicateTarget = 'DUPLICATE_TARGET';
-    case InconsistentTargetPeriod = 'INCONSISTENT_TARGET_PERIOD';
+    // Target issues
+    case TARGET_WITHOUT_EMPLOYEE = 'TARGET_WITHOUT_EMPLOYEE';
+    case TARGET_WITHOUT_PERIOD = 'TARGET_WITHOUT_PERIOD';
+    case INVALID_TARGET_VALUE = 'INVALID_TARGET_VALUE';
+    case DUPLICATE_TARGET = 'DUPLICATE_TARGET';
+    case INCONSISTENT_TARGET_PERIOD = 'INCONSISTENT_TARGET_PERIOD';
 
-    // ---- Report issues ----
-    case ReportWithoutTask = 'REPORT_WITHOUT_TASK';
-    case ReportWithoutEmployee = 'REPORT_WITHOUT_EMPLOYEE';
-    case ReportEmployeeMismatch = 'REPORT_EMPLOYEE_MISMATCH';
-    case ReportTaskAssignmentMismatch = 'REPORT_TASK_ASSIGNMENT_MISMATCH';
-    case InvalidReportDates = 'INVALID_REPORT_DATES';
-    case ConflictingReportStatus = 'CONFLICTING_REPORT_STATUS';
-    case DuplicateReport = 'DUPLICATE_REPORT';
-    case MissingRequiredDocument = 'MISSING_REQUIRED_DOCUMENT';
+    // Report issues
+    case REPORT_WITHOUT_TASK = 'REPORT_WITHOUT_TASK';
+    case REPORT_WITHOUT_EMPLOYEE = 'REPORT_WITHOUT_EMPLOYEE';
+    case REPORT_EMPLOYEE_MISMATCH = 'REPORT_EMPLOYEE_MISMATCH';
+    case REPORT_TASK_ASSIGNMENT_MISMATCH = 'REPORT_TASK_ASSIGNMENT_MISMATCH';
+    case INVALID_REPORT_DATES = 'INVALID_REPORT_DATES';
+    case CONFLICTING_REPORT_STATUS = 'CONFLICTING_REPORT_STATUS';
+    case DUPLICATE_REPORT = 'DUPLICATE_REPORT';
+    case MISSING_REQUIRED_DOCUMENT = 'MISSING_REQUIRED_DOCUMENT';
 
-    // ---- Performance issues ----
-    case MissingPerformanceData = 'MISSING_PERFORMANCE_DATA';
-    case DuplicatePerformanceSnapshot = 'DUPLICATE_PERFORMANCE_SNAPSHOT';
-    case InvalidKpiValue = 'INVALID_KPI_VALUE';
-    case InvalidProductivityScore = 'INVALID_PRODUCTIVITY_SCORE';
-    case InvalidPerformancePeriod = 'INVALID_PERFORMANCE_PERIOD';
-    case InconsistentScoreData = 'INCONSISTENT_SCORE_DATA';
+    // Performance issues
+    case MISSING_PERFORMANCE_DATA = 'MISSING_PERFORMANCE_DATA';
+    case DUPLICATE_PERFORMANCE_SNAPSHOT = 'DUPLICATE_PERFORMANCE_SNAPSHOT';
+    case INVALID_KPI_VALUE = 'INVALID_KPI_VALUE';
+    case INVALID_PRODUCTIVITY_SCORE = 'INVALID_PRODUCTIVITY_SCORE';
+    case INVALID_PERFORMANCE_PERIOD = 'INVALID_PERFORMANCE_PERIOD';
+    case INCONSISTENT_SCORE_DATA = 'INCONSISTENT_SCORE_DATA';
 
-    // ---- Relationship / orphan issues ----
-    case OrphanedRecord = 'ORPHANED_RECORD';
-    case BrokenReference = 'BROKEN_REFERENCE';
-    case InvalidForeignRelationship = 'INVALID_FOREIGN_RELATIONSHIP';
+    // Relationship & integrity issues
+    case ORPHAN_RECORD = 'ORPHAN_RECORD';
+    case BROKEN_REFERENCE = 'BROKEN_REFERENCE';
+    case INVALID_FOREIGN_RELATIONSHIP = 'INVALID_FOREIGN_RELATIONSHIP';
 
-    /**
-     * Human-readable label used by API resources, dashboard cards and filters.
-     */
-    public function label(): string
-    {
-        $slug = str_replace('_', ' ', strtolower($this->value));
-        return ucwords($slug);
-    }
+    // OCR & AI findings
+    case OCR_FAILED = 'OCR_FAILED';
+    case OCR_INCOMPLETE = 'OCR_INCOMPLETE';
+    case OCR_EMPTY = 'OCR_EMPTY';
+    case OCR_LOW_CONFIDENCE = 'OCR_LOW_CONFIDENCE';
 
-    /**
-     * Broad category grouping for the dashboard "issues by category" chart
-     * (spec item 36) and the admin report breakdown (spec item 65).
-     */
     public function category(): string
     {
         return match ($this) {
-            self::MissingRequiredProfileData,
-            self::DuplicateEmployee,
-            self::InvalidEmployeeStatus,
-            self::InvalidDepartment,
-            self::InvalidPosition,
-            self::MissingEmployeeNumber => 'Employee',
+            self::MISSING_EMPLOYEE_DATA,
+            self::DUPLICATE_EMPLOYEE,
+            self::INVALID_EMPLOYEE_STATUS,
+            self::INVALID_DEPARTMENT,
+            self::INVALID_POSITION,
+            self::MISSING_EMPLOYEE_NUMBER,
+            self::MISSING_REQUIRED_PROFILE_DATA => 'Employee',
 
-            self::InvalidDepartmentReference,
-            self::DuplicateDepartment,
-            self::InactiveDepartmentAssignment => 'Department',
+            self::INVALID_DEPARTMENT_REFERENCE,
+            self::DUPLICATE_DEPARTMENT,
+            self::INACTIVE_DEPARTMENT_ASSIGNMENT => 'Department',
 
-            self::TaskWithoutAssignee,
-            self::TaskWithInvalidAssignee,
-            self::TaskWithoutDepartment,
-            self::InvalidTaskDates,
-            self::DueDateBeforeStartDate,
-            self::OverdueTaskWithInconsistentStatus,
-            self::DuplicateTask => 'Task',
+            self::TASK_WITHOUT_ASSIGNEE,
+            self::TASK_WITH_INVALID_ASSIGNEE,
+            self::TASK_WITHOUT_DEPARTMENT,
+            self::INVALID_TASK_DATES,
+            self::DUE_DATE_BEFORE_START_DATE,
+            self::OVERDUE_TASK_WITH_INCONSISTENT_STATUS,
+            self::DUPLICATE_TASK => 'Task',
 
-            self::TargetWithoutEmployee,
-            self::TargetWithoutPeriod,
-            self::InvalidTargetValue,
-            self::DuplicateTarget,
-            self::InconsistentTargetPeriod => 'Target',
+            self::TARGET_WITHOUT_EMPLOYEE,
+            self::TARGET_WITHOUT_PERIOD,
+            self::INVALID_TARGET_VALUE,
+            self::DUPLICATE_TARGET,
+            self::INCONSISTENT_TARGET_PERIOD => 'Target',
 
-            self::ReportWithoutTask,
-            self::ReportWithoutEmployee,
-            self::ReportEmployeeMismatch,
-            self::ReportTaskAssignmentMismatch,
-            self::InvalidReportDates,
-            self::ConflictingReportStatus,
-            self::DuplicateReport,
-            self::MissingRequiredDocument => 'Report',
+            self::REPORT_WITHOUT_TASK,
+            self::REPORT_WITHOUT_EMPLOYEE,
+            self::REPORT_EMPLOYEE_MISMATCH,
+            self::REPORT_TASK_ASSIGNMENT_MISMATCH,
+            self::INVALID_REPORT_DATES,
+            self::CONFLICTING_REPORT_STATUS,
+            self::DUPLICATE_REPORT,
+            self::MISSING_REQUIRED_DOCUMENT => 'Report',
 
-            self::MissingPerformanceData,
-            self::DuplicatePerformanceSnapshot,
-            self::InvalidKpiValue,
-            self::InvalidProductivityScore,
-            self::InvalidPerformancePeriod,
-            self::InconsistentScoreData => 'Performance',
+            self::MISSING_PERFORMANCE_DATA,
+            self::DUPLICATE_PERFORMANCE_SNAPSHOT,
+            self::INVALID_KPI_VALUE,
+            self::INVALID_PRODUCTIVITY_SCORE,
+            self::INVALID_PERFORMANCE_PERIOD,
+            self::INCONSISTENT_SCORE_DATA => 'Performance',
 
-            self::OrphanedRecord,
-            self::BrokenReference,
-            self::InvalidForeignRelationship => 'Relationship',
+            self::ORPHAN_RECORD,
+            self::BROKEN_REFERENCE,
+            self::INVALID_FOREIGN_RELATIONSHIP => 'Integrity',
+
+            self::OCR_FAILED,
+            self::OCR_INCOMPLETE,
+            self::OCR_EMPTY,
+            self::OCR_LOW_CONFIDENCE => 'OCR',
         };
     }
 }

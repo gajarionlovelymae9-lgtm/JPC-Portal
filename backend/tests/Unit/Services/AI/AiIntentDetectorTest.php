@@ -1,0 +1,1 @@
+<?php namespace Tests\Unit\Services\AI; use Tests\TestCase; class AiIntentDetectorTest extends TestCase { public function test_detector() { $this->assertTrue(true); } }

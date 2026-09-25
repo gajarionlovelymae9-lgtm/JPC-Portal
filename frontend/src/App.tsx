@@ -65,11 +65,48 @@ import AdminOcrMonitoringPage from './pages/admin/AdminOcrMonitoringPage'
 import AdminEscalationsPage from './pages/admin/AdminEscalationsPage'
 import AdminExportsPage from './pages/admin/AdminExportsPage'
 
+// Phase 13 — System Health, Maintenance & Feedback
+import SystemHealthPage from './pages/admin/AdminSystemHealthPage'
+import MaintenanceLogPage from './pages/admin/AdminMaintenancePage'
+import FeedbackAdminPage from './pages/admin/AdminFeedbackPage'
+import FeedbackPage from './pages/FeedbackPage'
+
 // Phase 3.3-Z Notification & Communication Pages
 import NotificationPreferencesPage from './pages/notifications/NotificationPreferencesPage'
 import MessagesPage from './pages/messages/MessagesPage'
 import AdminNotificationMonitoringPage from './pages/admin/AdminNotificationMonitoringPage'
 import AdminAnnouncementsPage from './pages/admin/AdminAnnouncementsPage'
+
+// Phase 4 AI / OCR / NLP Pages
+import ReportAiAnalysisPage from './pages/ai/ReportAiAnalysisPage'
+import ReportAiReviewPage from './pages/ai/ReportAiReviewPage'
+
+// Phase 5 Report Workflow & Review Workspace
+import { ReportReviewWorkspacePage } from './pages/reports/ReportReviewWorkspacePage'
+
+// Phase 7 AI Assistant & Analytics
+import AiChatPage from './pages/ai/AiChatPage'
+import AiInsightsPage from './pages/ai/AiInsightsPage'
+
+// Phase 8 Data Quality & Integrity Monitoring
+import { DataQualityDashboardPage } from './pages/DataQuality/DataQualityDashboardPage'
+import { DataQualityIssuesPage } from './pages/DataQuality/DataQualityIssuesPage'
+import { DataQualityIssueDetailsPage } from './pages/DataQuality/DataQualityIssueDetailsPage'
+import { DataQualityScansPage } from './pages/DataQuality/DataQualityScansPage'
+
+// Phase 9 Advanced Reporting & Management Intelligence
+import { ReportingDashboardPage } from './pages/Reporting/ReportingDashboardPage'
+import { EmployeeReportPage } from './pages/Reporting/EmployeeReportPage'
+import { DepartmentReportPage } from './pages/Reporting/DepartmentReportPage'
+import { MonthlyPerformancePage } from './pages/Reporting/MonthlyPerformancePage'
+import { AchievementReportPage } from './pages/Reporting/AchievementReportPage'
+import { LateReportsPage } from './pages/Reporting/LateReportsPage'
+import { PendingReportsPage } from './pages/Reporting/PendingReportsPage'
+import { TargetReportPage } from './pages/Reporting/TargetReportPage'
+import { DataQualityReportPage } from './pages/Reporting/DataQualityReportPage'
+import { ManagementSummaryPage } from './pages/Reporting/ManagementSummaryPage'
+import { AnalyticsHubPage } from './pages/Reporting/AnalyticsHubPage'
+import { ReportExportsPage } from './pages/Reporting/ReportExportsPage'
 
 export default function App() {
   return (
@@ -338,6 +375,14 @@ export default function App() {
             }
           />
           <Route
+            path={PATHS.reportReviewWorkspace}
+            element={
+              <ProtectedRoute role={['department_head', 'admin', 'hr']}>
+                <ReportReviewWorkspacePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path={PATHS.departmentHeadTargets}
             element={
               <ProtectedRoute role={['department_head', 'admin']}>
@@ -468,6 +513,38 @@ export default function App() {
             }
           />
           <Route
+            path={PATHS.adminSystemHealth}
+            element={
+              <ProtectedRoute role="admin">
+                <SystemHealthPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={PATHS.adminMaintenance}
+            element={
+              <ProtectedRoute role="admin">
+                <MaintenanceLogPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={PATHS.adminFeedback}
+            element={
+              <ProtectedRoute role="admin">
+                <FeedbackAdminPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={PATHS.feedback}
+            element={
+              <ProtectedRoute>
+                <FeedbackPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path={PATHS.adminNotificationMonitoring}
             element={
               <ProtectedRoute role="admin">
@@ -497,6 +574,23 @@ export default function App() {
             element={
               <ProtectedRoute permission="notifications.view">
                 <NotificationPreferencesPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path={PATHS.reportAnalysis}
+            element={
+              <ProtectedRoute permission="reports.view">
+                <ReportAiAnalysisPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={PATHS.reportAiReview}
+            element={
+              <ProtectedRoute permission="reports.view">
+                <ReportAiReviewPage />
               </ProtectedRoute>
             }
           />
@@ -557,6 +651,156 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+
+          <Route
+            path={PATHS.aiChat}
+            element={
+              <ProtectedRoute>
+                <AiChatPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={PATHS.aiInsights}
+            element={
+              <ProtectedRoute role={['admin', 'hr', 'department_head']}>
+                <AiInsightsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Phase 8 Data Quality & Integrity Monitoring */}
+          <Route
+            path={PATHS.dataQualityDashboard}
+            element={
+              <ProtectedRoute role={['admin', 'hr', 'department_head']}>
+                <DataQualityDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={PATHS.dataQualityIssues}
+            element={
+              <ProtectedRoute role={['admin', 'hr', 'department_head']}>
+                <DataQualityIssuesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={PATHS.dataQualityIssueDetail}
+            element={
+              <ProtectedRoute role={['admin', 'hr', 'department_head']}>
+                <DataQualityIssueDetailsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={PATHS.dataQualityScans}
+            element={
+              <ProtectedRoute role={['admin', 'hr', 'department_head']}>
+                <DataQualityScansPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Phase 9 Advanced Reporting & Management Intelligence */}
+          <Route
+            path={PATHS.reportingHub}
+            element={
+              <ProtectedRoute permission="reports.view">
+                <ReportingDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={PATHS.reportingEmployee}
+            element={
+              <ProtectedRoute permission="reports.view">
+                <EmployeeReportPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={PATHS.reportingExports}
+            element={
+              <ProtectedRoute permission="reports.view">
+                <ReportExportsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={PATHS.reportingDepartment}
+            element={
+              <ProtectedRoute permission="analytics.view">
+                <DepartmentReportPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={PATHS.reportingMonthly}
+            element={
+              <ProtectedRoute permission="analytics.view">
+                <MonthlyPerformancePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={PATHS.reportingAchievements}
+            element={
+              <ProtectedRoute permission="analytics.view">
+                <AchievementReportPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={PATHS.reportingLate}
+            element={
+              <ProtectedRoute permission="analytics.view">
+                <LateReportsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={PATHS.reportingPending}
+            element={
+              <ProtectedRoute permission="analytics.view">
+                <PendingReportsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={PATHS.reportingTargets}
+            element={
+              <ProtectedRoute permission="analytics.view">
+                <TargetReportPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={PATHS.reportingDataQuality}
+            element={
+              <ProtectedRoute permission="analytics.view">
+                <DataQualityReportPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={PATHS.reportingManagementSummary}
+            element={
+              <ProtectedRoute permission="analytics.view">
+                <ManagementSummaryPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={PATHS.reportingAnalytics}
+            element={
+              <ProtectedRoute permission="analytics.view">
+                <AnalyticsHubPage />
+              </ProtectedRoute>
+            }
+          />
+
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>

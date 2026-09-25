@@ -1,0 +1,23 @@
+JPC Portal v1.0.0
+Release date: 2026-09-25 (final release)
+
+Major features: employee & department management; annual plan -> target -> task
+planning; report workflow with immutable versions and review/approval; OCR document
+processing; AI report analysis (summary, validation, reference & similarity
+indicators, findings, insights); performance records & KPIs; achievements (badges,
+monthly achievements); data-quality scans; reporting & analytics; report exports
+(CSV/XLSX/PDF); AI Chat with authorized tools; notifications with preferences,
+delivery logs and demo samples; audit & activity logs; RBAC + Sanctum cookie auth;
+private file storage; system health monitoring (application/database/queue/storage/
+AI/OCR); administrative maintenance log with audit trail; backup verification guard;
+user feedback and AI quality feedback loops (Phase 13).
+
+Phase 14 (final release): full demo-scenario hardening — every portal surface
+exercised by the four demo personas returns 200 in a live end-to-end run (93/93);
+all surfaces covered by new PortalSurfaceRegressionTest (backend suite 406 passed /
+1880 assertions; frontend 87 passed; oxlint 0 errors; production build PASS).
+
+Known limitations: AI/OCR depend on provider availability when real providers are
+enabled (offline fake engines are the default); similarity detection is an indicator
+requiring human validation; frontend bundle is a single ~869 kB chunk; email
+delivery depends on mail configuration.

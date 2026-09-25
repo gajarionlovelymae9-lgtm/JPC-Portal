@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Report extends Model
@@ -25,10 +26,18 @@ class Report extends Model
         'employee_id',
         'title',
         'description',
+        'content',
+        'references',
         'remarks',
+        'status',
+        'ai_status',
+        'is_late',
         'submission_date',
         'deadline',
         'version',
+        'submitted_at',
+        'approved_at',
+        'rejected_at',
     ];
 
     /**
@@ -39,6 +48,7 @@ class Report extends Model
     protected function casts(): array
     {
         return [
+            'status' => \App\Enums\ReportStatus::class,
             'submission_date' => 'date',
             'deadline' => 'date',
             'is_late' => 'boolean',
@@ -135,6 +145,45 @@ class Report extends Model
     public function approvals(): HasMany
     {
         return $this->hasMany(ReportApproval::class);
+    }
+
+    /**
+     * Structured AI findings for this report.
+     */
+    public function findings(): HasMany
+    {
+        return $this->hasMany(AiFinding::class);
+    }
+
+    /**
+     * Structured reviewer comments on report sections.
+     */
+    public function comments(): HasMany
+    {
+        return $this->hasMany(ReportReviewComment::class);
+    }
+
+    /**
+     * Event timeline audit logs for this report.
+     */
+    public function timeline(): HasMany
+    {
+        return $this->hasMany(ReportTimeline::class)->orderBy('created_at', 'asc');
+    }
+
+    /**
+     * OCR processings executed on this report (via its report files).
+     */
+    public function ocrProcessings(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            \App\Models\OcrProcessing::class,
+            \App\Models\ReportFile::class,
+            'report_id',
+            'report_file_id',
+            'id',
+            'id'
+        );
     }
 
     /**

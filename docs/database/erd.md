@@ -429,6 +429,44 @@ erDiagram
     USERS ||--o{ ACTIVITY_LOGS : "performs"
 ```
 
+## Phase 4–9 Additions (Workflow, AI Chat, Data Quality, Reporting)
+
+```mermaid
+erDiagram
+    REPORT ||--o{ REPORT_REVIEW_COMMENT : "comments"
+    REPORT ||--o{ REPORT_TIMELINE : "timeline"
+    REPORT_VERSION ||--o{ REPORT_FILE : "contains"
+    REPORT ||--o{ AI_FINDING : "finds"
+    REPORT ||--o{ AI_INSIGHT : "insights"
+
+    USERS ||--o{ AI_CHAT_CONVERSATION : "opens"
+    AI_CHAT_CONVERSATION ||--o{ AI_CHAT_MESSAGE : "contains"
+    AI_CHAT_MESSAGE ||--o{ AI_CHAT_TOOL_CALL : "invokes"
+
+    EMPLOYEE_PERFORMANCE_RECORD ||--o{ PERFORMANCE_SCORE_BREAKDOWN : "broken down"
+    PERFORMANCE_PERIODS ||--o{ EMPLOYEE_PERFORMANCE_RECORD : "period"
+
+    DATA_QUALITY_SCAN ||--o{ DATA_QUALITY_ISSUE : "finds"
+    DATA_QUALITY_ISSUE ||--o{ DATA_QUALITY_ISSUE_HISTORY : "history"
+    USER ||--o{ REPORT_EXPORT : "requests"
+    DEPARTMENT ||--o{ DEPARTMENT_PLAN : "plans"
+    ANNUAL_PLAN ||--o{ DEPARTMENT_PLAN : "scopes"
+    DEPARTMENT ||--o{ DEPARTMENT_TARGET : "targets"
+    DEPARTMENT_PLAN ||--o{ DEPARTMENT_TARGET : "contains"
+    EMPLOYEE_TARGET }o--|| DEPARTMENT_TARGET : "may derive"
+
+    TASK_ASSIGNMENT ||--o{ TASK_PROGRESS : "progress trail"
+    TASK_ASSIGNMENT ||--o{ TASK_REVIEW : "reviewed"
+    TASK ||--o{ TASK_COMMENT : "discussed"
+    TASK ||--o{ TASK_ATTACHMENT : "attached"
+
+    USERS ||--o{ NOTIFICATION_PREFERENCE : "routing"
+    NOTIFICATIONS ||--o{ NOTIFICATION_LOG : "delivery trace"
+    USER ||--o{ MESSAGE : "sends/receives"
+    USER ||--o{ ANNOUNCEMENT : "author of"
+    DEPARTMENT ||--o{ DEPARTMENT_ESCALATION : "escalates"
+```
+
 ## Legend
 
 | Symbol | Meaning |
@@ -441,3 +479,7 @@ erDiagram
 
 Entity-type FKs (audit_logs.entity_type, activity_logs.subject_type) are polymorphic
 logical references and intentionally have no formal foreign key constraint.
+
+> The diagrams above document the design reference. The authoritative live schema is
+> produced by `backend/database/migrations/*.php`; see also
+> [`../DATABASE.md`](../DATABASE.md) for per-table documentation.

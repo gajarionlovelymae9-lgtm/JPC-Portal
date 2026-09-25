@@ -21,7 +21,11 @@ class ReportReview extends Model
         'report_id',
         'reviewer_id',
         'review_type',
+        'decision',
+        'status',
         'comments',
+        'remarks',
+        'reviewed_at',
     ];
 
     /**

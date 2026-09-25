@@ -1,0 +1,1 @@
+<?php namespace Tests\Feature\Ai; use Tests\TestCase; class AiReportSummaryTest extends TestCase { public function test_summary() { $this->assertTrue(true); } }

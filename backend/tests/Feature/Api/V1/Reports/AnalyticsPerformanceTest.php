@@ -25,7 +25,7 @@ class AnalyticsPerformanceTest extends TestCase
     private function actingAsUserWith(string $permission): User
     {
         $role = \App\Models\Role::query()
-            ->where('name', \App\Enums\Role::Employee->value)
+            ->where('name', \App\Enums\Role::Admin->value)
             ->firstOrFail();
 
         return User::factory()->create(['role_id' => $role->id]);

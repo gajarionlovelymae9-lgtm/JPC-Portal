@@ -3,10 +3,10 @@
 namespace App\Services\Employee;
 
 use App\Models\Employee;
+use App\Models\Notification;
 use App\Models\Report;
 use App\Models\TaskAssignment;
 use App\Models\User;
-use App\Services\Notifications\NotificationService;
 use App\Services\Reports\PerformanceCalculationService;
 use App\Services\TaskManagement\TaskAssignmentService;
 use App\Services\AiReports\ReportAnalysisService;
@@ -34,7 +34,6 @@ class EmployeePortalService
     public function __construct(
         private readonly TaskAssignmentService $taskAssignmentService,
         private readonly PerformanceCalculationService $performanceCalculation,
-        private readonly NotificationService $notificationService,
         private readonly ReportAnalysisService $reportAnalysisService,
     ) {}
 
@@ -131,7 +130,7 @@ class EmployeePortalService
             throw ValidationException::withMessages(['progress' => ['Progress must be between 0 and 100.']]);
         }
 
-        $assignment->update(['completion_percentage' => $progress]);
+        $assignment->update(['progress_percentage' => $progress]);
 
         // If 100%, auto-update to in_progress (completion still requires explicit submit)
         if ($progress === 100 && $assignment->status === 'pending') {
@@ -152,17 +151,15 @@ class EmployeePortalService
 
         // Deadline check (server-side, never trusted from client)
         $isLate = false;
-        if ($assignment->due_at && Carbon::now()->isAfter($assignment->due_at)) {
+        if ($assignment->due_date && Carbon::now()->isAfter($assignment->due_date)) {
             $isLate = true;
         }
 
         $assignment->update([
             'status'               => 'submitted',
-            'completion_percentage' => 100,
-            'submitted_at'         => Carbon::now(),
-            'completion_notes'     => $data['notes'] ?? null,
-            'is_late'              => $isLate,
-            'late_reason'          => $isLate ? ($data['late_reason'] ?? null) : null,
+            'progress_percentage'  => 100,
+            'completed_at'         => Carbon::now(),
+            'remarks'              => ($data['notes'] ?? null),
         ]);
 
         $this->invalidate($employee);
@@ -343,12 +340,12 @@ class EmployeePortalService
         $assignments = $this->assignments($employee);
 
         $taskEvents = $assignments
-            ->filter(fn (TaskAssignment $a) => $a->due_at !== null)
+            ->filter(fn (TaskAssignment $a) => $a->due_date !== null)
             ->map(fn (TaskAssignment $a) => [
                 'id'     => $a->id,
                 'type'   => 'task',
                 'title'  => $a->task?->title ?? "Task #{$a->task_id}",
-                'date'   => $a->due_at->toDateString(),
+                'date'   => $a->due_date->toDateString(),
                 'status' => $a->status,
                 'is_overdue' => $a->isOverdue(),
                 'link'   => "/employee/tasks/{$a->task_id}",
@@ -469,8 +466,11 @@ class EmployeePortalService
 
     public function notifications(User $user): array
     {
-        $items = $this->notificationService->forUser($user->id)
+        $items = Notification::query()
+            ->forUser($user->id)
+            ->latest('created_at')
             ->take(20)
+            ->get()
             ->map(fn ($n) => [
                 'id'         => $n->id,
                 'type'       => $n->type,
@@ -599,7 +599,7 @@ class EmployeePortalService
             return 0.0;
         }
         $onTime = $finished->filter(
-            fn (TaskAssignment $a) => $a->completed_at && $a->due_at && $a->completed_at->lte($a->due_at)
+            fn (TaskAssignment $a) => $a->completed_at && $a->due_date && $a->completed_at->lte($a->due_date)
         )->count();
 
         return round(($onTime / $finished->count()) * 100, 2);
@@ -609,20 +609,20 @@ class EmployeePortalService
     {
         return $assignments
             ->filter(fn (TaskAssignment $a) =>
-                $a->due_at &&
+                $a->due_date &&
                 ! $a->isOverdue() &&
                 ! in_array($a->status, ['completed', 'approved'], true) &&
-                $a->due_at->isAfter(Carbon::now()) &&
-                $a->due_at->isBefore(Carbon::now()->addDays(14))
+                $a->due_date->isAfter(Carbon::now()) &&
+                $a->due_date->isBefore(Carbon::now()->addDays(14))
             )
-            ->sortBy('due_at')
+            ->sortBy('due_date')
             ->take(5)
             ->map(fn (TaskAssignment $a) => [
                 'id'             => $a->id,
                 'task_id'        => $a->task_id,
                 'title'          => $a->task?->title,
-                'deadline'       => $a->due_at->toIso8601String(),
-                'days_remaining' => max(0, (int) Carbon::now()->startOfDay()->diffInDays($a->due_at->startOfDay(), false)),
+                'deadline'       => $a->due_date->toIso8601String(),
+                'days_remaining' => max(0, (int) Carbon::now()->startOfDay()->diffInDays($a->due_date->startOfDay(), false)),
                 'status'         => $a->status,
             ]);
     }
@@ -634,13 +634,13 @@ class EmployeePortalService
                 $a->isOverdue() &&
                 ! in_array($a->status, ['completed', 'approved'], true)
             )
-            ->sortBy('due_at')
+            ->sortBy('due_date')
             ->map(fn (TaskAssignment $a) => [
                 'id'          => $a->id,
                 'task_id'     => $a->task_id,
                 'title'       => $a->task?->title,
-                'deadline'    => $a->due_at?->toIso8601String(),
-                'days_overdue' => (int) abs(Carbon::now()->startOfDay()->diffInDays($a->due_at?->startOfDay() ?? Carbon::now(), false)),
+                'deadline'    => $a->due_date?->toIso8601String(),
+                'days_overdue' => (int) abs(Carbon::now()->startOfDay()->diffInDays($a->due_date?->startOfDay() ?? Carbon::now(), false)),
                 'status'      => $a->status,
             ]);
     }
@@ -697,8 +697,11 @@ class EmployeePortalService
             return [];
         }
 
-        return $this->notificationService->forUser($user->id)
+        return Notification::query()
+            ->forUser($user->id)
+            ->latest('created_at')
             ->take(5)
+            ->get()
             ->map(fn ($n) => [
                 'id'      => $n->id,
                 'title'   => $n->title,
@@ -724,19 +727,19 @@ class EmployeePortalService
             'description'   => $detailed ? ($a->task?->description) : null,
             'priority'      => $a->task?->priority,
             'assigned_date' => optional($a->assigned_at)->toIso8601String(),
-            'deadline'      => optional($a->due_at)->toIso8601String(),
-            'progress'      => (int) ($a->completion_percentage ?? 0),
+            'deadline'      => optional($a->due_date)->toIso8601String(),
+            'progress'      => (int) ($a->progress_percentage ?? 0),
             'status'        => $a->status,
             'is_overdue'    => $a->isOverdue(),
-            'is_late'       => (bool) ($a->is_late ?? false),
-            'submitted_at'  => optional($a->submitted_at)->toIso8601String(),
+            'is_late'       => ($a->completed_at && $a->due_date) ? $a->completed_at->gt($a->due_date) : false,
+            'submitted_at'  => optional($a->completed_at)->toIso8601String(),
         ];
 
         if ($detailed) {
-            $base['requirements']  = $a->task?->requirements ?? null;
-            $base['instructions']  = $a->task?->instructions ?? null;
+            $base['requirements']  = $a->task?->required_output ?? null;
+            $base['instructions']  = $a->task?->required_output ?? null;
             $base['target']        = $a->task?->target ?? null;
-            $base['notes']         = $a->completion_notes ?? null;
+            $base['notes']         = $a->remarks ?? null;
             $base['late_reason']   = $a->late_reason ?? null;
             $base['reviews']       = $a->reviews?->map(fn ($r) => [
                 'reviewer'  => $r->reviewer?->name,
@@ -861,8 +864,8 @@ class EmployeePortalService
         ]);
 
         // Version history (read-only previous versions)
-        $versions = $report->versions()->orderBy('version')->get()->map(fn ($v) => [
-            'version'      => $v->version,
+        $versions = $report->versions()->orderBy('version_number')->get()->map(fn ($v) => [
+            'version'      => $v->version_number,
             'status'       => $v->status,
             'submitted_at' => optional($v->submitted_at)->toIso8601String(),
             'created_at'   => optional($v->created_at)->toIso8601String(),

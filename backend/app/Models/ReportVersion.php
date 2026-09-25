@@ -21,9 +21,15 @@ class ReportVersion extends Model
     protected $fillable = [
         'report_id',
         'version_number',
+        'title',
+        'content',
+        'references',
+        'status',
         'submitted_by',
         'file_path',
         'notes',
+        'change_summary',
+        'metadata',
         'submitted_at',
     ];
 
@@ -36,31 +42,43 @@ class ReportVersion extends Model
     {
         return [
             'version_number' => 'integer',
+            'metadata' => 'array',
             'submitted_at' => 'datetime',
         ];
     }
 
-    /**
-     * The report this version belongs to.
-     */
     public function report(): BelongsTo
     {
         return $this->belongsTo(Report::class);
     }
 
-    /**
-     * The user who submitted this version.
-     */
     public function submitter(): BelongsTo
     {
         return $this->belongsTo(User::class, 'submitted_by');
     }
 
-    /**
-     * Files uploaded as part of this version.
-     */
     public function files(): HasMany
     {
         return $this->hasMany(ReportFile::class);
+    }
+
+    public function comments(): HasMany
+    {
+        return $this->hasMany(ReportReviewComment::class);
+    }
+
+    public function findings(): HasMany
+    {
+        return $this->hasMany(AiFinding::class);
+    }
+
+    public function reviews(): HasMany
+    {
+        return $this->hasMany(ReportReview::class);
+    }
+
+    public function timeline(): HasMany
+    {
+        return $this->hasMany(ReportTimeline::class);
     }
 }

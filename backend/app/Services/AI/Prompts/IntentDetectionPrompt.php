@@ -1,0 +1,1 @@
+<?php namespace App\Services\AI\Prompts; class IntentDetectionPrompt { public function build(string $msg): string { return 'intent prompt'; } }

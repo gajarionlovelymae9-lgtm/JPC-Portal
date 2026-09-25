@@ -1,0 +1,1 @@
+<?php namespace Tests\Feature\Ai; use Tests\TestCase; class AiConversationTest extends TestCase { public function test_conversation() { $this->assertTrue(true); } }

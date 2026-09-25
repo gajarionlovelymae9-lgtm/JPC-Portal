@@ -24,8 +24,8 @@ class DepartmentPerformanceService
             ->get();
         $employeeIds = $employees->pluck('id');
 
-        $assignments = TaskAssignment::whereIn('employee_id', $employeeIds)
-            ->with('task:id,deadline')
+$assignments = TaskAssignment::whereIn('employee_id', $employeeIds)
+            ->with('task:id,due_date')
             ->get();
 
         $reports = Report::whereIn('employee_id', $employeeIds)->get();
@@ -34,10 +34,10 @@ class DepartmentPerformanceService
         $completedAssignments = $assignments->whereIn('status', ['completed', 'approved'])->count();
         $completionRate = $totalAssignments > 0 ? round(($completedAssignments / $totalAssignments) * 100, 1) : 0;
 
-        $onTimeCount = $assignments->filter(function ($a) {
-            if (!$a->submitted_at) return false;
-            $deadline = $a->due_date ?? $a->task?->deadline;
-            return !$deadline || Carbon::parse($a->submitted_at)->lte(Carbon::parse($deadline));
+$onTimeCount = $assignments->filter(function ($a) {
+            if (!$a->completed_at) return false;
+            $deadline = $a->due_date ?? $a->task?->due_date;
+            return !$deadline || Carbon::parse($a->completed_at)->lte(Carbon::parse($deadline));
         })->count();
         $onTimeRate = $completedAssignments > 0 ? round(($onTimeCount / $completedAssignments) * 100, 1) : 100;
 
@@ -50,10 +50,10 @@ class DepartmentPerformanceService
             $empAssignments = $assignments->where('employee_id', $emp->id);
             $total = $empAssignments->count();
             $completed = $empAssignments->whereIn('status', ['completed', 'approved'])->count();
-            $onTime = $empAssignments->filter(function ($a) {
-                if (!$a->submitted_at) return false;
-                $deadline = $a->due_date ?? $a->task?->deadline;
-                return !$deadline || Carbon::parse($a->submitted_at)->lte(Carbon::parse($deadline));
+$onTime = $empAssignments->filter(function ($a) {
+                if (!$a->completed_at) return false;
+                $deadline = $a->due_date ?? $a->task?->due_date;
+                return !$deadline || Carbon::parse($a->completed_at)->lte(Carbon::parse($deadline));
             })->count();
 
             $rate = $total > 0 ? round(($completed / $total) * 100, 1) : 0;

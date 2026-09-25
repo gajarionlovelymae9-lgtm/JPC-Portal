@@ -76,8 +76,8 @@ class DepartmentEmployeeService
             'department:id,name',
         ]);
 
-        $assignments = TaskAssignment::where('employee_id', $employee->id)
-            ->with('task:id,title,deadline,priority')
+$assignments = TaskAssignment::where('employee_id', $employee->id)
+            ->with('task:id,title,due_date,priority')
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -90,9 +90,9 @@ class DepartmentEmployeeService
         $completedTasks = $assignments->whereIn('status', ['completed', 'approved'])->count();
         $pendingTasks = $assignments->whereIn('status', ['assigned', 'in_progress'])->count();
 
-        $now = Carbon::now();
+$now = Carbon::now();
         $overdueTasks = $assignments->filter(function ($a) use ($now) {
-            $deadline = $a->due_date ?? $a->task?->deadline;
+            $deadline = $a->due_date ?? $a->task?->due_date;
             return $deadline && Carbon::parse($deadline)->isPast() && !in_array($a->status, ['completed', 'approved']);
         })->count();
 
@@ -120,15 +120,15 @@ class DepartmentEmployeeService
                 'reports_submitted' => $reports->count(),
                 'completion_rate' => $completionRate,
             ],
-            'assignments' => $assignments->map(fn ($a) => [
+'assignments' => $assignments->map(fn ($a) => [
                 'id' => $a->id,
                 'task_id' => $a->task_id,
                 'task_title' => $a->task?->title ?? '—',
                 'priority' => $a->task?->priority ?? 'medium',
                 'status' => $a->status,
-                'progress' => (int) ($a->completion_percentage ?? 0),
-                'due_date' => $a->due_date ?? $a->task?->deadline,
-                'submitted_at' => $a->submitted_at,
+                'progress' => (int) ($a->progress_percentage ?? 0),
+                'due_date' => $a->due_date ?? $a->task?->due_date,
+                'submitted_at' => $a->completed_at,
             ]),
             'reports' => $reports->map(fn ($r) => [
                 'id' => $r->id,

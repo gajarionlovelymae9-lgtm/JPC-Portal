@@ -131,18 +131,18 @@ class AnnouncementService
     private function resolveAudience(Announcement $announcement): \Illuminate\Support\Collection
     {
         return match ($announcement->audience_type) {
-            'all' => User::query()->where('is_active', true)->get(['id']),
+            'all' => User::query()->where('status', 'active')->get(['id']),
             'role' => User::query()
-                ->where('is_active', true)
+                ->where('status', 'active')
                 ->whereHas('roles', fn ($q) => $q->where('name', $announcement->audience_id))
                 ->get(['id']),
             'department' => User::query()
-                ->where('is_active', true)
+                ->where('status', 'active')
                 ->whereHas('employee', fn ($q) => $q->where('department_id', $announcement->audience_id))
                 ->get(['id']),
             'user' => User::query()
                 ->where('id', $announcement->audience_id)
-                ->where('is_active', true)
+                ->where('status', 'active')
                 ->get(['id']),
             default => collect(),
         };

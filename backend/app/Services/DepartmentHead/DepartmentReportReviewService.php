@@ -27,10 +27,10 @@ class DepartmentReportReviewService
         $department = $this->context->resolveDepartment($user, $filters['department_id'] ?? null);
         $employeeIds = Employee::where('department_id', $department->id)->pluck('id');
 
-        $query = Report::whereIn('employee_id', $employeeIds)
+$query = Report::whereIn('employee_id', $employeeIds)
             ->with([
                 'employee.position:id,name',
-                'task:id,title,deadline',
+                'task:id,title,due_date',
                 'reviews.reviewer:id,name',
             ]);
 
@@ -64,7 +64,7 @@ class DepartmentReportReviewService
                 'employee_name' => $r->employee ? $r->employee->first_name . ' ' . $r->employee->last_name : '—',
                 'employee_number' => $r->employee?->employee_number,
                 'submitted_at' => $r->submitted_at ? Carbon::parse($r->submitted_at)->toIso8601String() : null,
-                'deadline' => $r->task?->deadline ? Carbon::parse($r->task->deadline)->format('Y-m-d') : null,
+                'deadline' => $r->task?->due_date ? Carbon::parse($r->task->due_date)->format('Y-m-d') : null,
                 'is_late' => (bool) ($r->is_late ?? false),
                 'reviews_count' => $r->reviews->count(),
                 'latest_reviewer' => $r->reviews->last()?->reviewer?->name,
@@ -77,31 +77,30 @@ class DepartmentReportReviewService
         $department = $this->context->resolveDepartment($user);
         $this->context->authorizeReport($department, $report);
 
-        $report->load([
+$report->load([
             'employee.position:id,name',
             'employee.user:id,email',
-            'task:id,title,description,deadline,requirements,instructions',
+            'task:id,title,description,due_date,required_output',
             'reviews.reviewer:id,name',
             'files',
-            'ocrProcessing',
-            'aiAnalysis',
-            'aiSummary',
-            'aiValidationResult.items',
-            'aiSimilarityResult',
         ]);
 
-        $ocr = $report->ocrProcessing;
-        $aiSummary = $report->aiSummary;
-        $aiVal = $report->aiValidationResult;
-        $aiSim = $report->aiSimilarityResult;
+        $latestAnalysis   = $report->aiAnalyses()->latest('id')->first();
+        $latestSummary    = $report->aiSummaries()->latest('id')->first();
+        $latestValidation = $report->aiValidationResults()->latest('id')->first();
+        $latestOcr        = $report->ocrProcessings()->latest('id')->first();
+
+        $ocr = $latestOcr;
+        $aiSummary = $latestSummary;
+        $aiVal = $latestValidation;
 
         $requirementChecks = [];
-        if ($aiVal && $aiVal->items) {
+        if ($aiVal) {
             foreach ($aiVal->items as $item) {
                 $requirementChecks[] = [
-                    'requirement' => $item->requirement_text ?? $item->label ?? 'Requirement Check',
+                    'requirement' => $item->requirement ?? $item->description ?? $item->label ?? 'Requirement Check',
                     'status' => $item->status ?? 'found',
-                    'note' => $item->evidence ?? $item->notes ?? null,
+                    'note' => $item->note ?? $item->evidence ?? $item->notes ?? null,
                 ];
             }
         } else {
@@ -128,12 +127,12 @@ class DepartmentReportReviewService
                 'employee_number' => $report->employee?->employee_number,
                 'position' => $report->employee?->position?->name ?? 'Faculty',
             ],
-            'task' => [
+'task' => [
                 'id' => $report->task?->id,
                 'title' => $report->task?->title ?? '—',
                 'description' => $report->task?->description,
-                'deadline' => $report->task?->deadline ? Carbon::parse($report->task->deadline)->format('Y-m-d') : null,
-                'requirements' => $report->task?->requirements,
+                'deadline' => $report->task?->due_date ? Carbon::parse($report->task->due_date)->format('Y-m-d') : null,
+                'requirements' => $report->task?->required_output,
             ],
             'files' => $report->files->map(fn ($f) => [
                 'id' => $f->id,
@@ -141,9 +140,9 @@ class DepartmentReportReviewService
                 'size' => $f->file_size ?? 0,
                 'url' => $f->file_path ?? '#',
             ]),
-            'ocr' => $ocr ? [
+'ocr' => $ocr ? [
                 'status' => $ocr->status ?? 'completed',
-                'extracted_text' => $ocr->extracted_text,
+                'extracted_text' => $ocr->raw_text,
                 'confidence' => $ocr->confidence_score ? round($ocr->confidence_score * 100) : 95,
                 'confidence_label' => ($ocr->confidence_score ?? 0.95) >= 0.85 ? 'High Confidence' : 'Medium Confidence',
                 'warning' => ($ocr->confidence_score ?? 0.95) < 0.75 ? 'Low confidence: manual verification recommended.' : null,
@@ -155,9 +154,9 @@ class DepartmentReportReviewService
                 'warning' => null,
             ],
             'ai_summary' => [
-                'executive_summary' => $aiSummary?->summary_text ?? 'Report contains the formal documentation of assigned deliverables with documented references and completed milestones.',
-                'key_points' => $aiSummary?->key_points ?? ['Delivered on schedule', 'Adheres to task specifications', 'Verified references attached'],
-                'accomplishments' => $aiSummary?->accomplishments ?? ['Completed primary objective', 'Prepared supporting documentation'],
+                'executive_summary' => $this->extractSummary($aiSummary) ?? 'Report contains the formal documentation of assigned deliverables with documented references and completed milestones.',
+                'key_points' => $aiSummary?->key_findings ?? ['Delivered on schedule', 'Adheres to task specifications', 'Verified references attached'],
+                'accomplishments' => $aiSummary?->key_accomplishments ?? ['Completed primary objective', 'Prepared supporting documentation'],
                 'issues' => $aiSummary?->issues ?? [],
                 'disclaimer' => 'AI-generated summary. Verify against the original report.',
             ],
@@ -184,6 +183,23 @@ class DepartmentReportReviewService
                 'created_at' => $rv->created_at?->toIso8601String(),
             ]),
         ];
+    }
+
+    private function extractSummary($aiSummary): ?string
+    {
+        if (! $aiSummary) {
+            return null;
+        }
+
+        $raw = is_string($aiSummary->summary)
+            ? json_decode($aiSummary->summary, true)
+            : $aiSummary->summary;
+
+        if (is_array($raw)) {
+            return $raw['executive_summary'] ?? $raw['summary'] ?? null;
+        }
+
+        return $aiSummary->summary;
     }
 
     public function submitReview(User $user, Report $report, array $data): array
@@ -224,9 +240,10 @@ class DepartmentReportReviewService
             if ($newStatus === 'approved' && $report->task_id && $report->employee_id) {
                 TaskAssignment::where('task_id', $report->task_id)
                     ->where('employee_id', $report->employee_id)
-                    ->update([
+->update([
                         'status' => 'completed',
-                        'completion_percentage' => 100,
+                        'progress_percentage' => 100,
+                        'completed_at' => Carbon::now(),
                     ]);
             }
 
@@ -248,8 +265,9 @@ class DepartmentReportReviewService
                     'user_id' => $report->employee->user_id,
                     'type' => $newStatus === 'approved' ? 'approval' : ($newStatus === 'revision_required' ? 'revision' : 'report'),
                     'title' => "Report {$newStatus}: {$report->title}",
-                    'message' => $comments ?: "Your report has been {$newStatus} by your Department Head.",
-                    'is_read' => false,
+'message' => $comments ?: "Your report has been {$newStatus} by your Department Head.",
+                    'data' => ['record_id' => $report->id],
+                    'read_at' => null,
                 ]);
             }
 

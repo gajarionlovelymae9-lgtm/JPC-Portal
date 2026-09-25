@@ -1,62 +1,146 @@
-﻿import { useEffect, useState } from 'react'
-import { getMyPerformanceSummary } from '../../services/employeePortalService'
-import type { EmployeePerformance } from '../../services/employeePortalService'
-
-function StatCard({ label, value, color }: { label: string; value: string; color: string }) {
-  return (
-    <div className="bg-white border border-gray-200 rounded-xl p-5 text-center">
-      <div className={`text-3xl font-bold ${color}`}>{value}</div>
-      <div className="text-sm text-gray-500 mt-1">{label}</div>
-    </div>
-  )
-}
+import { useEffect, useState } from 'react'
+import { performanceService } from '../../services/performanceService'
+import type { EmployeePerformanceData } from '../../types/performance'
+import { ProductivityScoreCard } from '../../components/performance/ProductivityScoreCard'
+import { KpiGrid } from '../../components/performance/KpiGrid'
+import { ScoreBreakdownView } from '../../components/performance/ScoreBreakdownView'
+import { PerformanceTrendChart } from '../../components/performance/PerformanceTrendChart'
+import { BadgeShowcase } from '../../components/performance/BadgeShowcase'
 
 export default function EmployeePerformancePage() {
-  const [data, setData] = useState<EmployeePerformance | null>(null)
+  const [data, setData] = useState<EmployeePerformanceData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1)
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear())
+
+  const months = [
+    { value: 1, label: 'January' },
+    { value: 2, label: 'February' },
+    { value: 3, label: 'March' },
+    { value: 4, label: 'April' },
+    { value: 5, label: 'May' },
+    { value: 6, label: 'June' },
+    { value: 7, label: 'July' },
+    { value: 8, label: 'August' },
+    { value: 9, label: 'September' },
+    { value: 10, label: 'October' },
+    { value: 11, label: 'November' },
+    { value: 12, label: 'December' },
+  ]
+
+  const years = [2025, 2026, 2027]
 
   useEffect(() => {
-    getMyPerformanceSummary()
-      .then(r => setData(r.data))
-      .catch(() => setError('Unable to load performance data.'))
-      .finally(() => setLoading(false))
-  }, [])
+    loadPerformance()
+  }, [selectedMonth, selectedYear])
 
-  if (loading) return <div className="p-6 space-y-3">{[...Array(5)].map((_,i) => <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse"/>)}</div>
-  if (error || !data) return <div className="p-6 bg-red-50 text-red-700 rounded-lg">{error}</div>
+  const loadPerformance = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const res = await performanceService.getMyPerformance(selectedYear, selectedMonth)
+      if (res.success && res.data) {
+        setData(res.data)
+      } else {
+        setError('Failed to retrieve performance calculations.')
+      }
+    } catch (err) {
+      console.error(err)
+      setError('Unable to connect to the performance service.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
-  const s = data.summary
   return (
-    <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">My Performance</h1>
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-blue-800 text-xs">ℹ {data.disclaimer}</div>
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <StatCard label="Completion Rate" value={`${s.completion_rate}%`} color="text-blue-600"/>
-        <StatCard label="On-Time Rate" value={`${s.on_time_rate}%`} color="text-green-600"/>
-        <StatCard label="Approval Rate" value={`${s.approval_rate}%`} color="text-purple-600"/>
-        <StatCard label="Target Achievement" value={`${s.target_achievement}%`} color="text-orange-600"/>
-        <StatCard label="Performance Score" value={`${s.performance_score}`} color="text-indigo-600"/>
-      </div>
-      {data.monthly_trend.length > 0 && (
-        <div className="bg-white border border-gray-200 rounded-xl p-5">
-          <h2 className="font-semibold text-gray-800 mb-4">Monthly Trend</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead><tr className="text-left text-gray-500 border-b">{['Month','Completion','On-Time','Target Achievement'].map(h=><th key={h} className="pb-2 pr-4">{h}</th>)}</tr></thead>
-              <tbody className="divide-y divide-gray-50">
-                {data.monthly_trend.map((m,i) => (
-                  <tr key={i}>
-                    <td className="py-2 pr-4 text-gray-700">{m.month} {m.year}</td>
-                    <td className="py-2 pr-4"><span className="font-medium text-blue-600">{m.completion_rate}%</span></td>
-                    <td className="py-2 pr-4"><span className="font-medium text-green-600">{m.on_time_rate}%</span></td>
-                    <td className="py-2"><span className="font-medium text-orange-600">{m.target_achievement}%</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+    <div className="p-6 max-w-7xl mx-auto space-y-6">
+      {/* Header & Period Filter */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
+            <span>📊</span>
+            <span>My Performance & KPI Dashboard</span>
+          </h1>
+          <p className="text-xs text-gray-500 mt-1">
+            Authoritative performance monitoring, productivity scoring, and verified achievements
+          </p>
         </div>
+
+        <div className="flex items-center gap-2">
+          <select
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(Number(e.target.value))}
+            className="text-xs font-semibold bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-gray-700 focus:ring-2 focus:ring-indigo-500"
+          >
+            {months.map((m) => (
+              <option key={m.value} value={m.value}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(Number(e.target.value))}
+            className="text-xs font-semibold bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-gray-700 focus:ring-2 focus:ring-indigo-500"
+          >
+            {years.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+
+          <button
+            onClick={loadPerformance}
+            className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors"
+          >
+            🔄 Refresh
+          </button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="p-16 text-center text-xs text-gray-500 flex flex-col items-center gap-3">
+          <span className="text-3xl animate-spin">⚙️</span>
+          <span>Computing verified performance data...</span>
+        </div>
+      ) : error || !data ? (
+        <div className="p-6 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs font-medium">
+          ⚠️ {error || 'No performance records found for this period.'}
+        </div>
+      ) : (
+        <>
+          {/* Main Score & Top KPIs */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1">
+              <ProductivityScoreCard
+                score={data.productivity_score}
+                rating={data.rating}
+                ratingColor={data.rating_color}
+                calculationVersion={data.calculation_version}
+                periodName={data.period.name}
+              />
+            </div>
+
+            <div className="lg:col-span-2">
+              <ScoreBreakdownView
+                breakdowns={data.breakdowns}
+                finalScore={data.productivity_score}
+              />
+            </div>
+          </div>
+
+          {/* 5 Core KPIs Grid */}
+          <KpiGrid kpis={data.kpis} metadata={data.metadata} />
+
+          {/* Multi-Month Trend Chart */}
+          <PerformanceTrendChart history={data.history} />
+
+          {/* Badges Showcase */}
+          <BadgeShowcase badges={data.badges} />
+        </>
       )}
     </div>
   )

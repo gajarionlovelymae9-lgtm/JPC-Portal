@@ -45,6 +45,110 @@ class ReportExportService
     }
 
     /**
+     * Write an export file to disk (queue pipeline, spec items 53-55).
+     *
+     * Reuses the exact same builders as stream(): CSV via fputcsv, XLSX via
+     * ZipArchive, PDF via the hand-built document. Paths are supplied by the
+     * caller (unpredictable names under the private reports disk).
+     *
+     * @param  list<string>  $columns
+     * @param  list<array<string, mixed>>  $rows
+     */
+    public function writeToFile(string $path, array $columns, array $rows, string $format): string
+    {
+        $format = strtolower($format);
+        if (! in_array($format, ReportFilterBag::FORMATS, true)) {
+            $format = 'csv';
+        }
+
+        match ($format) {
+            'xlsx' => $this->writeXlsx($path, $columns, $rows),
+            'pdf' => $this->writePdf($path, $columns, $rows),
+            default => $this->writeCsv($path, $columns, $rows),
+        };
+
+        return $path;
+    }
+
+    /**
+     * @param  list<string>  $columns
+     * @param  list<array<string, mixed>>  $rows
+     */
+    private function writeCsv(string $path, array $columns, array $rows): void
+    {
+        $stream = fopen($path, 'w');
+        if ($stream === false) {
+            abort(500, 'Unable to open export file for writing.');
+        }
+
+        fwrite($stream, "\xEF\xBB\xBF");
+        fputcsv($stream, $this->sanitizeCells($columns));
+        foreach ($rows as $row) {
+            $cells = [];
+            foreach ($columns as $column) {
+                $cells[] = $row[$column] ?? $row[Str::slug($column)] ?? '';
+            }
+            fputcsv($stream, $this->sanitizeCells($cells));
+        }
+        fclose($stream);
+    }
+
+    /**
+     * @param  list<string>  $columns
+     * @param  list<array<string, mixed>>  $rows
+     */
+    private function writeXlsx(string $path, array $columns, array $rows): void
+    {
+        $parts = $this->buildXlsxParts($columns, $rows);
+
+        $tmp = tempnam(sys_get_temp_dir(), 'jpc_xlsx_');
+        if ($tmp === false) {
+            abort(500, 'Unable to allocate temporary file for export.');
+        }
+
+        try {
+            $zip = new \ZipArchive;
+            if ($zip->open($tmp, \ZipArchive::CREATE) !== true) {
+                abort(500, 'Unable to create workbook archive.');
+            }
+
+            foreach ($parts as $name => $content) {
+                $zip->addFromString($name, $content);
+            }
+            $zip->close();
+
+            if (! rename($tmp, $path)) {
+                copy($tmp, $path);
+                @unlink($tmp);
+            }
+        } finally {
+            @unlink($tmp);
+        }
+    }
+
+    /**
+     * @param  list<string>  $columns
+     * @param  list<array<string, mixed>>  $rows
+     */
+    private function writePdf(string $path, array $columns, array $rows): void
+    {
+        $lines = [];
+        $lines[] = $this->squash($columns);
+        $lines[] = '';
+        foreach ($rows as $row) {
+            $cells = [];
+            foreach ($columns as $column) {
+                $cells[] = (string) ($row[$column] ?? $row[Str::slug($column)] ?? '');
+            }
+            $lines[] = $this->squash($cells);
+        }
+
+        if (file_put_contents($path, $this->buildPdf($lines)) === false) {
+            abort(500, 'Unable to write PDF export file.');
+        }
+    }
+
+    /**
      * @param  list<string>  $columns
      * @param  list<array<string, mixed>>  $rows
      */

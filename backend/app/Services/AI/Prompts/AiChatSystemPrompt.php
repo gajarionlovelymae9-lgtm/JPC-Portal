@@ -1,0 +1,1 @@
+<?php namespace App\Services\AI\Prompts; class AiChatSystemPrompt { public function systemPrompt(): string { return 'system prompt'; } }

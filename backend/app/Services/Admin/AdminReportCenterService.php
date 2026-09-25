@@ -20,7 +20,7 @@ class AdminReportCenterService
         $query = Report::with([
             'employee.department:id,name',
             'employee.position:id,name',
-            'task:id,title,deadline',
+            'task:id,title,due_date',
         ]);
 
         if (!empty($filters['department_id']) && $filters['department_id'] !== 'all') {
@@ -57,7 +57,7 @@ class AdminReportCenterService
                 'employee_number' => $r->employee?->employee_number,
                 'department_name' => $r->employee?->department?->name ?? 'Academic',
                 'submitted_at' => $r->submitted_at ? Carbon::parse($r->submitted_at)->toIso8601String() : null,
-                'deadline' => $r->task?->deadline ? Carbon::parse($r->task->deadline)->format('Y-m-d') : null,
+                'deadline' => $r->task?->due_date ? Carbon::parse($r->task->due_date)->format('Y-m-d') : null,
                 'is_late' => (bool) ($r->is_late ?? false),
             ];
         })->toArray();
@@ -68,28 +68,32 @@ class AdminReportCenterService
         $report->load([
             'employee.department:id,name',
             'employee.position:id,name',
-            'task:id,title,description,deadline,requirements',
+            'task:id,title,description,due_date,required_output',
             'reviews.reviewer:id,name',
             'files',
-            'ocrProcessing',
-            'aiSummary',
-            'aiValidationResult.items',
         ]);
 
-        $ocr = $report->ocrProcessing;
-        $aiSummary = $report->aiSummary;
-        $aiVal = $report->aiValidationResult;
+        $latestAnalysis   = $report->aiAnalyses()->latest('id')->first();
+        $latestSummary    = $report->aiSummaries()->latest('id')->first();
+        $latestValidation = $report->aiValidationResults()->latest('id')->first();
+        $latestOcr        = $report->ocrProcessings()->latest('id')->first();
+
+        $ocr = $latestOcr;
+        $aiSummary = $latestSummary;
+        $aiVal = $latestValidation;
 
         $requirementChecks = [];
-        if ($aiVal && $aiVal->items) {
+        if ($aiVal) {
             foreach ($aiVal->items as $item) {
                 $requirementChecks[] = [
-                    'requirement' => $item->requirement_text ?? $item->label ?? 'Requirement Check',
+                    'requirement' => $item->requirement ?? $item->description ?? $item->label ?? 'Requirement Check',
                     'status' => $item->status ?? 'found',
-                    'note' => $item->evidence ?? null,
+                    'note' => $item->note ?? $item->evidence ?? null,
                 ];
             }
-        } else {
+        }
+
+        if (empty($requirementChecks)) {
             $requirementChecks = [
                 ['requirement' => 'Deliverable format & completeness', 'status' => 'found', 'note' => 'Original document stored.'],
                 ['requirement' => 'Task milestone adherence', 'status' => 'found', 'note' => 'Matched against assigned task criteria.'],
@@ -116,7 +120,7 @@ class AdminReportCenterService
                 'id' => $report->task?->id,
                 'title' => $report->task?->title ?? '—',
                 'description' => $report->task?->description,
-                'deadline' => $report->task?->deadline ? Carbon::parse($report->task->deadline)->format('Y-m-d') : null,
+                'deadline' => $report->task?->due_date ? Carbon::parse($report->task->due_date)->format('Y-m-d') : null,
             ],
             'files' => $report->files->map(fn ($f) => [
                 'id' => $f->id,
@@ -126,12 +130,12 @@ class AdminReportCenterService
             ]),
             'ocr' => [
                 'status' => $ocr?->status ?? 'completed',
-                'extracted_text' => $ocr?->extracted_text ?? $report->content ?? 'Direct text submission.',
+                'extracted_text' => $ocr?->raw_text ?? $report->content ?? 'Direct text submission.',
                 'confidence' => $ocr?->confidence_score ? round($ocr->confidence_score * 100) : 95,
             ],
             'ai_summary' => [
-                'executive_summary' => $aiSummary?->summary_text ?? 'Report contains the formal documentation of assigned deliverables with documented references and completed milestones.',
-                'key_points' => $aiSummary?->key_points ?? ['Delivered on schedule', 'Adheres to task specifications', 'Verified references attached'],
+                'executive_summary' => $this->extractSummary($aiSummary) ?? 'Report contains the formal documentation of assigned deliverables with documented references and completed milestones.',
+                'key_points' => $aiSummary?->key_findings ?? ['Delivered on schedule', 'Adheres to task specifications', 'Verified references attached'],
                 'disclaimer' => 'AI-generated summary based on recorded system data.',
             ],
             'ai_validation' => [
@@ -148,13 +152,29 @@ class AdminReportCenterService
         ];
     }
 
+    private function extractSummary($aiSummary): ?string
+    {
+        if (! $aiSummary) {
+            return null;
+        }
+
+        $raw = is_string($aiSummary->summary)
+            ? json_decode($aiSummary->summary, true)
+            : $aiSummary->summary;
+
+        if (is_array($raw)) {
+            return $raw['executive_summary'] ?? $raw['summary'] ?? null;
+        }
+
+        return $aiSummary->summary;
+    }
+
     public function humanOverride(User $user, Report $report, array $data): array
     {
-        $newStatus = $data['status']; // approved, revision_required, rejected
+        $newStatus = $data['status'];
         $reason = $data['reason'];
 
         return DB::transaction(function () use ($user, $report, $newStatus, $reason) {
-            $oldStatus = $report->status;
             $report->update([
                 'status' => $newStatus,
                 'approved_at' => $newStatus === 'approved' ? Carbon::now() : null,

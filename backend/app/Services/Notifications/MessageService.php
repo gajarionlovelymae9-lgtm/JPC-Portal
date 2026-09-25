@@ -110,7 +110,7 @@ class MessageService
 
         $query = User::query()
             ->where('id', '!=', $user->id)
-            ->where('is_active', true)
+            ->where('status', 'active')
             ->with('roles:id,name', 'employee:id,user_id,department_id');
 
         // Admin can message anyone

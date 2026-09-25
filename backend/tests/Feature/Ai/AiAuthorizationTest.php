@@ -1,0 +1,1 @@
+<?php namespace Tests\Feature\Ai; use Tests\TestCase; class AiAuthorizationTest extends TestCase { public function test_auth() { $this->assertTrue(true); } }

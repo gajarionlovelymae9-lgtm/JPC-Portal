@@ -1,0 +1,1 @@
+<?php namespace Tests\Unit\Services\AI; use Tests\TestCase; class AiToolRegistryTest extends TestCase { public function test_registry() { $this->assertTrue(true); } }

@@ -1,0 +1,1 @@
+<?php namespace Tests\Unit\Services\AI\Tools; use Tests\TestCase; class GetEmployeePerformanceToolTest extends TestCase { public function test_tool() { $this->assertTrue(true); } }

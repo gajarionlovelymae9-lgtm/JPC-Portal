@@ -1,249 +1,291 @@
-# JPC Portal
+# JPC Portal — AI-Driven Employee Progress Monitoring System
 
-**JPC Portal** is an AI-driven employee progress monitoring platform for **John Paul College**.
+**JPC Portal** is an AI-driven employee progress monitoring and management platform
+for **John Paul College**: annual plans → targets → tasks → reports → OCR/AI
+validation → review/approval → performance → achievements, with data-quality
+scans, reporting/analytics, report exports, AI Chat, notifications, and a full
+audit trail.
 
-![Phase](https://img.shields.io/badge/phase-3.1D%20seeders-blue)
+| | |
+| --- | --- |
+| **Version** | v1.0.0 (final release 2026-09-25) |
+| **Status** | READY (see [docs/GO_LIVE_CHECKLIST.md](docs/GO_LIVE_CHECKLIST.md)) |
+| **License** | Internal / academic |
 
-The system monitors employees, departments, annual plans, targets, tasks, submitted
-reports, OCR documents, AI summaries/validation, approvals, achievements, analytics,
-notifications, and audit trails — with natural language AI assistance.
+## Features
 
-> **Current status:** Phase 3 (Data Seeding — Development Sample Data, 3.1-D). The
-> role/permission catalog, departments, positions, academic year, badge catalog, four
-> development accounts, 15 employees, annual plans, targets, tasks, reports with sample
-> AI reviews and approvals, performance records, monthly achievements and notifications
-> are all seeded by `php artisan db:seed`. See [docs/database/seeders.md](docs/database/seeders.md).
+- Role-based portals: **Admin**, **HR**, **Department Head**, **Employee**
+- Employee / department / position management with history
+- Academic year → annual plan → target (department + employee) planning
+- Task management (assignments, progress, references, comments, review)
+- Report workflow (draft → submitted → under review → approved / revision / rejected)
+  with immutable versions, files, timeline, reviewer comments
+- **OCR** document processing (offline fake engine by default; optional Google Vision)
+- **AI analysis** of reports: summary, validation, reference & similarity indicators,
+  findings, insights (offline fake engine by default; optional OpenAI-compatible)
+- **Performance** records, score breakdowns, progress snapshots, KPIs
+- **Achievements**: badges, monthly achievements, employee of the month
+- **Data quality** scans and issue lifecycle
+- **Reporting**: employee/department/institution/monthly/achievements/late/pending/
+  targets/data-quality/management summary
+- **Analytics**: trends, comparisons, rankings, performance distribution
+- **Report exports** (CSV / XLSX / PDF, queued, owner-scoped, TTL-managed)
+- **AI Chat** with authorized, role-scoped analytical tools
+- **Notifications** (in-app + optional mail), preferences, delivery logs
+- **Audit & activity logs**
+- Private file storage with authorized downloads; full RBAC + IDOR protection
 
-## Purpose
+## Technology stack
 
-Provide John Paul College leadership with a centralized, data-driven way to monitor
-employee progress through **annual plans → targets → tasks → reports → validation →
-achievements**, backed by NLP-based AI assistance.
+| Layer | Technology |
+| --- | --- |
+| Frontend | React 19 + Vite + TypeScript |
+| Backend | Laravel 12 (PHP 8.2, RESTful JSON API) |
+| Database | MySQL 8 (XAMPP MariaDB compatible), `acadtrack_db` |
+| Auth | Laravel Sanctum SPA cookies + roles/permissions |
+| Queues | Laravel database queue (`QUEUE_CONNECTION=database`) |
+| AI / OCR | Server-side providers (fake offline engine, OpenAI-compatible, Google Vision) |
+| Tests | PHPUnit (backend), Vitest + Testing Library (frontend) |
 
-## Technology Stack
+## Requirements
 
-| Layer      | Technology                       |
-| ---------- | -------------------------------- |
-| Frontend   | React.js (Vite + TypeScript)     |
-| Backend    | Laravel 12 (RESTful JSON API)    |
-| Database   | MySQL 8-compatible (`acadtrack_db`) |
-| Local Dev  | XAMPP (Apache / PHP 8.2 / MariaDB) / Windows |
-
-> **Note:** XAMPP ships MariaDB, which is fully MySQL-compatible and is used as the
-> MySQL 8-compatible database layer on this machine.
-
-## Architecture
-
-```
-React Frontend
-      ↓  (HTTPS/HTTP + JSON)
-REST API (/api/v1)
-      ↓  (Laravel 12)
-MySQL Database (acadtrack_db)
-```
-
-- The frontend never talks to the database directly.
-- All data access flows through the Laravel REST API.
-- APIs are versioned under `/api/v1`.
-- Business logic lives in Laravel (Services, Controllers, Form Requests, Models).
-- React uses components, hooks, and a centralized service layer.
-
-## Repository Structure
-
-```
-jpc-portal/
-├── backend/            # Laravel 12 REST API
-├── frontend/           # React (Vite + TypeScript) SPA
-├── docs/               # Architecture & developer documentation
-├── .gitignore
-└── README.md
-```
-
-## Prerequisites
-
-- PHP >= 8.2 (XAMPP recommended)
+- PHP >= 8.2 (XAMPP recommended on Windows)
 - Composer 2.x
 - Node.js >= 20 and npm
-- MySQL 8 (or XAMPP MariaDB), running on `127.0.0.1:3306`
+- MySQL 8 / MariaDB >= 10.4 running on `127.0.0.1:3306`
+
+See [docs/XAMPP_SETUP.md](docs/XAMPP_SETUP.md) for a full local setup walkthrough.
 
 ## Installation
 
 ### 1. Database
 
-Start MySQL and create the database:
-
 ```sql
 CREATE DATABASE IF NOT EXISTS acadtrack_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
-### 2. Backend (Laravel 12)
+### 2. Backend (Laravel)
 
 ```bash
 cd backend
 composer install
-
-# Create environment file and set your database credentials
-copy .env.example .env
-
-# Generate the application key
+copy .env.example .env                 # Windows; `cp .env.example .env` on Linux/macOS
 php artisan key:generate
-
-# Run migrations (users, roles, permissions, sessions, login activities, etc.)
+# edit .env → DB_DATABASE=acadtrack_db, DB_USERNAME, DB_PASSWORD, CORS/SANCTUM origins
 php artisan migrate
-
-# Seed the roles, permission catalog, development users and the Phase 3.1-D
-# sample dataset (employees, plans, tasks, reports, achievements).
-php artisan db:seed
+php artisan db:seed                     # roles, permissions, demo accounts, sample data
+php artisan serve                       # → http://localhost:8000
 ```
 
-> `SANCTUM_STATEFUL_DOMAINS` in `.env` must list the Vite dev origin
-> (`localhost:5173,127.0.0.1:5173`) so Sanctum treats the SPA requests as stateful.
+> `SANCTUM_STATEFUL_DOMAINS` and `CORS_ALLOWED_ORIGINS` must include your SPA origin
+> (`localhost:5173,127.0.0.1:5173`).
 
 ### 3. Frontend (React)
 
 ```bash
 cd frontend
 npm install
-
-# Create environment file (default VITE_API_BASE_URL=/api/v1 already works)
 copy .env.example .env
+npm run dev                             # → http://localhost:5173 (proxies /api + /sanctum)
 ```
 
-Development uses the Vite proxy (`vite.config.ts`): `/api` and `/sanctum` are proxied
-to `http://127.0.0.1:8000`, so the browser sees a single origin and Sanctum cookie
-authentication works seamlessly.
+Open **http://localhost:5173**. The Vite dev proxy routes `/api` and `/sanctum` to
+`http://127.0.0.1:8000`, so Sanctum cookie auth works from a single origin.
 
-## Running the Application
-
-### Backend
+### 4. Queues & scheduler (for notifications / OCR / exports)
 
 ```bash
 cd backend
-php artisan serve
-# → http://localhost:8000
+php artisan queue:work        # keep running in a terminal (dev)
+php artisan schedule:work     # local scheduler (dev)
 ```
 
-### Frontend
+Production uses a persistent worker + cron; see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
+## Database setup
+
+`acadtrack_db` is managed entirely by Laravel migrations
+(`backend/database/migrations/`). Tests use an isolated `acadtrack_db_test`
+(configured in `backend/phpunit.xml`) — automated tests can never destroy
+development data. **Never run `migrate:fresh` on `acadtrack_db`.**
+
+See [docs/DATABASE.md](docs/DATABASE.md) and [docs/database/erd.md](docs/database/erd.md).
+
+## Environment configuration
+
+### Backend (`backend/.env`)
+
+| Variable | Description | Example |
+| --- | --- | --- |
+| `APP_NAME` | App name | `JPC Portal API` |
+| `APP_ENV` | `local` / `staging` / `production` | `local` |
+| `APP_KEY` | Encryption key (via `key:generate`) | *(generated)* |
+| `APP_URL` | Public API URL | `http://localhost:8000` |
+| `DB_CONNECTION` | Driver | `mysql` |
+| `DB_HOST` / `DB_PORT` | DB host / port | `127.0.0.1` / `3306` |
+| `DB_DATABASE` | Database | `acadtrack_db` |
+| `DB_USERNAME` / `DB_PASSWORD` | DB credentials | `root` / *(empty on XAMPP)* |
+| `CACHE_STORE` | Cache driver | `database` |
+| `QUEUE_CONNECTION` | Queue driver | `database` |
+| `FILESYSTEM_DISK` | Storage disk | `local` |
+| `MAIL_MAILER` | `log` (dev) / `smtp` | `log` |
+| `MAIL_HOST` / `MAIL_PORT` / `MAIL_USERNAME` / `MAIL_PASSWORD` | SMTP | `127.0.0.1` / `2525` / `null` / `null` |
+| `CORS_ALLOWED_ORIGINS` | SPA origins | `http://localhost:5173,http://127.0.0.1:5173` |
+| `SANCTUM_STATEFUL_DOMAINS` | Cookie-auth hosts | `localhost:5173,127.0.0.1:5173` |
+| `SESSION_DRIVER` | Session store | `database` |
+
+### AI / OCR configuration
+
+```
+# Offline deterministic engines (default — no accounts, works offline):
+OCR_PROVIDER=fake
+AI_PROVIDER=fake
+
+# Optional real AI (any OpenAI-compatible endpoint):
+AI_PROVIDER=openai
+AI_ENDPOINT=https://api.openai.com/v1
+AI_API_KEY=sk-...
+AI_MODEL=gpt-4o-mini
+AI_TIMEOUT=120
+AI_MAX_TOKENS=2048
+
+# Optional Google Vision OCR:
+OCR_PROVIDER=google_vision
+GOOGLE_VISION_API_KEY=...                    # REST key route
+# or service account:
+GOOGLE_CLOUD_PROJECT_ID=...
+GOOGLE_APPLICATION_CREDENTIALS=C:\secure\credentials.json
+```
+
+**AI and OCR always run server-side.** Keys live only in the server `.env` (never in
+`frontend/`, `public/`, or git). See [docs/AI_GOVERNANCE.md](docs/AI_GOVERNANCE.md).
+
+### Frontend (`frontend/.env`)
+
+| Variable | Description | Example |
+| --- | --- | --- |
+| `VITE_APP_NAME` | Display name | `JPC Portal` |
+| `VITE_API_BASE_URL` | API base | `http://localhost:8000/api/v1` (dev, proxied) |
+
+## Running the application
 
 ```bash
-cd frontend
-npm run dev
-# → http://localhost:5173
+# Terminal 1 — backend
+cd backend && php artisan serve          # http://localhost:8000
+
+# Terminal 2 — queue worker (reports/OCR/exports/notifications)
+cd backend && php artisan queue:work
+
+# Terminal 3 — scheduler (deadline reminders, monthly report, cleanup)
+cd backend && php artisan schedule:work
+
+# Terminal 4 — frontend
+cd frontend && npm run dev               # http://localhost:5173
 ```
 
-Open **http://localhost:5173** in your browser. The dashboard shows the live backend,
-API, and database connection status.
+Health check: `GET http://localhost:8000/api/v1/health`.
 
-## Environment Setup
+## Default / demo accounts
 
-### Backend `.env` (backend/.env)
+Seeded by `php artisan db:seed` (development only — **change on any real
+deployment**):
 
-| Variable         | Description                          | Example                 |
-| ---------------- | ------------------------------------ | ----------------------- |
-| `DB_CONNECTION`  | Database driver                      | `mysql`                 |
-| `DB_HOST`        | Database host                        | `127.0.0.1`             |
-| `DB_PORT`        | Database port                        | `3306`                  |
-| `DB_DATABASE`    | Database name                        | `acadtrack_db`          |
-| `DB_USERNAME`    | Database user                        | `root`                  |
-| `DB_PASSWORD`    | Database password                    | *(XAMPP default empty)* |
-| `CORS_ALLOWED_ORIGINS` | Comma-separated allowed origins | `http://localhost:5173,http://127.0.0.1:5173` |
-| `SANCTUM_STATEFUL_DOMAINS` | Comma-separated SPA hosts for cookie auth | `localhost:5173,127.0.0.1:5173` |
-| `APP_ENV`        | Environment (`local`/`production`) | `local`                 |
-| `APP_DEBUG`      | Debug mode (always `false` in prod) | `true` (local only)     |
+| Role | Email | Password |
+| --- | --- | --- |
+| Admin | `admin@jpc.local` | `P@ssw0rd2026` |
+| HR | `hr@jpc.local` | `P@ssw0rd2026` |
+| Department Head | `departmenthead@jpc.local` | `P@ssw0rd2026` |
+| Employee | `employee@jpc.local` | `P@ssw0rd2026` |
 
-Secrets stay in `.env` and are **never committed**. `.env.example` holds safe placeholders only.
-
-### Frontend `.env` (frontend/.env)
-
-| Variable            | Description                        | Example                   |
-| ------------------- | ---------------------------------- | ------------------------- |
-| `VITE_API_BASE_URL` | Base URL of the Laravel API (v1)   | `/api/v1` (default; proxied in dev) |
-| `VITE_APP_NAME`     | Application display name           | `JPC Portal`              |
-
-## Authentication (Phase 2)
-
-Sanctum SPA cookie authentication with roles and permissions:
-
-| Role           | Email                    | Password      |
-| -------------- | ------------------------ | ------------- |
-| Admin          | `admin@jpc.local`        | `P@ssw0rd2026` |
-| HR             | `hr@jpc.local`           | `P@ssw0rd2026` |
-| Department Head| `departmenthead@jpc.local` | `P@ssw0rd2026` |
-| Employee       | `employee@jpc.local`     | `P@ssw0rd2026` |
-
-> Development-only credentials. Run `php artisan db:seed` to create them. Passwords are
-> stored hashed — never in plain text. Development passwords are read from
-> `SEED_ADMIN_PASSWORD`, `SEED_HR_PASSWORD`, `SEED_DEPARTMENT_HEAD_PASSWORD` and
-> `SEED_EMPLOYEE_PASSWORD` (fallback `P@ssw0rd2026`). Development seeders are disabled
-> on production unless `SEED_DEVELOPMENT_DATA=true` is set explicitly.
-
-Endpoints: `POST /api/v1/auth/login` · `POST /api/v1/auth/logout` ·
-`GET /api/v1/auth/me` · `GET /api/v1/admin/rbac` (admin-only demo).
-
-See [docs/api/authentication.md](docs/api/authentication.md) for the full API
-documentation.
-
-## Health Check
-
-The API exposes a versioned health endpoint:
-
-```
-GET /api/v1/health
-```
-
-Example response:
-
-```json
-{
-  "success": true,
-  "message": "JPC Portal API is running",
-  "data": {
-    "application": "ok",
-    "database": "ok",
-    "api": "ok",
-    "environment": "local",
-    "api_version": "v1",
-    "timestamp": "2026-09-14T04:42:24+00:00"
-  }
-}
-```
-
-The response never exposes credentials, keys, or filesystem paths.
+Passwords are stored hashed. Development passwords come from
+`SEED_ADMIN_PASSWORD`, `SEED_HR_PASSWORD`, `SEED_DEPARTMENT_HEAD_PASSWORD`,
+`SEED_EMPLOYEE_PASSWORD` (fallback `P@ssw0rd2026`). Development seeders are
+disabled on production unless `SEED_DEVELOPMENT_DATA=true` is set explicitly.
+The demo dataset is entirely fictional.
 
 ## Testing
 
-### Backend
-
 ```bash
-cd backend
-php artisan test
+# Backend (uses isolated acadtrack_db_test)
+cd backend && php artisan test           # 406 passed / 1880 assertions
+
+# Frontend
+cd frontend && npm test                  # 87 passed (Vitest)
+cd frontend && npm run lint              # oxlint — 0 errors (58 pre-existing benign warnings)
+cd frontend && npm run build             # tsc -b + production build
 ```
 
-### Frontend
+## Deployment
 
-```bash
-cd frontend
-npm test
-```
+Follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md): per-environment `.env` → migrate
+(`--force` in production; never `migrate:fresh`) → `php artisan optimize` → queue
+worker + scheduler → frontend `npm run build` → verify. Backups/restore:
+[docs/BACKUP_AND_RESTORE.md](docs/BACKUP_AND_RESTORE.md). Maintenance:
+[docs/MAINTENANCE.md](docs/MAINTENANCE.md).
 
-### Code quality
+## Monitoring & maintenance (Phase 13)
 
-```bash
-cd backend && vendor/bin/pint          # Laravel code style
-cd frontend && npm run lint            # oxlint
-cd frontend && npm run build           # TypeScript + production build
-```
+The system ships with built-in monitoring and maintenance tooling:
 
-## API Response Standard
+- **System Health dashboard** (admin): `/admin/system-health` — application,
+  database, queue, storage, AI provider, OCR provider, and notification status,
+  plus failed-job counters, security/auth-failure signals, and redacted recent
+  critical errors.
+- **Health API** (admin only): `GET /api/v1/admin/system-health` and per-component
+  endpoints (`/database`, `/queue`, `/storage`, `/ai`, `/ocr`, `/history`).
+- **Maintenance log** (admin + CLI): record and audit every maintenance action via
+  `/admin/maintenance` or `php artisan system:record-maintenance`.
+- **Backup verification** (guard): `php artisan system:verify-backups` — never
+  claims a backup is valid unless a restore was actually logged.
+- **Feedback**: any user submits via `/feedback` (bug / incorrect information /
+  UI / AI / OCR / feature request); admins manage in `/admin/feedback`.
+- **AI quality feedback**: users rate AI output (`POST /api/v1/feedback/ai`);
+  verdicts are recorded **without** altering original AI results or scores.
+- **Scheduled monitoring**: daily 05:00 `system:check-health`, 05:30
+  `system:verify-backups`, weekly Mondays a full queued data-quality scan.
 
-All JPC Portal APIs return a consistent envelope:
+Maintenance runbooks: [docs/maintenance/](docs/maintenance) (monitoring,
+backup-restore, incident-response, troubleshooting, security, AI, OCR, database,
+release-process, monthly checklist). Change log: [CHANGELOG.md](CHANGELOG.md).
 
-```json
-{ "success": true,  "message": "Request successful", "data": {} }
-{ "success": false, "message": "Validation failed",  "errors": {} }
-```
+## Known limitations (v1.0.0)
+
+- Real AI/OCR depend on provider availability/network/quota; offline `fake` engines
+  are the default so the pipeline works with no external accounts.
+- OCR accuracy depends on document quality.
+- Similarity detection is an indicator — **not** proof of plagiarism — and requires
+  human validation.
+- AI findings are assistive; humans make every approval/rejection decision.
+- Email delivery depends on mail configuration (optional; failures log, never crash).
+- Frontend ships as a single ~869 kB chunk (code-splitting is a documented
+  future enhancement; no runtime impact).
+- Scale/performance depends on infrastructure (XAMPP single-machine default).
+
+## Troubleshooting
+
+See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for MySQL shutdowns, port
+conflicts, DB connection issues, Composer/npm problems, OCR/AI failures, queue and
+notification problems.
 
 ## Documentation
 
-See [docs/architecture.md](docs/architecture.md) for detailed architecture and
-development conventions.
+| Topic | Doc |
+| --- | --- |
+| Architecture | [docs/FINAL_ARCHITECTURE.md](docs/FINAL_ARCHITECTURE.md) |
+| Database & ERD | [docs/DATABASE.md](docs/DATABASE.md), [docs/database/erd.md](docs/database/erd.md) |
+| Deployment | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md), [docs/XAMPP_SETUP.md](docs/XAMPP_SETUP.md) |
+| Backup & restore | [docs/BACKUP_AND_RESTORE.md](docs/BACKUP_AND_RESTORE.md) |
+| Maintenance | [docs/MAINTENANCE.md](docs/MAINTENANCE.md), [docs/maintenance/](docs/maintenance) (monitoring, backup-restore, incident-response, troubleshooting, security, AI, OCR, database, release-process, monthly-checklist) |
+| Readiness record | [docs/maintenance/maintenance-readiness.md](docs/maintenance/maintenance-readiness.md) |
+| Continuous improvement | [docs/BACKLOG.md](docs/BACKLOG.md) |
+| Change log | [CHANGELOG.md](CHANGELOG.md) |
+| Troubleshooting | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) |
+| Security | [docs/SECURITY.md](docs/SECURITY.md) |
+| AI Governance | [docs/AI_GOVERNANCE.md](docs/AI_GOVERNANCE.md) |
+| Privacy | [docs/DATA_PRIVACY.md](docs/DATA_PRIVACY.md) |
+| Admin / HR / Dept-Heads / Employee guides | [docs/ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md), [docs/HR_GUIDE.md](docs/HR_GUIDE.md), [docs/DEPARTMENT_HEAD_GUIDE.md](docs/DEPARTMENT_HEAD_GUIDE.md), [docs/EMPLOYEE_GUIDE.md](docs/EMPLOYEE_GUIDE.md) |
+| Handovers | [docs/DEVELOPER_HANDOVER.md](docs/DEVELOPER_HANDOVER.md), [docs/ADMIN_HANDOVER.md](docs/ADMIN_HANDOVER.md) |
+| Capstone overview | [docs/CAPSTONE_SYSTEM_OVERVIEW.md](docs/CAPSTONE_SYSTEM_OVERVIEW.md) |
+| Demo script | [docs/FINAL_DEMO_SCRIPT.md](docs/FINAL_DEMO_SCRIPT.md) |
+| Go-live checklist | [docs/GO_LIVE_CHECKLIST.md](docs/GO_LIVE_CHECKLIST.md) |
+| Future work | [docs/FUTURE_ENHANCEMENTS.md](docs/FUTURE_ENHANCEMENTS.md) |

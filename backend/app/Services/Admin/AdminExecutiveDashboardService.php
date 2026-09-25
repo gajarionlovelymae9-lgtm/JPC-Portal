@@ -20,7 +20,7 @@ class AdminExecutiveDashboardService
     {
         $employees = Employee::with(['department:id,name', 'position:id,name'])->get();
         $departments = Department::all();
-        $assignments = TaskAssignment::with(['task:id,title,deadline,department_id', 'employee:id,first_name,last_name,department_id,employee_number'])->get();
+        $assignments = TaskAssignment::with(['task:id,title,due_date,department_id', 'employee:id,first_name,last_name,department_id,employee_number'])->get();
         $reports = Report::with(['task:id,title', 'employee:id,first_name,last_name,department_id'])->get();
         $ocrRecords = OcrProcessing::all();
         $escalations = DepartmentEscalation::where('status', 'open')->get();
@@ -35,7 +35,7 @@ class AdminExecutiveDashboardService
 
         $now = Carbon::now();
         $overdueAssignments = $assignments->filter(function ($a) use ($now) {
-            $deadline = $a->due_date ?? $a->task?->deadline;
+            $deadline = $a->due_date ?? $a->task?->due_date;
             return $deadline && Carbon::parse($deadline)->isPast() && !in_array($a->status, ['completed', 'approved']);
         });
 
@@ -48,9 +48,9 @@ class AdminExecutiveDashboardService
         $completionRate = $totalAssignments > 0 ? round(($completedAssignments / $totalAssignments) * 100, 1) : 0;
 
         $onTimeCount = $assignments->filter(function ($a) {
-            if (!$a->submitted_at) return false;
-            $deadline = $a->due_date ?? $a->task?->deadline;
-            return !$deadline || Carbon::parse($a->submitted_at)->lte(Carbon::parse($deadline));
+            if (!$a->completed_at) return false;
+            $deadline = $a->due_date ?? $a->task?->due_date;
+            return !$deadline || Carbon::parse($a->completed_at)->lte(Carbon::parse($deadline));
         })->count();
         $onTimeRate = $completedAssignments > 0 ? round(($onTimeCount / $completedAssignments) * 100, 1) : 100;
 
@@ -69,7 +69,7 @@ class AdminExecutiveDashboardService
             $total = $deptAssignments->count();
             $completed = $deptAssignments->whereIn('status', ['completed', 'approved'])->count();
             $overdue = $deptAssignments->filter(function ($a) {
-                $deadline = $a->due_date ?? $a->task?->deadline;
+                $deadline = $a->due_date ?? $a->task?->due_date;
                 return $deadline && Carbon::parse($deadline)->isPast() && !in_array($a->status, ['completed', 'approved']);
             })->count();
             $deptReports = $reports->whereIn('employee_id', $empIds)->count();
@@ -113,7 +113,7 @@ class AdminExecutiveDashboardService
 
         // Critical Alerts
         $topOverdue = $overdueAssignments->map(function ($a) use ($now, $departments) {
-            $deadline = $a->due_date ?? $a->task?->deadline;
+            $deadline = $a->due_date ?? $a->task?->due_date;
             $dept = $departments->firstWhere('id', $a->task?->department_id);
             return [
                 'assignment_id' => $a->id,

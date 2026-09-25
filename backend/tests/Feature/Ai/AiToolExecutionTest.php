@@ -1,0 +1,1 @@
+<?php namespace Tests\Feature\Ai; use Tests\TestCase; class AiToolExecutionTest extends TestCase { public function test_tools() { $this->assertTrue(true); } }

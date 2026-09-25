@@ -12,6 +12,8 @@ final class Permissions
 {
     public const DASHBOARD_VIEW = 'dashboard.view';
 
+    public const HR_DASHBOARD_VIEW = 'hr.dashboard.view';
+
     public const USERS_VIEW = 'users.view';
 
     public const USERS_CREATE = 'users.create';
@@ -181,6 +183,7 @@ final class Permissions
     {
         return [
             'dashboard' => [self::DASHBOARD_VIEW => 'View Dashboard'],
+            'hr' => [self::HR_DASHBOARD_VIEW => 'View HR Dashboard'],
             'users' => [
                 self::USERS_VIEW => 'View Users',
                 self::USERS_CREATE => 'Create Users',
@@ -339,6 +342,7 @@ final class Permissions
     {
         return [
             self::DASHBOARD_VIEW,
+            self::HR_DASHBOARD_VIEW,
             self::USERS_VIEW,
             self::EMPLOYEES_VIEW,
             self::EMPLOYEES_CREATE,

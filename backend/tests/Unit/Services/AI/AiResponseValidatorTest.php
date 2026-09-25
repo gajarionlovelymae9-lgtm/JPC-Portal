@@ -1,0 +1,1 @@
+<?php namespace Tests\Unit\Services\AI; use Tests\TestCase; class AiResponseValidatorTest extends TestCase { public function test_validator() { $this->assertTrue(true); } }

@@ -56,9 +56,11 @@ export async function apiRequest<T = unknown>(
 ): Promise<ApiResponse<T>> {
   const { method = 'GET', body, headers: extraHeaders = {} } = options
 
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData
+
   const headers: Record<string, string> = {
     Accept: 'application/json',
-    'Content-Type': 'application/json',
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...extraHeaders,
   }
 
@@ -78,7 +80,7 @@ export async function apiRequest<T = unknown>(
   }
 
   if (body !== undefined) {
-    requestInit.body = JSON.stringify(body)
+    requestInit.body = isFormData ? body : JSON.stringify(body)
   }
 
   let response: Response

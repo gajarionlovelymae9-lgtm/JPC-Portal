@@ -21,6 +21,14 @@ class HrDashboardController extends Controller
     {
     }
 
+    public function dashboard(): JsonResponse
+    {
+        return ApiResponse::success(
+            'HR dashboard loaded',
+            $this->hrDashboardService->kpis()
+        );
+    }
+
     public function options(): JsonResponse
     {
         return ApiResponse::success(
@@ -39,7 +47,7 @@ class HrDashboardController extends Controller
 
     public function employees(): JsonResponse
     {
-        return ApiResponse::collection(
+        return ApiResponse::success(
             'Employees loaded',
             $this->hrDashboardService->employees()
         );

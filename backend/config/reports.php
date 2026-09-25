@@ -48,6 +48,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Export lifecycle
+    |--------------------------------------------------------------------------
+    |
+    | `export_file_ttl_hours` — how long a COMPLETED export file stays
+    | downloadable before the `reports:cleanup-exports` schedule marks it
+    | EXPIRED and deletes the file from the private disk.
+    |
+    */
+
+    'export_file_ttl_hours' => 24,
+
+    /*
+    |--------------------------------------------------------------------------
     | Aggregate Cache TTL (seconds)
     |--------------------------------------------------------------------------
     |

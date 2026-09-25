@@ -198,6 +198,24 @@ class User extends Authenticatable
     }
 
     /**
+     * Assign a role by name or enum value, keeping both users.role_id and the
+     * role_user pivot in sync. The role record is created when it does not
+     * exist yet (useful for tests and fresh installations).
+     */
+    public function assignRole(string|RoleEnum $role): static
+    {
+        $name = $role instanceof RoleEnum ? $role->value : $role;
+
+        $roleModel = Role::query()->firstOrCreate(['name' => $name]);
+
+        $this->forceFill(['role_id' => $roleModel->id])->save();
+
+        $this->roles()->syncWithoutDetaching([$roleModel->id]);
+
+        return $this;
+    }
+
+    /**
      * Whether the user holds any of the given roles.
      *
      * @param  array<int, string|RoleEnum>  $roles

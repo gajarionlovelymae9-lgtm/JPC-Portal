@@ -14,12 +14,13 @@ class AdminDepartmentManagementService
 {
     public function listDepartments(array $filters = []): array
     {
-        $departments = Department::with(['head.employee:id,first_name,last_name'])->get();
+        $departments = Department::with(['departmentHeads.employee:id,first_name,last_name'])->get();
         $employees = Employee::with('position:id,name')->get();
-        $assignments = TaskAssignment::with('task:id,deadline')->get();
+        $assignments = TaskAssignment::with('task:id,due_date')->get();
         $reports = Report::all();
 
         return $departments->map(function ($d) use ($employees, $assignments, $reports) {
+            $currentHead = $d->departmentHeads->firstWhere('is_current', true);
             $deptEmployees = $employees->where('department_id', $d->id);
             $empIds = $deptEmployees->pluck('id');
             $deptAssignments = $assignments->whereIn('employee_id', $empIds);
@@ -29,7 +30,7 @@ class AdminDepartmentManagementService
             $pending = $deptAssignments->whereIn('status', ['assigned', 'in_progress'])->count();
 
             $overdue = $deptAssignments->filter(function ($a) {
-                $deadline = $a->due_date ?? $a->task?->deadline;
+                $deadline = $a->due_date ?? $a->task?->due_date;
                 return $deadline && Carbon::parse($deadline)->isPast() && !in_array($a->status, ['completed', 'approved']);
             })->count();
 
@@ -37,9 +38,9 @@ class AdminDepartmentManagementService
             $rate = $total > 0 ? round(($completed / $total) * 100, 1) : 0;
 
             $onTimeCount = $deptAssignments->filter(function ($a) {
-                if (!$a->submitted_at) return false;
-                $deadline = $a->due_date ?? $a->task?->deadline;
-                return !$deadline || Carbon::parse($a->submitted_at)->lte(Carbon::parse($deadline));
+                if (!$a->completed_at) return false;
+                $deadline = $a->due_date ?? $a->task?->due_date;
+                return !$deadline || Carbon::parse($a->completed_at)->lte(Carbon::parse($deadline));
             })->count();
             $onTimeRate = $completed > 0 ? round(($onTimeCount / $completed) * 100, 1) : 100;
 
@@ -47,7 +48,7 @@ class AdminDepartmentManagementService
                 'id' => $d->id,
                 'name' => $d->name,
                 'code' => $d->code,
-                'head_name' => $d->head?->employee ? $d->head->employee->first_name . ' ' . $d->head->employee->last_name : 'Assigned Head',
+                'head_name' => $currentHead?->employee ? $currentHead->employee->first_name . ' ' . $currentHead->employee->last_name : 'Assigned Head',
                 'employees_count' => $deptEmployees->count(),
                 'active_employees' => $deptEmployees->where('employment_status', 'active')->count(),
                 'tasks_count' => $total,
@@ -63,14 +64,15 @@ class AdminDepartmentManagementService
 
     public function showDepartment(Department $department): array
     {
-        $department->load(['head.employee.position:id,name']);
+        $department->load(['departmentHeads.employee.position:id,name']);
+        $currentHead = $department->departmentHeads->firstWhere('is_current', true);
         $employees = Employee::where('department_id', $department->id)
             ->with(['position:id,name', 'user:id,email,status'])
             ->get();
         $empIds = $employees->pluck('id');
 
         $assignments = TaskAssignment::whereIn('employee_id', $empIds)
-            ->with(['task:id,title,deadline,priority', 'employee:id,first_name,last_name'])
+            ->with(['task:id,title,due_date,priority', 'employee:id,first_name,last_name'])
             ->get();
 
         $reports = Report::whereIn('employee_id', $empIds)
@@ -89,8 +91,8 @@ class AdminDepartmentManagementService
             'code' => $department->code,
             'description' => $department->description ?? null,
             'head' => [
-                'name' => $department->head?->employee ? $department->head->employee->first_name . ' ' . $department->head->employee->last_name : 'Department Head',
-                'position' => $department->head?->employee?->position?->name ?? 'Head',
+                'name' => $currentHead?->employee ? $currentHead->employee->first_name . ' ' . $currentHead->employee->last_name : 'Department Head',
+                'position' => $currentHead?->employee?->position?->name ?? 'Head',
             ],
             'metrics' => [
                 'total_employees' => $employees->count(),

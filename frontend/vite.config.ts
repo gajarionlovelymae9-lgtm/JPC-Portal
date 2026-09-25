@@ -6,6 +6,8 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   plugins: [react()],
   server: {
+    host: '127.0.0.1',
+    strictPort: true,
     proxy: {
       // Sanctum SPA auth relies on same-origin cookies with the Laravel
       // backend — proxy both API and CSRF endpoints in development.
