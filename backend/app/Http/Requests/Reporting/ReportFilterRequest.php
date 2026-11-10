@@ -21,6 +21,7 @@ class ReportFilterRequest extends FormRequest
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
             'department_id' => 'nullable|integer|exists:departments,id',
+            'academic_year_id' => 'nullable|integer|exists:academic_years,id',
             'employee_id' => 'nullable|integer|exists:employees,id',
             'status' => 'nullable|string',
             'rating' => 'nullable|string',

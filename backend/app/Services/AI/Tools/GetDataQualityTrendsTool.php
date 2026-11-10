@@ -35,7 +35,7 @@ class GetDataQualityTrendsTool implements AiToolInterface
 
     public function execute(array $params, User $user): array
     {
-        $months = (int)($params['months'] ?? 6);
+        $months = (int) ($params['months'] ?? 6);
         $trends = $this->statisticsService->getMonthlyTrends($user, $months);
 
         return [

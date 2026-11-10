@@ -17,7 +17,7 @@ export default function EmployeeReviseReportPage() {
     getMyReport(reportId).then(r => {
       const d = r.data
       setForm(f => ({ ...f, title: d.title, content: d.content ?? '', references: d.references ?? '' }))
-      setOriginalComments(d.review_history.at(-1)?.comments ?? '')
+      setOriginalComments(d.review_history?.at(-1)?.comments ?? '')
     }).catch(() => setError('Could not load report.')).finally(() => setLoading(false))
   }, [reportId])
 

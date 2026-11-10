@@ -9,6 +9,9 @@ Recommended ongoing maintenance activities for a healthy JPC Portal deployment.
 - [ ] Check failed queues — `php artisan queue:failed` (backlog; retry or purge).
 - [ ] Check critical notifications — review `notification_logs` for failed high-
       priority deliveries (deadline reminders, review decisions).
+- [ ] Confirm scheduled health on track — `system:check-health` (05:00) and
+      `system:verify-backups` (05:30) results; re-run manually if the scheduler
+      was down: `php artisan system:check-health --source=manual`.
 
 ## Weekly
 
@@ -17,6 +20,8 @@ Recommended ongoing maintenance activities for a healthy JPC Portal deployment.
       confirm `reports:cleanup-exports` removes expired exports.
 - [ ] Review failed AI/OCR jobs — retry or investigate recurring failures.
 - [ ] Verify backups exist and are non-empty (see [`BACKUP_AND_RESTORE.md`](BACKUP_AND_RESTORE.md)).
+- [ ] Run the weekly data-quality scan outcome — Mondays 06:30; review opened
+      issues and assign/close them.
 
 ## Monthly
 
@@ -29,6 +34,12 @@ Recommended ongoing maintenance activities for a healthy JPC Portal deployment.
 - [ ] Review audit logs — spot-check sensitive actions (employee edits, approvals,
       export activity) for anomalies.
 - [ ] Review data-quality trends — resolved vs open issues across months.
+- [ ] Security maintenance — review [`SECURITY.md`](SECURITY.md) and
+      [`AI_GOVERNANCE.md`](AI_GOVERNANCE.md): outstanding security advisories,
+      dependency vulnerabilities (`composer audit`, `npm audit`), login-activity
+      anomalies, permission drift (verify no unauthorized RBAC changes). Follow
+      the change-request gate for dependency upgrades
+      ([`VERSION_MANAGEMENT.md`](VERSION_MANAGEMENT.md)).
 
 ## Before major changes
 

@@ -15,7 +15,10 @@ class ExportReportRequest extends FormRequest
     {
         return [
             'report_type' => 'required|string|in:employee_progress,department_performance,institution_performance,monthly_performance,achievement_summary,late_reports,pending_reports,targets_summary,data_quality',
-            'format' => 'required|string|in:csv,excel,pdf',
+            // csv/excel/pdf is the documented wire format; xlsx is accepted
+            // too because the Report Exports page offers XLSX directly and
+            // queueing it used to 422 "Validation failed" on every submit.
+            'format' => 'required|string|in:csv,excel,xlsx,pdf',
             'period_type' => 'nullable|string|in:daily,weekly,monthly,quarterly,yearly,custom',
             'year' => 'nullable|integer',
             'month' => 'nullable|integer',

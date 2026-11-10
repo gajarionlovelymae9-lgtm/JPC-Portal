@@ -57,7 +57,7 @@ final class SimilarityService
     private function textOf(Report $report): string
     {
         try {
-            return (new ReportTextExtractor())->extract($report)['text'];
+            return (new ReportTextExtractor)->extract($report)['text'];
         } catch (\Throwable) {
             return '';
         }

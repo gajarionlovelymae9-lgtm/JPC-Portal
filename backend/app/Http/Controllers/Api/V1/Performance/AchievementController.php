@@ -7,11 +7,16 @@ use App\Models\Badge;
 use App\Models\EmployeeBadge;
 use App\Models\MonthlyAchievement;
 use App\Models\PerformancePeriod;
+use App\Services\Performance\AchievementProgressService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class AchievementController extends Controller
 {
+    public function __construct(
+        private readonly AchievementProgressService $progressService,
+    ) {}
+
     /**
      * Catalog of all system badges and criteria.
      */
@@ -55,6 +60,27 @@ class AchievementController extends Controller
                 'badges' => $badges,
                 'monthly_history' => $monthlyAchievements,
             ],
+        ]);
+    }
+
+    /**
+     * Earned badges (name, icon, description, award date) plus tracked
+     * progress toward every unearned badge and its criteria.
+     */
+    public function myProgress(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $employee = $user->employee;
+
+        if (! $employee) {
+            return response()->json(['message' => 'No employee record found.'], 404);
+        }
+
+        $data = $this->progressService->forEmployee($employee);
+
+        return response()->json([
+            'success' => true,
+            'data' => $data,
         ]);
     }
 

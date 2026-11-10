@@ -70,8 +70,8 @@ export function getDataQualityReport(filters: ReportingFilters = {}): Promise<Re
   return reportingRequest<DataQualityReport>(`${REPORTS_BASE}/data-quality${toQueryString({ ...filters })}`)
 }
 
-export function getManagementSummary(year: number, month: number): Promise<ReportingResponse<ManagementSummary>> {
-  return reportingRequest<ManagementSummary>(`${REPORTS_BASE}/management-summary${toQueryString({ year, month })}`)
+export function getManagementSummary(filters: ReportingFilters = {}): Promise<ReportingResponse<ManagementSummary>> {
+  return reportingRequest<ManagementSummary>(`${REPORTS_BASE}/management-summary${toQueryString({ ...filters })}`)
 }
 
 /** Phase 9 — AnalyticsService endpoints (spec items 14, 16-18). */
@@ -168,11 +168,19 @@ export interface QueueExportPayload {
 }
 
 export function queueReportExport(payload: QueueExportPayload): Promise<ReportingResponse<ReportExport>> {
-  return apiRequest<ReportExport>(EXPORTS_BASE, { method: 'POST', body: payload })
+  return apiRequest<ReportExport>(EXPORTS_BASE, {
+    method: 'POST',
+    body: { ...payload, format: payload.format === 'xlsx' ? 'excel' : payload.format },
+  })
 }
 
 export function showReportExport(id: number): Promise<ReportingResponse<ReportExport>> {
   return reportingRequest<ReportExport>(`${EXPORTS_BASE}/${id}`)
+}
+
+/** POST /reports/exports/{id}/retry — requeue a FAILED export in place. */
+export function retryReportExport(id: number): Promise<ReportingResponse<ReportExport>> {
+  return apiRequest<ReportExport>(`${EXPORTS_BASE}/${id}/retry`, { method: 'POST' })
 }
 
 export async function downloadReportExportFile(id: number): Promise<void> {

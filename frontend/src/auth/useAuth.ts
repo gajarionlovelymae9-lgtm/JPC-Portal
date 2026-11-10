@@ -5,7 +5,7 @@ export interface AuthContextValue {
   user: UserProfile | null
   loading: boolean
   error: string | null
-  login: (email: string, password: string) => Promise<void>
+  login: (email: string, password: string, role: string) => Promise<UserProfile>
   logout: () => Promise<void>
   clearError: () => void
 }

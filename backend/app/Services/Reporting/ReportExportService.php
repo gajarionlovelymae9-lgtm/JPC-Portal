@@ -21,7 +21,7 @@ class ReportExportService
             $user
         );
 
-        $filename = "{$reportType}-" . date('Y-m-d') . ".csv";
+        $filename = "{$reportType}-".date('Y-m-d').'.csv';
 
         $headers = [
             'Content-Type' => 'text/csv',

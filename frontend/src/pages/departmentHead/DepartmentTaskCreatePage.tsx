@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createDepartmentTask, getDepartmentEmployees } from '../../services/departmentHeadService'
 import type { DepartmentEmployee } from '../../services/departmentHeadService'
+import { SearchableMultiSelect } from '../../components/common/SearchableSelect'
 import { PATHS } from '../../routes/paths'
 
 export default function DepartmentTaskCreatePage() {
@@ -15,6 +16,8 @@ export default function DepartmentTaskCreatePage() {
   const [requirements, setRequirements] = useState('')
   const [instructions, setInstructions] = useState('')
   const [selectedEmpIds, setSelectedEmpIds] = useState<number[]>([])
+  const [targetValue, setTargetValue] = useState('')
+  const [targetUnit, setTargetUnit] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -24,19 +27,15 @@ export default function DepartmentTaskCreatePage() {
       .catch(() => setError('Could not load faculty list.'))
   }, [])
 
-  const toggleEmployee = (id: number) => {
-    setSelectedEmpIds(prev => 
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-    )
-  }
-
-  const selectAll = () => {
-    if (selectedEmpIds.length === employees.length) {
-      setSelectedEmpIds([])
-    } else {
-      setSelectedEmpIds(employees.map(e => e.id))
-    }
-  }
+  const employeeOptions = useMemo(
+    () =>
+      employees.map(emp => ({
+        value: emp.id,
+        label: emp.full_name,
+        hint: `${emp.employee_number} · ${emp.position}`,
+      })),
+    [employees],
+  )
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -46,6 +45,14 @@ export default function DepartmentTaskCreatePage() {
     }
     if (selectedEmpIds.length === 0) {
       setError('Please select at least one faculty member to assign.')
+      return
+    }
+    if (!deadline) {
+      setError('Submission deadline is required.')
+      return
+    }
+    if (startDate && deadline < startDate) {
+      setError('Submission deadline must be on or after the start date.')
       return
     }
 
@@ -61,6 +68,8 @@ export default function DepartmentTaskCreatePage() {
         deadline: deadline || undefined,
         requirements,
         instructions,
+        target_value: targetValue === '' ? undefined : Number(targetValue),
+        target_unit: targetUnit || undefined,
         assigned_employee_ids: selectedEmpIds,
       })
       navigate(PATHS.departmentHeadTasks)
@@ -140,12 +149,13 @@ export default function DepartmentTaskCreatePage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Submission Deadline</label>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Submission Deadline <span className="text-red-500">*</span></label>
                 <input
                   type="date"
                   value={deadline}
                   onChange={e => setDeadline(e.target.value)}
                   className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
                 />
               </div>
             </div>
@@ -176,46 +186,62 @@ export default function DepartmentTaskCreatePage() {
                 />
               </div>
             </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  Measurable Target Value (optional)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={targetValue}
+                  onChange={e => setTargetValue(e.target.value)}
+                  placeholder="e.g. 100"
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  Target Unit (optional)
+                </label>
+                <input
+                  type="text"
+                  value={targetUnit}
+                  onChange={e => setTargetUnit(e.target.value)}
+                  placeholder="e.g. reports"
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
           </div>
 
-          {/* Multi-Employee Assignment Checklist */}
+          {/* Multi-Employee Assignment — searchable picker */}
           <div className="border border-gray-200 rounded-2xl p-5 bg-gray-50/50 space-y-3">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center gap-3">
               <div>
                 <h3 className="font-bold text-gray-900 text-sm">Assign Faculty Members <span className="text-red-500">*</span></h3>
-                <p className="text-xs text-gray-500">Each selected teacher receives their own separate progress tracking</p>
+                <p className="text-xs text-gray-500">Type a name to search, then pick as many teachers as needed — each gets their own progress tracker</p>
               </div>
-              <button
-                type="button"
-                onClick={selectAll}
-                className="text-xs font-semibold text-blue-600 hover:underline"
-              >
-                {selectedEmpIds.length === employees.length ? 'Deselect All' : 'Select All'}
-              </button>
+              {selectedEmpIds.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setSelectedEmpIds([])}
+                  className="text-xs font-semibold text-gray-500 hover:text-gray-900"
+                >
+                  Clear all
+                </button>
+              ) : null}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-56 overflow-y-auto pr-1">
-              {employees.map(emp => {
-                const checked = selectedEmpIds.includes(emp.id)
-                return (
-                  <label
-                    key={emp.id}
-                    className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer ${checked ? 'bg-blue-50/80 border-blue-300 text-blue-900' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'}`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => toggleEmployee(emp.id)}
-                      className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 border-gray-300"
-                    />
-                    <div className="min-w-0">
-                      <p className="font-semibold text-xs truncate">{emp.full_name}</p>
-                      <p className="text-[11px] text-gray-400 font-mono">{emp.employee_number} · {emp.position}</p>
-                    </div>
-                  </label>
-                )
-              })}
-            </div>
+            <SearchableMultiSelect
+              values={selectedEmpIds.map(String)}
+              onChange={(values) => setSelectedEmpIds(values.map(Number))}
+              options={employeeOptions}
+              placeholder="Search faculty by name or employee ID…"
+              emptyMessage="No faculty member matches that search."
+            />
+
             <p className="text-xs text-gray-500 font-medium">Selected: {selectedEmpIds.length} faculty member(s)</p>
           </div>
 

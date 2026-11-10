@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
-import { useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../auth/useAuth'
 import { ActivityTimeline } from '../../components/ActivityTimeline'
 import { ConfirmDialog } from '../../components/common/ConfirmDialog'
@@ -13,19 +13,48 @@ import { useTask } from '../../hooks/useTasks'
 import { getApiErrorMessage, getApiFieldErrors, type FieldErrors } from '../../utils/apiError'
 import * as assignmentService from '../../services/taskAssignmentService'
 import { cancelTask } from '../../services/taskService'
-import { deadlineLabel, decisionLabel, formatDate, toNumber } from '../../utils/task'
+import { deadlineLabel, decisionLabel, formatDate, formatDateTime, toNumber } from '../../utils/task'
+import { PATHS } from '../../routes/paths'
 import type {
   ReviewDecision,
+  SubmissionMethod,
   Task,
   TaskAssignment,
   TaskProgress,
   TaskReview,
+  TaskSubmission,
   TaskTimelineItem,
 } from '../../types/task'
 
 const PROGRESS_STATUSES = ['assigned', 'accepted', 'in_progress', 'rejected']
 
-type PendingAction = 'submit' | 'resubmit' | 'cancel'
+const SUBMISSION_METHODS: { value: SubmissionMethod; label: string; hint: string }[] = [
+  {
+    value: 'upload',
+    label: 'Upload files',
+    hint: 'PDF, Word, Excel, PowerPoint, TXT, JPEG, PNG or ZIP. Up to 10 files, 20 MB each.',
+  },
+  {
+    value: 'link',
+    label: 'Submit a link',
+    hint: 'Share an HTTPS link to Google Drive, OneDrive, Google Docs or similar.',
+  },
+  {
+    value: 'folder',
+    label: 'Submit a folder',
+    hint: 'Upload a ZIP archive or paste a shared folder link.',
+  },
+  {
+    value: 'written',
+    label: 'Written response',
+    hint: 'Describe the work you completed directly in the portal.',
+  },
+]
+
+const ACCEPTED_FILE_TYPES =
+  '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.zip'
+
+type PendingAction = 'cancel'
 
 function replaceAssignment(task: Task, updated: TaskAssignment): Task {
   const existing = task.assignments ?? []
@@ -44,14 +73,18 @@ function assignmentLabel(assignment: TaskAssignment): string {
 }
 
 function overallProgress(task: Task): number {
-  if (task.status === 'completed') {
-    return 100
-  }
   const assignments = task.assignments ?? []
   if (assignments.length === 0) {
-    return 0
+    return task.status === 'completed' ? 100 : 0
   }
-  return Math.max(...assignments.map((assignment) => toNumber(assignment.completion_percentage)))
+
+  // Overall progress is the average of the real assignment progress values.
+  // Approved assignments are guaranteed to be 100 by the backend.
+  const total = assignments.reduce(
+    (sum, assignment) => sum + toNumber(assignment.completion_percentage),
+    0,
+  )
+  return total / assignments.length
 }
 
 function latestReview(reviews: TaskReview[]): TaskReview | null {
@@ -61,6 +94,85 @@ function latestReview(reviews: TaskReview[]): TaskReview | null {
   return [...reviews].sort(
     (a, b) => new Date(b.reviewed_at ?? 0).getTime() - new Date(a.reviewed_at ?? 0).getTime(),
   )[0]
+}
+
+function submissionMethodLabel(method: string): string {
+  return SUBMISSION_METHODS.find((option) => option.value === method)?.label ?? method
+}
+
+function fileSizeLabel(bytes: number | null | undefined): string {
+  if (!bytes || bytes <= 0) {
+    return '—'
+  }
+  const units = ['B', 'KB', 'MB', 'GB']
+  let value = bytes
+  let unit = 0
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024
+    unit += 1
+  }
+  return `${value.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`
+}
+
+interface SubmissionCardProps {
+  submission: TaskSubmission
+  downloadingId: number | null
+  onDownload: (attachmentId: number, fileName: string) => void
+}
+
+/** Read-only render of one preserved submission version for employees/reviewers. */
+function SubmissionCard({ submission, downloadingId, onDownload }: SubmissionCardProps) {
+  return (
+    <article className="task-submission">
+      <header className="task-submission__head">
+        <strong>Version {submission.version}</strong>
+        <span className="task-submission__meta">
+          {submissionMethodLabel(submission.method)} · {formatDateTime(submission.submitted_at)}
+          {submission.submitted_by_name ? ` · ${submission.submitted_by_name}` : ''}
+        </span>
+      </header>
+
+      {submission.notes ? (
+        <p className="task-submission__notes">
+          <strong>Notes:</strong> {submission.notes}
+        </p>
+      ) : null}
+
+      {submission.written_response ? (
+        <div className="task-submission__written">
+          <h5>Written response</h5>
+          <p>{submission.written_response}</p>
+        </div>
+      ) : null}
+
+      {submission.url ? (
+        <p className="task-submission__link">
+          <strong>Shared link:</strong>{' '}
+          <a href={submission.url} target="_blank" rel="noopener noreferrer">
+            {submission.url}
+          </a>
+        </p>
+      ) : null}
+
+      {submission.attachments.length > 0 ? (
+        <ul className="task-submission__files">
+          {submission.attachments.map((file) => (
+            <li key={file.id}>
+              <button
+                type="button"
+                className="task-file-link"
+                disabled={downloadingId === file.id}
+                onClick={() => onDownload(file.id, file.file_name)}
+              >
+                {file.file_name}
+              </button>
+              <span className="task-submission__filesize">{fileSizeLabel(file.file_size)}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </article>
+  )
 }
 
 /** Append-only audit trail for this task, shown only with activity_logs.view. */
@@ -91,6 +203,14 @@ function ActivityLogSection({ taskId }: { taskId: number }) {
 function TaskDetailsContent({ taskId }: { taskId: string }) {
   const { user } = useAuth()
   const { task, setTask, loading, error, refresh } = useTask(taskId)
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  // This page is mounted at both /tasks/:taskId and /employee/tasks/:taskId,
+  // so return the user to whichever Tasks list they actually came from.
+  const backToTasksPath = location.pathname.startsWith(PATHS.employeeTasks)
+    ? PATHS.employeeTasks
+    : PATHS.tasks
 
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [progress, setProgress] = useState<TaskProgress[]>([])
@@ -102,7 +222,14 @@ function TaskDetailsContent({ taskId }: { taskId: string }) {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [percentage, setPercentage] = useState('')
   const [progressComment, setProgressComment] = useState('')
-  const [submitRemarks, setSubmitRemarks] = useState('')
+  const [submissions, setSubmissions] = useState<TaskSubmission[]>([])
+  const [submissionMethod, setSubmissionMethod] = useState<SubmissionMethod>('upload')
+  const [submissionFiles, setSubmissionFiles] = useState<File[]>([])
+  const [submissionUrl, setSubmissionUrl] = useState('')
+  const [submissionWritten, setSubmissionWritten] = useState('')
+  const [submissionNotes, setSubmissionNotes] = useState('')
+  const [submissionOpen, setSubmissionOpen] = useState(false)
+  const [downloadingId, setDownloadingId] = useState<number | null>(null)
   const [decision, setDecision] = useState<ReviewDecision>('approved')
   const [reviewRemarks, setReviewRemarks] = useState('')
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
@@ -133,18 +260,21 @@ function TaskDetailsContent({ taskId }: { taskId: string }) {
       setHistoryLoading(true)
 
       try {
-        const [progressResponse, reviewResponse] = await Promise.all([
+        const [progressResponse, reviewResponse, submissionResponse] = await Promise.all([
           assignmentService.getAssignmentProgress(effectiveSelectedId),
           assignmentService.getAssignmentReviews(effectiveSelectedId),
+          assignmentService.getAssignmentSubmissions(effectiveSelectedId),
         ])
         if (active) {
           setProgress(progressResponse.data)
           setReviews(reviewResponse.data)
+          setSubmissions(submissionResponse.data)
         }
       } catch {
         if (active) {
           setProgress([])
           setReviews([])
+          setSubmissions([])
         }
       } finally {
         if (active) {
@@ -223,6 +353,7 @@ function TaskDetailsContent({ taskId }: { taskId: string }) {
   }, [progress, reviews, selected])
 
   const review = latestReview(reviews)
+  const submissionHistory = submissions.length > 0 ? submissions : selected?.submissions ?? []
 
   function applyUpdated(updated: TaskAssignment) {
     if (task) {
@@ -340,33 +471,98 @@ function TaskDetailsContent({ taskId }: { taskId: string }) {
       return
     }
 
-    if (pendingAction === 'cancel') {
-      setBusy(true)
-      resetMessages()
-      try {
-        await cancelTask(task.id)
-        refresh()
-        setFeedback('Task cancelled.')
-      } catch (error_: unknown) {
-        fail(error_, 'The task could not be cancelled.')
-      } finally {
-        setBusy(false)
-        setPendingAction(null)
-      }
+    setBusy(true)
+    resetMessages()
+    try {
+      await cancelTask(task.id)
+      refresh()
+      setFeedback('Task cancelled.')
+    } catch (error_: unknown) {
+      fail(error_, 'The task could not be cancelled.')
+    } finally {
+      setBusy(false)
+      setPendingAction(null)
+    }
+  }
+
+  function resetSubmissionForm() {
+    setSubmissionMethod('upload')
+    setSubmissionFiles([])
+    setSubmissionUrl('')
+    setSubmissionWritten('')
+    setSubmissionNotes('')
+    setSubmissionOpen(false)
+  }
+
+  async function handleSubmissionSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!selected) {
       return
     }
 
-    const action =
-      pendingAction === 'submit'
-        ? () => assignmentService.submitAssignment(selected.id, submitRemarks.trim() || null)
-        : () => assignmentService.resubmitAssignment(selected.id)
+    resetMessages()
 
-    await runAssignmentAction(
-      action,
-      pendingAction === 'submit' ? 'Assignment submitted for review.' : 'Assignment resubmitted.',
-    )
-    setSubmitRemarks('')
-    setPendingAction(null)
+    if (submissionMethod === 'upload' && submissionFiles.length === 0) {
+      setActionError('Select at least one file before submitting.')
+      setFieldErrors({ files: ['At least one file is required.'] })
+      return
+    }
+    if (submissionMethod === 'link') {
+      if (!/^https:\/\/\S+$/i.test(submissionUrl.trim())) {
+        setActionError('Enter a valid HTTPS link (it must start with https://).')
+        setFieldErrors({ url: ['A valid HTTPS link is required.'] })
+        return
+      }
+    }
+    if (submissionMethod === 'folder' && submissionFiles.length === 0) {
+      if (!/^https:\/\/\S+$/i.test(submissionUrl.trim())) {
+        setActionError('Upload a ZIP archive or enter a valid HTTPS folder link.')
+        setFieldErrors({ url: ['Upload a ZIP archive or provide an HTTPS folder link.'] })
+        return
+      }
+    }
+    if (submissionMethod === 'written' && !submissionWritten.trim()) {
+      setActionError('Describe the work you completed before submitting.')
+      setFieldErrors({ written_response: ['A written response is required.'] })
+      return
+    }
+
+    const payload = {
+      method: submissionMethod,
+      notes: submissionNotes.trim() || null,
+      url: submissionUrl.trim() || null,
+      writtenResponse: submissionWritten.trim() || null,
+      files: submissionFiles,
+    }
+
+    setBusy(true)
+    try {
+      const response = canResubmit
+        ? await assignmentService.resubmitAssignment(selected.id, payload)
+        : await assignmentService.submitAssignment(selected.id, payload)
+
+      applyUpdated(response.data)
+      setSubmissions(response.data.submissions ?? [])
+      resetSubmissionForm()
+      setFeedback(
+        canResubmit ? 'Task resubmitted for review.' : 'Task submitted for review.',
+      )
+    } catch (error_: unknown) {
+      fail(error_, 'The task could not be submitted.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleAttachmentDownload(attachmentId: number, fileName: string) {
+    setDownloadingId(attachmentId)
+    try {
+      await assignmentService.downloadTaskAttachment(attachmentId, fileName)
+    } catch (error_: unknown) {
+      fail(error_, 'The file could not be downloaded.')
+    } finally {
+      setDownloadingId(null)
+    }
   }
 
   if (loading) {
@@ -402,6 +598,14 @@ function TaskDetailsContent({ taskId }: { taskId: string }) {
 
   return (
     <div className="page">
+      <button
+        type="button"
+        onClick={() => navigate(backToTasksPath)}
+        className="mb-4 text-sm font-semibold text-gray-500 hover:text-gray-900 flex items-center gap-1"
+      >
+        ← Back to Tasks
+      </button>
+
       <div className="page__intro">
         <h2>{task.title}</h2>
         <p>
@@ -508,7 +712,11 @@ function TaskDetailsContent({ taskId }: { taskId: string }) {
                 <span className="task-assignment__head">
                   <span className="task-assignment__name">{assignmentLabel(assignment)}</span>
                   <span className="task-assignment__status">
-                    Assignment: <TaskStatusBadge status={assignment.status} />
+                    Assignment:{' '}
+                    <TaskStatusBadge
+                      status={assignment.status}
+                      decision={assignment.latest_review_decision}
+                    />
                   </span>
                 </span>
                 <TaskProgressBar
@@ -532,7 +740,7 @@ function TaskDetailsContent({ taskId }: { taskId: string }) {
 
           <p className="task-assignment__status task-assignment__status--detail">
             Task status: <TaskStatusBadge status={task.status} /> · Your assignment:{' '}
-            <TaskStatusBadge status={selected.status} />
+            <TaskStatusBadge status={selected.status} decision={review?.decision} />
           </p>
 
           {review ? (
@@ -587,50 +795,158 @@ function TaskDetailsContent({ taskId }: { taskId: string }) {
                 </button>
               ) : null}
 
-              {canSubmit ? (
+              {canSubmit || canResubmit ? (
                 <button
                   type="button"
                   className="button"
                   disabled={busy}
                   onClick={() => {
                     resetMessages()
-                    setPendingAction('submit')
+                    setSubmissionOpen((open) => !open)
                   }}
                 >
-                  Submit for review
-                </button>
-              ) : null}
-
-              {canResubmit ? (
-                <button
-                  type="button"
-                  className="button"
-                  disabled={busy}
-                  onClick={() => {
-                    resetMessages()
-                    setPendingAction('resubmit')
-                  }}
-                >
-                  Resubmit
+                  {canResubmit ? 'Resubmit task' : 'Submit task'}
                 </button>
               ) : null}
             </div>
           ) : null}
 
-          {canSubmit || canResubmit ? (
-            <label className="task-form__field task-form__field--block">
-              <span>Submission remarks (optional)</span>
-              <textarea
-                rows={2}
-                maxLength={5000}
-                value={submitRemarks}
-                placeholder="Anything the reviewer should know"
-                onChange={(event) => setSubmitRemarks(event.target.value)}
-              />
-              {fieldErrors.remarks?.[0] ? (
-                <span className="task-form__error">{fieldErrors.remarks[0]}</span>
+          {isOwner && (canSubmit || canResubmit) && submissionOpen ? (
+            <form className="task-form task-form--submission" onSubmit={handleSubmissionSubmit}>
+              <h4>{canResubmit ? 'Resubmit task' : 'Submit task'}</h4>
+
+              <label className="task-form__field">
+                <span>Submission method</span>
+                <select
+                  value={submissionMethod}
+                  onChange={(event) => {
+                    setSubmissionMethod(event.target.value as SubmissionMethod)
+                    setSubmissionFiles([])
+                    setSubmissionUrl('')
+                    setSubmissionWritten('')
+                  }}
+                >
+                  {SUBMISSION_METHODS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <p className="task-form__hint">
+                {SUBMISSION_METHODS.find((option) => option.value === submissionMethod)?.hint}
+              </p>
+
+              {submissionMethod === 'upload' || submissionMethod === 'folder' ? (
+                <label className="task-form__field task-form__field--block">
+                  <span>
+                    {submissionMethod === 'folder' ? 'ZIP archive' : 'Files'}
+                  </span>
+                  <input
+                    type="file"
+                    multiple
+                    accept={submissionMethod === 'folder' ? '.zip' : ACCEPTED_FILE_TYPES}
+                    onChange={(event) =>
+                      setSubmissionFiles(Array.from(event.target.files ?? []))
+                    }
+                  />
+                  {submissionFiles.length > 0 ? (
+                    <span className="task-form__hint">
+                      {submissionFiles.length} file
+                      {submissionFiles.length === 1 ? '' : 's'} selected
+                    </span>
+                  ) : null}
+                  {fieldErrors.files?.[0] ?? fieldErrors['files.0']?.[0] ? (
+                    <span className="task-form__error">
+                      {fieldErrors.files?.[0] ?? fieldErrors['files.0']?.[0]}
+                    </span>
+                  ) : null}
+                </label>
               ) : null}
-            </label>
+
+              {submissionMethod === 'link' || submissionMethod === 'folder' ? (
+                <label className="task-form__field task-form__field--grow">
+                  <span>
+                    {submissionMethod === 'folder'
+                      ? 'Shared folder link (HTTPS)'
+                      : 'HTTPS link'}
+                  </span>
+                  <input
+                    type="url"
+                    inputMode="url"
+                    placeholder="https://drive.google.com/..."
+                    value={submissionUrl}
+                    onChange={(event) => setSubmissionUrl(event.target.value)}
+                  />
+                  {fieldErrors.url?.[0] ? (
+                    <span className="task-form__error">{fieldErrors.url[0]}</span>
+                  ) : null}
+                </label>
+              ) : null}
+
+              {submissionMethod === 'written' ? (
+                <label className="task-form__field task-form__field--block">
+                  <span>Written response</span>
+                  <textarea
+                    rows={5}
+                    maxLength={20000}
+                    value={submissionWritten}
+                    placeholder="Summarise the work you completed"
+                    onChange={(event) => setSubmissionWritten(event.target.value)}
+                  />
+                  {fieldErrors.written_response?.[0] ? (
+                    <span className="task-form__error">{fieldErrors.written_response[0]}</span>
+                  ) : null}
+                </label>
+              ) : null}
+
+              <label className="task-form__field task-form__field--block">
+                <span>Submission notes (optional)</span>
+                <textarea
+                  rows={2}
+                  maxLength={5000}
+                  value={submissionNotes}
+                  placeholder="Anything the reviewer should know"
+                  onChange={(event) => setSubmissionNotes(event.target.value)}
+                />
+                {fieldErrors.notes?.[0] ? (
+                  <span className="task-form__error">{fieldErrors.notes[0]}</span>
+                ) : null}
+              </label>
+
+              <div className="task-actions task-actions--end">
+                <button
+                  type="button"
+                  className="button button--secondary"
+                  disabled={busy}
+                  onClick={resetSubmissionForm}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="button" disabled={busy}>
+                  Submit for review
+                </button>
+              </div>
+            </form>
+          ) : null}
+
+          {submissionHistory.length > 0 ? (
+            <div className="task-submissions">
+              <h4 className="task-timeline__heading">Submission history</h4>
+              {[...submissionHistory]
+                .sort((a, b) => b.version - a.version)
+                .map((submission) => (
+                  <SubmissionCard
+                    key={submission.id}
+                    submission={submission}
+                    downloadingId={downloadingId}
+                    onDownload={(attachmentId, fileName) =>
+                      void handleAttachmentDownload(attachmentId, fileName)
+                    }
+                  />
+                ))}
+            </div>
           ) : null}
 
           {canUpdateProgress ? (
@@ -739,29 +1055,11 @@ function TaskDetailsContent({ taskId }: { taskId: string }) {
       <ConfirmDialog
         open={pendingAction !== null}
         busy={busy}
-        tone={pendingAction === 'cancel' ? 'danger' : 'default'}
-        title={
-          pendingAction === 'submit'
-            ? 'Submit for review'
-            : pendingAction === 'resubmit'
-              ? 'Resubmit task'
-              : 'Cancel task'
-        }
-        message={
-          pendingAction === 'submit'
-            ? 'Are you sure you want to submit this task for review?'
-            : pendingAction === 'resubmit'
-              ? 'Are you sure you want to resubmit this task for review?'
-              : 'Are you sure you want to cancel this task? This cannot be undone.'
-        }
-        confirmLabel={
-          pendingAction === 'submit'
-            ? 'Submit'
-            : pendingAction === 'resubmit'
-              ? 'Resubmit'
-              : 'Cancel task'
-        }
-        cancelLabel={pendingAction === 'cancel' ? 'Keep task' : 'Back'}
+        tone="danger"
+        title="Cancel task"
+        message="Are you sure you want to cancel this task? This cannot be undone."
+        confirmLabel="Cancel task"
+        cancelLabel="Keep task"
         onConfirm={handleConfirmedAction}
         onCancel={() => setPendingAction(null)}
       />

@@ -39,7 +39,7 @@ class AchievementReportService
         $month = $bag->month ?? now()->month;
 
         $key = 'reports:achievements:'.($departmentId ?? 'all').':'.$bag->signature();
-        $rows = Cache::remember($key, (int) config('reports.cache_ttl', 60), function () use ($user, $bag, $departmentId, $year, $month) {
+        $rows = Cache::remember($key, (int) config('reports.cache_ttl', 60), function () use ($bag, $departmentId, $year, $month) {
             $employees = Employee::query()
                 ->active()
                 ->with('department')

@@ -2,7 +2,7 @@
 
 namespace App\Services\Reports;
 
-use Illuminate\Support\Arr;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Normalized reports query bag.
@@ -163,7 +163,7 @@ final class ReportFilterBag
      * When neither month/year nor date range are present the query is
      * unconstrained — the report simply summarises the whole scope.
      */
-    public function constrainCompletedAt(\Illuminate\Database\Eloquent\Builder $query, string $column = 'completed_at'): \Illuminate\Database\Eloquent\Builder
+    public function constrainCompletedAt(Builder $query, string $column = 'completed_at'): Builder
     {
         if ($this->month !== null && $this->year !== null) {
             return $query

@@ -2,6 +2,10 @@
 
 How to monitor a running JPC Portal deployment (Phase 13).
 
+> v1.0.0 operational view: see the consolidated
+> [`../operations/monitoring.md`](../operations/monitoring.md) (monitoring,
+> health model, thresholds, failed jobs, alerts).
+
 ## What the system monitors
 
 | Area | Where | Command / Endpoint |

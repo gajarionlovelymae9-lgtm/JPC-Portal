@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers\Api\V1\Reporting;
 
+use App\Enums\ReportExportStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Reporting\ExportReportRequest;
 use App\Jobs\Reporting\GenerateReportExportJob;
 use App\Models\ReportExport;
+use App\Models\User;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -48,18 +50,86 @@ class ReportExportController extends Controller
             $format = 'xlsx';
         }
 
+        $filters = $validated['filters'] ?? collect($validated)->except(['report_type', 'format'])->toArray();
+
+        // Duplicate-click guard: repeated submits of the SAME report within a
+        // single worker cycle must not pile up identical queued files. The
+        // in-flight record is reused so the UI keeps one progress entry per
+        // report, and ShouldBeUnique stays meaningful. Filter equality is
+        // compared canonically in PHP — MySQL JSON_EXTRACT/JSON_UNQUOTE of a
+        // whole object does not reproduce json_encode's exact string.
+        $pending = ReportExport::query()
+            ->where('user_id', $user->id)
+            ->where('report_type', $validated['report_type'])
+            ->where('format', $format)
+            ->whereIn('status', [
+                ReportExportStatus::Queued->value,
+                ReportExportStatus::Processing->value,
+            ])
+            ->orderByDesc('id')
+            ->get()
+            ->first(fn (ReportExport $export) => $export->isSameFilters($filters));
+
+        if ($pending !== null) {
+            return ApiResponse::success('An identical export is already queued — reusing it.', $this->present($pending), 202);
+        }
+
         $export = ReportExport::create([
             'user_id' => $user->id,
             'report_type' => $validated['report_type'],
             'format' => $format,
-            'status' => \App\Enums\ReportExportStatus::Queued->value,
-            'filters' => $validated['filters'] ?? collect($validated)->except(['report_type', 'format'])->toArray(),
+            'status' => ReportExportStatus::Queued->value,
+            'filters' => $filters,
             'requested_at' => now(),
         ]);
 
         GenerateReportExportJob::dispatch($export);
 
         return ApiResponse::success('Report export queued successfully', $this->present($export), 202);
+    }
+
+    /**
+     * POST /reports/exports/{id}/retry — a FAILED (or expired-then-retryable)
+     * export can be re-queued by its owner (admins/hr too). The original
+     * record keeps its audit trail; only the attempt state resets.
+     */
+    public function retry(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+        $export = ReportExport::find($id);
+
+        if ($export === null) {
+            return ApiResponse::error('Report export not found', null, 404);
+        }
+
+        if (! $this->canAccess($user, $export)) {
+            return ApiResponse::error('Unauthorized to retry this export', null, 403);
+        }
+
+        $status = $export->status();
+
+        if (! $status->isRetryable()) {
+            return ApiResponse::error(
+                "Export cannot be retried while {$status->label()} — only failed exports can be retried.",
+                null,
+                409,
+            );
+        }
+
+        $export->forceFill([
+            'status' => ReportExportStatus::Queued->value,
+            'error_message' => null,
+            'error_line' => null,
+            'file_path' => null,
+            'file_size' => null,
+            'row_count' => null,
+            'requested_at' => now(),
+            'completed_at' => null,
+        ])->save();
+
+        GenerateReportExportJob::dispatch($export);
+
+        return ApiResponse::success('Export queued for retry.', $this->present($export));
     }
 
     public function show(Request $request, int $id): JsonResponse
@@ -96,7 +166,7 @@ class ReportExportController extends Controller
         }
 
         if ($export->hasExpired() || ! $export->fileExists()) {
-            $export->forceFill(['status' => \App\Enums\ReportExportStatus::Expired->value])->save();
+            $export->forceFill(['status' => ReportExportStatus::Expired->value])->save();
 
             return ApiResponse::error('Export has expired', null, 410);
         }
@@ -109,7 +179,7 @@ class ReportExportController extends Controller
     /**
      * Ownership check: owners always; admins/hr may act on any export.
      */
-    private function canAccess(\App\Models\User $user, ReportExport $export): bool
+    private function canAccess(User $user, ReportExport $export): bool
     {
         return (int) $export->user_id === (int) $user->id
             || in_array($user->roleName(), ['admin', 'hr'], true);

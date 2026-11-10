@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   assignEmployee,
+  downloadTaskAttachment,
+  getAssignmentSubmissions,
+  resubmitAssignment,
   submitAssignment,
   updateAssignmentProgress,
 } from './taskAssignmentService'
@@ -83,7 +86,11 @@ describe('taskAssignmentService', () => {
   it('posts assignment actions to the correct endpoints', async () => {
     const fetchMock = mockFetch()
 
-    await submitAssignment(7, 'Done')
+    await submitAssignment(7, {
+      method: 'written',
+      writtenResponse: 'Done',
+      notes: 'All complete',
+    })
     await updateAssignmentProgress(7, { percentage: 50, comment: 'Halfway' })
     await assignEmployee(3, { employee_id: 5, due_date: '2026-10-01' })
 
@@ -93,5 +100,63 @@ describe('taskAssignmentService', () => {
 
     expect(fetchMock.mock.calls[0][1]).toMatchObject({ method: 'POST' })
     expect(fetchMock.mock.calls[2][1]).toMatchObject({ method: 'POST' })
+
+    const body = fetchMock.mock.calls[0][1]?.body as FormData
+    expect(body).toBeInstanceOf(FormData)
+    expect(body.get('method')).toBe('written')
+    expect(body.get('written_response')).toBe('Done')
+    expect(body.get('notes')).toBe('All complete')
+  })
+
+  it('sends multiple files for upload and folder submissions', async () => {
+    const fetchMock = mockFetch()
+    const first = new File(['one'], 'report.pdf', { type: 'application/pdf' })
+    const second = new File(['two'], 'bundle.zip', { type: 'application/zip' })
+
+    await submitAssignment(5, { method: 'upload', files: [first, second] })
+    await resubmitAssignment(5, { method: 'folder', url: 'https://1drv.ms/f/s!abc' })
+
+    const uploadBody = fetchMock.mock.calls[0][1]?.body as FormData
+    expect(uploadBody).toBeInstanceOf(FormData)
+    expect(uploadBody.get('method')).toBe('upload')
+    expect(uploadBody.getAll('files[]')).toHaveLength(2)
+
+    const folder = fetchMock.mock.calls[1][1]?.body as FormData
+    expect(String(fetchMock.mock.calls[1][0])).toContain('/task-assignments/5/resubmit')
+    expect(folder.get('method')).toBe('folder')
+    expect(folder.get('url')).toBe('https://1drv.ms/f/s!abc')
+
+    const uploadInit = fetchMock.mock.calls[0][1] as RequestInit
+    const uploadHeaders = (uploadInit.headers ?? {}) as Record<string, string>
+    expect(uploadHeaders['Content-Type']).toBeUndefined()
+  })
+
+  it('loads submission history and downloads attachments through the API', async () => {
+    const fetchMock = mockFetch()
+
+    await getAssignmentSubmissions(7)
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/task-assignments/7/submissions')
+
+    const downloadMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      blob: async () => new Blob(['file']),
+      headers: {
+        get: (name: string) =>
+          name.toLowerCase() === 'content-disposition'
+            ? 'attachment; filename="evidence.pdf"'
+            : null,
+      },
+    })
+    vi.stubGlobal('fetch', downloadMock)
+    vi.stubGlobal('URL', {
+      createObjectURL: () => 'blob:mock',
+      revokeObjectURL: () => undefined,
+    })
+
+    await downloadTaskAttachment(11, 'fallback.pdf')
+
+    expect(String(downloadMock.mock.calls[0][0])).toContain('/task-attachments/11/download')
+    expect(downloadMock.mock.calls[0][1]).toMatchObject({ method: 'GET' })
   })
 })

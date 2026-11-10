@@ -236,6 +236,23 @@ class TaskManagementApiTest extends TestCase
             ->assertJsonPath('success', true);
     }
 
+    public function test_employee_cannot_update_another_employees_progress(): void
+    {
+        $owner = $this->employeeUser();
+        $assignment = $this->assignmentFor($owner, ['status' => 'in_progress']);
+        $before = (float) $assignment->progress_percentage;
+
+        $other = $this->employeeUser();
+        $this->login($other);
+
+        $this->postJson("/api/v1/task-assignments/{$assignment->id}/progress", [
+            'percentage' => 90,
+            'comment' => 'Not my task',
+        ])->assertForbidden();
+
+        $this->assertSame($before, (float) $assignment->fresh()->progress_percentage);
+    }
+
     public function test_progress_returns_422_for_invalid_percentage(): void
     {
         $user = $this->employeeUser();
@@ -330,11 +347,14 @@ class TaskManagementApiTest extends TestCase
         $assignment = $this->assignmentFor($user, ['status' => 'in_progress']);
 
         $this->postJson("/api/v1/task-assignments/{$assignment->id}/submit", [
+            'method' => 'written',
+            'written_response' => 'Done',
             'remarks' => 'Done',
         ])
             ->assertOk()
             ->assertJsonPath('success', true)
-            ->assertJsonPath('data.status', 'submitted');
+            ->assertJsonPath('data.status', 'submitted')
+            ->assertJsonPath('data.submissions.0.method', 'written');
     }
 
     public function test_employee_can_resubmit_rejected_assignment(): void
@@ -343,9 +363,13 @@ class TaskManagementApiTest extends TestCase
         $this->login($user);
         $assignment = $this->assignmentFor($user, ['status' => 'rejected']);
 
-        $this->postJson("/api/v1/task-assignments/{$assignment->id}/resubmit")
+        $this->postJson("/api/v1/task-assignments/{$assignment->id}/resubmit", [
+            'method' => 'link',
+            'url' => 'https://drive.google.com/file/d/abc123/view',
+        ])
             ->assertOk()
-            ->assertJsonPath('data.status', 'submitted');
+            ->assertJsonPath('data.status', 'submitted')
+            ->assertJsonPath('data.submissions.0.method', 'link');
     }
 
     // ── SECURITY: AUTHORIZATION, 404, IDOR ─────────────────────

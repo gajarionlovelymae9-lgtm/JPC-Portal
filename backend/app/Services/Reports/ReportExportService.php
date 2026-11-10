@@ -177,7 +177,7 @@ class ReportExportService
     {
         $parts = $this->buildXlsxParts($columns, $rows);
 
-        return Response::stream(function () use ($filename, $parts): void {
+        return Response::stream(function () use ($parts): void {
             $tmp = tempnam(sys_get_temp_dir(), 'jpc_xlsx_');
             if ($tmp === false) {
                 abort(500, 'Unable to allocate temporary file for export.');

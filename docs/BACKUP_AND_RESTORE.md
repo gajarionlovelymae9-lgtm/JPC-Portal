@@ -15,7 +15,7 @@ This document describes how to back up `acadtrack_db` and how to safely restore 
 | Item | Location / command |
 | --- | --- |
 | Database `acadtrack_db` | MySQL — see below |
-| Uploaded report files (private storage) | `backend/storage/app/private/reports` |
+| Uploaded report files (private storage) | `backend/storage/app/private/private/reports` (note the double `private` nesting — the report upload stores under `private/reports/...` on the default `local` disk, whose root is already `storage/app/private`). Back up the whole `storage/app/private` subtree. |
 | Export files (if any) | `backend/storage/app/private/report_exports` (TTL-managed; re-generable) |
 | Application key | `APP_KEY` from `backend/.env` (must be recovered together with the DB) |
 | `.env` configuration | `backend/.env`, `frontend/.env` (contains no secrets on frontend) |
@@ -81,7 +81,7 @@ foreach ($tables as $t) {
 file_put_contents('backup.sql', $out);
 ```
 
-Also back up the private files folder:
+Also back up the private files subtree:
 
 ```bash
 Copy-Item -Recurse backend/storage/app/private backups/daily/YYYY-MM-DD/private
@@ -154,12 +154,26 @@ matching counts.
 
 - The app key must match at restore time (session cookies and encrypted data).
   Keep `APP_KEY` from the backed-up `.env`.
-- Copy the backed-up `storage/app/private/reports` back to the same location.
+- Copy the backed-up `storage/app/private/private/reports` (and any other
+  private files under `storage/app/private/`) back to the same location,
+  preserving the double-`private` path exactly.
 
 ## 7. Automation notes
 
 - Windows Task Scheduler can run the daily dump; a cron/systemd timer is used on
   Linux servers.
+- The application includes `php artisan system:verify-backups` (runs daily
+  05:30 via the scheduler; also callable manually). It does **not** create
+  backups — it verifies conditions:
+  - a `Database Backup` maintenance-log entry exists whose result is
+    `completed` and is no older than `--days` (default 7),
+  - a `Database Restore` maintenance-log entry is `completed` at/after that
+    backup (i.e. the backup was actually restore-tested),
+  - at least one `.sql`/`.sql.gz` dump exists on the `local` disk
+    `backups/` directory (`backend/storage/app/private/backups/`).
+  It returns SUCCESS or FAILURE; it does not write monitor-table rows (run
+  `system:check-health` for that). Store at least the newest dump at
+  `backend/storage/app/private/backups/` so this check is meaningful.
 - Compress dumps (`gzip`/`tar.gz`) to reduce storage.
 - Test the full restore **monthly** (see [`MAINTENANCE.md`](MAINTENANCE.md)).
 

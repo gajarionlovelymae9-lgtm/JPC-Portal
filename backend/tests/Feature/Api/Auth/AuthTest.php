@@ -29,6 +29,7 @@ class AuthTest extends TestCase
     public function test_login_succeeds_with_valid_credentials(): void
     {
         $this->postJson('/api/v1/auth/login', [
+            'role' => 'admin',
             'email' => 'admin@jpc.local',
             'password' => self::DEV_PASSWORD,
         ])
@@ -62,6 +63,7 @@ class AuthTest extends TestCase
         $user = User::query()->where('email', 'hr@jpc.local')->firstOrFail();
 
         $this->postJson('/api/v1/auth/login', [
+            'role' => 'hr',
             'email' => $user->email,
             'password' => self::DEV_PASSWORD,
         ])
@@ -71,9 +73,48 @@ class AuthTest extends TestCase
             ->assertJsonPath('data.permissions.0', 'dashboard.view');
     }
 
+    public function test_login_rejects_mismatched_role(): void
+    {
+        $this->postJson('/api/v1/auth/login', [
+            'role' => 'hr',
+            'email' => 'admin@jpc.local',
+            'password' => self::DEV_PASSWORD,
+        ])
+            ->assertStatus(401)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('message', 'The selected role does not match this account.');
+    }
+
+    public function test_login_rejects_dean_as_a_login_role(): void
+    {
+        $this->postJson('/api/v1/auth/login', [
+            'role' => 'dean',
+            'email' => 'departmenthead@jpc.local',
+            'password' => self::DEV_PASSWORD,
+        ])
+            ->assertStatus(422)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('message', 'Validation failed')
+            ->assertJsonPath('errors.role.0', 'Please select a valid role.');
+    }
+
+    public function test_login_rejects_an_unknown_role(): void
+    {
+        $this->postJson('/api/v1/auth/login', [
+            'role' => 'superuser',
+            'email' => 'admin@jpc.local',
+            'password' => self::DEV_PASSWORD,
+        ])
+            ->assertStatus(422)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('message', 'Validation failed')
+            ->assertJsonPath('errors.role.0', 'Please select a valid role.');
+    }
+
     public function test_login_rejects_invalid_credentials(): void
     {
         $this->postJson('/api/v1/auth/login', [
+            'role' => 'admin',
             'email' => 'admin@jpc.local',
             'password' => 'not-the-password',
         ])
@@ -90,6 +131,7 @@ class AuthTest extends TestCase
     public function test_login_rejects_unknown_email_with_same_generic_message(): void
     {
         $this->postJson('/api/v1/auth/login', [
+            'role' => 'admin',
             'email' => 'nobody@jpc.local',
             'password' => self::DEV_PASSWORD,
         ])
@@ -107,6 +149,7 @@ class AuthTest extends TestCase
         ]);
 
         $this->postJson('/api/v1/auth/login', [
+            'role' => 'employee',
             'email' => 'inactive@jpc.local',
             'password' => 'secret1234',
         ])
@@ -124,6 +167,7 @@ class AuthTest extends TestCase
         ]);
 
         $this->postJson('/api/v1/auth/login', [
+            'role' => 'employee',
             'email' => 'suspended@jpc.local',
             'password' => 'secret1234',
         ])
@@ -137,19 +181,21 @@ class AuthTest extends TestCase
             ->assertStatus(422)
             ->assertJsonPath('success', false)
             ->assertJsonPath('message', 'Validation failed')
-            ->assertJsonStructure(['errors' => ['email', 'password']]);
+            ->assertJsonStructure(['errors' => ['role', 'email', 'password']]);
     }
 
     public function test_login_is_rate_limited_after_five_attempts(): void
     {
         for ($i = 0; $i < 5; $i++) {
             $this->postJson('/api/v1/auth/login', [
+                'role' => 'admin',
                 'email' => 'admin@jpc.local',
                 'password' => 'wrong-password',
             ])->assertStatus(401);
         }
 
         $this->postJson('/api/v1/auth/login', [
+            'role' => 'admin',
             'email' => 'admin@jpc.local',
             'password' => 'wrong-password',
         ])
@@ -161,6 +207,7 @@ class AuthTest extends TestCase
     public function test_full_login_me_logout_session_flow(): void
     {
         $this->postJson('/api/v1/auth/login', [
+            'role' => 'admin',
             'email' => 'admin@jpc.local',
             'password' => self::DEV_PASSWORD,
         ])->assertOk();

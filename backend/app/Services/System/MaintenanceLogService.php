@@ -3,6 +3,7 @@
 namespace App\Services\System;
 
 use App\Models\MaintenanceLog;
+use App\Models\User;
 use App\Services\Audit\ActivityLogger;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
@@ -37,7 +38,7 @@ class MaintenanceLogService
         $this->audit->log(
             'maintenance.record',
             "Maintenance recorded: {$log->maintenance_type} ({$log->result})",
-            $performedBy ? \App\Models\User::find($performedBy) : null,
+            $performedBy ? User::find($performedBy) : null,
             $log,
             ['type' => $log->maintenance_type, 'module' => $log->affected_module],
         );

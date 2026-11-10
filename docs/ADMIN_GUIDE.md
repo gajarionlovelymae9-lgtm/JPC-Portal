@@ -2,6 +2,12 @@
 
 How the **Admin** role operates the system day-to-day.
 
+> **Consolidated guide:** the management workflows for Admin, HR and Department
+> Heads are now covered together in
+> [`user-guides/management-guide.md`](user-guides/management-guide.md). This
+> page keeps the admin-specific quick reference below and is maintained
+> alongside it.
+
 > Demo account: `admin@jpc.local` / `P@ssw0rd2026` (dev only — change on real
 > deployments).
 

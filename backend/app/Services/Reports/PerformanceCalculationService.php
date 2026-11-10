@@ -2,12 +2,9 @@
 
 namespace App\Services\Reports;
 
-use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeePerformanceRecord;
-use App\Models\TaskAssignment;
 use App\Models\User;
-use App\Services\Reports\ReportFilterBag;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -91,6 +88,7 @@ class PerformanceCalculationService
             $value = $record->$field ?? 0;
             $score += (float) $value * (float) $weight;
         }
+
         return round($score, 2);
     }
 

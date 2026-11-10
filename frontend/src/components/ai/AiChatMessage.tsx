@@ -1,5 +1,6 @@
 
 import { sanitize } from '../../utils/ai/sanitizeAiContent'
+import { JpcAideLogo, JPC_AIDE_NAME } from './JpcAideLogo'
 
 interface AiChatMessageProps {
   message: {
@@ -27,6 +28,13 @@ export function AiChatMessage({ message }: AiChatMessageProps) {
             : 'bg-white text-gray-800 border rounded-bl-none'
         }`}
       >
+        {!isUser && (
+          <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-700">
+            <JpcAideLogo size={12} />
+            <span>{JPC_AIDE_NAME}</span>
+            <span className="rounded-full bg-indigo-50 px-1.5 py-0.5 text-[10px] font-bold normal-case text-indigo-600">AI-generated</span>
+          </div>
+        )}
         <div className="whitespace-pre-wrap font-sans">{sanitizedContent}</div>
       </div>
     </div>

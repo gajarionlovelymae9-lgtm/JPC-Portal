@@ -2,7 +2,7 @@ import { apiRequest, toQueryString } from './api'
 
 const BASE = '/department-head'
 
-// â”€â”€â”€ Interfaces â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Interfaces ─────────────────────────────────────────────────────────────
 
 export interface DepartmentDashboardData {
   department: {
@@ -339,21 +339,86 @@ export interface DepartmentAchievementsData {
   }>
 }
 
-export interface DepartmentEscalation {
-  id: number
-  title: string
-  type: string
-  reason: string
-  priority: string
-  status: string
-  resolution_notes: string | null
-  created_by_name: string
-  resolver_name: string | null
-  created_at: string
-  resolved_at: string | null
+export interface EscalationSummary {
+  total: number
+  pending: number
+  under_review: number
+  action_required: number
+  resolved: number
+  rejected: number
+  open: number
 }
 
-// â”€â”€â”€ API Methods â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+export interface EscalationPagination {
+  current_page: number
+  last_page: number
+  per_page: number
+  total: number
+}
+
+export interface DepartmentEscalation {
+  id: number
+  reference: string
+  title: string
+  type: string
+  type_label: string
+  reason: string
+  requested_action: string | null
+  priority: string
+  priority_label: string
+  status: string
+  status_label: string
+  department_id: number | null
+  department_name: string | null
+  employee_id: number | null
+  employee_name: string | null
+  employee_number: string | null
+  related_type: string | null
+  related_id: number | null
+  related_label: string | null
+  assigned_to: number | null
+  assigned_to_name: string | null
+  assigned_at: string | null
+  reviewed_by_name: string | null
+  reviewed_at: string | null
+  resolution_notes: string | null
+  resolver_name: string | null
+  resolved_at: string | null
+  attachment: { name: string } | null
+  created_by_name: string | null
+  created_at: string
+}
+
+export interface EscalationHistoryEntry {
+  id: number
+  action: string
+  note: string | null
+  is_internal: boolean
+  old_status: string | null
+  new_status: string | null
+  actor_name: string
+  created_at: string | null
+}
+
+export interface DepartmentEscalationDetail extends DepartmentEscalation {
+  history: EscalationHistoryEntry[]
+}
+
+export interface DepartmentEscalationListResult {
+  items: DepartmentEscalation[]
+  summary: EscalationSummary
+  pagination: EscalationPagination
+}
+
+export interface DepartmentEscalationOptions {
+  department: { id: number; name: string }
+  employees: Array<{ id: number; name: string; employee_number: string | null }>
+  administrators: Array<{ id: number; name: string }>
+  issue_types: Array<{ value: string; label: string }>
+  priorities: Array<{ value: string; label: string }>
+}
+
+// ─── API Methods ────────────────────────────────────────────────────────────
 
 export const getDepartmentDashboard = (params: Record<string, unknown> = {}) =>
   apiRequest<DepartmentDashboardData>(`${BASE}/dashboard${toQueryString(params)}`)
@@ -375,6 +440,8 @@ export const createDepartmentTask = (payload: {
   deadline?: string
   requirements?: string
   instructions?: string
+  target_value?: number
+  target_unit?: string
   assigned_employee_ids?: number[]
   department_id?: number
 }) => apiRequest<{ id: number; title: string; status: string }>(`${BASE}/tasks`, {
@@ -426,16 +493,108 @@ export const getDepartmentPerformance = (params: Record<string, unknown> = {}) =
 export const getDepartmentAchievements = (params: Record<string, unknown> = {}) =>
   apiRequest<DepartmentAchievementsData>(`${BASE}/achievements${toQueryString(params)}`)
 
-export const getDepartmentEscalations = (params: Record<string, unknown> = {}) =>
-  apiRequest<DepartmentEscalation[]>(`${BASE}/escalations${toQueryString(params)}`)
+/* ── Recognition recommendations (Department Head → HR) ───────────────────── */
 
-export const createDepartmentEscalation = (payload: {
+/** A recommendation the head submitted, with HR's review status. */
+export interface AchievementRecommendation {
+  id: number
+  employee_id: number
+  employee_name: string
+  employee_number: string | null
+  position: string | null
+  badge_id: number
+  badge_name: string
+  badge_icon: string | null
+  badge_category: string | null
+  badge_tier: string | null
+  recommended_at: string | null
+  recommendation_details: string | null
+  verification_status: 'pending' | 'verified' | 'rejected'
+  verified_at: string | null
+  reviewed_by: string | null
+  rejection_reason: string | null
+}
+
+export interface AchievementRecommendationOptions {
+  employees: Array<{
+    id: number
+    name: string
+    employee_number: string | null
+    position: string | null
+  }>
+  badges: Array<{
+    id: number
+    name: string
+    code: string
+    description: string | null
+    icon: string | null
+    category: string | null
+    tier: string | null
+  }>
+}
+
+export interface RecommendationInput {
+  employee_id: number
+  badge_id: number
+  details: string
+  period_start?: string | null
+  period_end?: string | null
+}
+
+export const getMyRecommendations = () =>
+  apiRequest<{ recommendations: AchievementRecommendation[] }>(`${BASE}/achievements/recommendations`)
+
+export const getRecommendationOptions = () =>
+  apiRequest<AchievementRecommendationOptions>(`${BASE}/achievements/recommendations/options`)
+
+export const createRecommendation = (payload: RecommendationInput) =>
+  apiRequest<unknown>(`${BASE}/achievements/recommendations`, { method: 'POST', body: payload })
+
+export const getDepartmentEscalations = (params: Record<string, unknown> = {}) =>
+  apiRequest<DepartmentEscalationListResult>(`${BASE}/escalations${toQueryString(params)}`)
+
+export const getDepartmentEscalationSummary = (params: Record<string, unknown> = {}) =>
+  apiRequest<EscalationSummary>(`${BASE}/escalations/summary${toQueryString(params)}`)
+
+export const getDepartmentEscalationOptions = (params: Record<string, unknown> = {}) =>
+  apiRequest<DepartmentEscalationOptions>(`${BASE}/escalations/options${toQueryString(params)}`)
+
+export const getDepartmentEscalation = (escalationId: number | string) =>
+  apiRequest<DepartmentEscalationDetail>(`${BASE}/escalations/${escalationId}`)
+
+export interface CreateDepartmentEscalationPayload {
   title: string
-  type?: string
+  type: string
   reason: string
-  priority?: string
+  employee_id: number
+  priority: string
+  related_type?: string
+  related_id?: number
+  requested_action?: string
+  assigned_to?: number
   department_id?: number
-}) => apiRequest<{ id: number; title: string; status: string }>(`${BASE}/escalations`, {
-  method: 'POST',
-  body: payload,
-})
+  attachment?: File | null
+}
+
+export const createDepartmentEscalation = (payload: CreateDepartmentEscalationPayload) => {
+  const { attachment, ...fields } = payload
+
+  // Multipart upload: the browser sets the boundary; Laravel still exposes the
+  // same validated fields, so the backend contract is unchanged.
+  if (attachment) {
+    const form = new FormData()
+    Object.entries(fields).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        form.append(key, String(value))
+      }
+    })
+    form.append('attachment', attachment)
+
+    return apiRequest<DepartmentEscalation>(`${BASE}/escalations`, { method: 'POST', body: form })
+  }
+
+  return apiRequest<DepartmentEscalation>(`${BASE}/escalations`, {
+    method: 'POST',
+    body: fields,
+  })
+}

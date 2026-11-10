@@ -9,7 +9,6 @@ use App\Models\AiSummary;
 use App\Models\AiValidationItem;
 use App\Models\AiValidationResult;
 use App\Models\Report;
-use App\Models\ReportFile;
 use App\Models\ReportReference;
 use App\Models\ReportReview;
 use App\Models\ReportVersion;
@@ -19,7 +18,6 @@ use App\Services\AiReports\Ai\Contracts\AiProvider;
 use App\Services\AiReports\Ai\Contracts\AiRequest;
 use App\Services\AiReports\Ai\JsonSchemaValidator;
 use App\Services\AiReports\Ai\PromptInjectionGuard;
-use App\Services\Audit\ActivityLogger;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -302,7 +300,7 @@ final class ReportAnalysisService
 
     private function withContainmentNote(string $explanation, string $text): string
     {
-        if ((new PromptInjectionGuard())->containsInstructionOverride($text)) {
+        if ((new PromptInjectionGuard)->containsInstructionOverride($text)) {
             return trim($explanation.' '.PromptInjectionGuard::containmentLabel());
         }
 

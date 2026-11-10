@@ -2,15 +2,12 @@
 
 namespace App\Services\DepartmentHead;
 
-use App\Models\Department;
 use App\Models\DepartmentTarget;
 use App\Models\Employee;
 use App\Models\Report;
-use App\Models\Task;
 use App\Models\TaskAssignment;
 use App\Models\User;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
 
 class DepartmentDashboardService
 {
@@ -27,7 +24,7 @@ class DepartmentDashboardService
             ->with(['position:id,name', 'user:id,email,status'])
             ->get();
 
-$assignments = TaskAssignment::whereIn('employee_id', $employeeIds)
+        $assignments = TaskAssignment::whereIn('employee_id', $employeeIds)
             ->with(['task:id,title,priority,due_date,status', 'employee:id,first_name,last_name,employee_number'])
             ->get();
 
@@ -43,9 +40,10 @@ $assignments = TaskAssignment::whereIn('employee_id', $employeeIds)
         $pendingAssignments = $assignments->whereIn('status', ['assigned', 'in_progress'])->count();
 
         $now = Carbon::now();
-        $overdueAssignments = $assignments->filter(function ($a) use ($now) {
-$deadline = $a->due_date ?? $a->task?->due_date;
-            return $deadline && Carbon::parse($deadline)->isPast() && !in_array($a->status, ['completed', 'approved']);
+        $overdueAssignments = $assignments->filter(function ($a) {
+            $deadline = $a->due_date ?? $a->task?->due_date;
+
+            return $deadline && Carbon::parse($deadline)->isPast() && ! in_array($a->status, ['completed', 'approved']);
         });
 
         $submittedReports = $reports->count();
@@ -55,10 +53,13 @@ $deadline = $a->due_date ?? $a->task?->due_date;
 
         $completionRate = $totalAssignments > 0 ? round(($completedAssignments / $totalAssignments) * 100, 1) : 0;
 
-$onTimeCount = $assignments->filter(function ($a) {
-            if (!$a->completed_at) return false;
+        $onTimeCount = $assignments->filter(function ($a) {
+            if (! $a->completed_at) {
+                return false;
+            }
             $deadline = $a->due_date ?? $a->task?->due_date;
-            return !$deadline || Carbon::parse($a->completed_at)->lte(Carbon::parse($deadline));
+
+            return ! $deadline || Carbon::parse($a->completed_at)->lte(Carbon::parse($deadline));
         })->count();
         $onTimeRate = $completedAssignments > 0 ? round(($onTimeCount / $completedAssignments) * 100, 1) : 100;
 
@@ -70,7 +71,7 @@ $onTimeCount = $assignments->filter(function ($a) {
             ->orderBy('id', 'desc')
             ->first();
 
-$targetData = null;
+        $targetData = null;
         if ($target) {
             $targetVal = max(1, (int) ($target->target_value ?? 10));
             $targetCompleted = min($targetVal, $completedAssignments);
@@ -87,16 +88,17 @@ $targetData = null;
         }
 
         // Overdue Alerts
-$overdueAlerts = $overdueAssignments->map(function ($a) use ($now) {
+        $overdueAlerts = $overdueAssignments->map(function ($a) use ($now) {
             $deadline = $a->due_date ?? $a->task?->due_date;
             $diff = $deadline ? Carbon::parse($deadline)->diffInDays($now) : 0;
+
             return [
                 'assignment_id' => $a->id,
                 'task_id' => $a->task_id,
                 'task_title' => $a->task?->title ?? 'Untitled Task',
-                'employee_name' => $a->employee ? $a->employee->first_name . ' ' . $a->employee->last_name : 'Unassigned',
+                'employee_name' => $a->employee ? $a->employee->first_name.' '.$a->employee->last_name : 'Unassigned',
                 'deadline' => $deadline ? Carbon::parse($deadline)->format('Y-m-d') : null,
-                'days_overdue' => max(1, (int)$diff),
+                'days_overdue' => max(1, (int) $diff),
             ];
         })->values()->take(5);
 
@@ -107,7 +109,7 @@ $overdueAlerts = $overdueAssignments->map(function ($a) use ($now) {
                     'id' => $r->id,
                     'title' => $r->title,
                     'task_title' => $r->task?->title ?? '—',
-                    'employee_name' => $r->employee ? $r->employee->first_name . ' ' . $r->employee->last_name : '—',
+                    'employee_name' => $r->employee ? $r->employee->first_name.' '.$r->employee->last_name : '—',
                     'submitted_at' => $r->submitted_at ?? $r->created_at?->toIso8601String(),
                     'ai_status' => $r->ai_status ?? 'completed',
                     'status' => $r->status,
@@ -121,7 +123,7 @@ $overdueAlerts = $overdueAssignments->map(function ($a) use ($now) {
                     'id' => $r->id,
                     'title' => $r->title,
                     'task_title' => $r->task?->title ?? '—',
-                    'employee_name' => $r->employee ? $r->employee->first_name . ' ' . $r->employee->last_name : '—',
+                    'employee_name' => $r->employee ? $r->employee->first_name.' '.$r->employee->last_name : '—',
                     'updated_at' => $r->updated_at?->toIso8601String(),
                 ];
             })->values()->take(5);
@@ -132,16 +134,17 @@ $overdueAlerts = $overdueAssignments->map(function ($a) use ($now) {
             $total = $empAssignments->count();
             $completed = $empAssignments->whereIn('status', ['completed', 'approved'])->count();
             $pending = $empAssignments->whereIn('status', ['assigned', 'in_progress'])->count();
-$overdue = $empAssignments->filter(function ($a) {
+            $overdue = $empAssignments->filter(function ($a) {
                 $d = $a->due_date ?? $a->task?->due_date;
-                return $d && Carbon::parse($d)->isPast() && !in_array($a->status, ['completed', 'approved']);
+
+                return $d && Carbon::parse($d)->isPast() && ! in_array($a->status, ['completed', 'approved']);
             })->count();
             $empReports = $reports->where('employee_id', $emp->id)->count();
 
             return [
                 'id' => $emp->id,
                 'employee_number' => $emp->employee_number,
-                'name' => $emp->first_name . ' ' . $emp->last_name,
+                'name' => $emp->first_name.' '.$emp->last_name,
                 'position' => $emp->position?->name ?? 'Faculty',
                 'status' => $emp->employment_status,
                 'tasks_total' => $total,

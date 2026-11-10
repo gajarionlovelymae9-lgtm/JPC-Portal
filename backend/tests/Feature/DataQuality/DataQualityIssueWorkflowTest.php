@@ -104,4 +104,35 @@ class DataQualityIssueWorkflowTest extends TestCase
             'action' => 'dismissed',
         ]);
     }
+
+    public function test_issue_index_clamps_an_oversized_per_page_to_the_shared_ceiling(): void
+    {
+        // The issue ledger is not backed by a FormRequest either, so the
+        // controller clamps `per_page` itself. Without the clamp an oversized
+        // value would page the entire ledger in one request.
+        $admin = User::factory()->create();
+        $admin->assignRole('admin');
+
+        $dept = Department::factory()->create();
+        $employee = Employee::factory()->create(['department_id' => $dept->id]);
+
+        DataQualityIssue::create([
+            'issue_type' => DataQualityIssueType::MISSING_REQUIRED_PROFILE_DATA,
+            'severity' => DataQualityIssueSeverity::HIGH,
+            'status' => DataQualityIssueStatus::OPEN,
+            'entity_type' => 'employee',
+            'entity_id' => $employee->id,
+            'department_id' => $dept->id,
+            'employee_id' => $employee->id,
+            'title' => 'Missing profile info',
+            'description' => 'First name missing',
+            'fingerprint' => DataQualityIssue::generateFingerprint('MISSING_REQUIRED_PROFILE_DATA', 'employee', $employee->id),
+        ]);
+
+        Sanctum::actingAs($admin);
+
+        $this->getJson('/api/v1/data-quality/issues?per_page=5000')
+            ->assertOk()
+            ->assertJsonPath('meta.per_page', 100);
+    }
 }

@@ -26,6 +26,7 @@ class UserProfileResource extends JsonResource
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
+            'username' => $user->username,
             'status' => $user->status?->value ?? null,
             'role' => $user->roleName(),
             'employee_id' => $user->employee?->id,

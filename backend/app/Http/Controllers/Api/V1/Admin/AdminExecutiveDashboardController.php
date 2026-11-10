@@ -16,6 +16,7 @@ class AdminExecutiveDashboardController extends Controller
     public function dashboard(): JsonResponse
     {
         $data = $this->dashboardService->getDashboard();
+
         return ApiResponse::success('Executive dashboard loaded successfully.', $data);
     }
 }

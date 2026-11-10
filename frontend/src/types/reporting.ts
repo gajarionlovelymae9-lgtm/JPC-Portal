@@ -14,7 +14,8 @@ export type PeriodKey =
   | { type: 'monthly'; year: number; month: number }
   | { type: 'quarterly'; year: number; quarter: number }
   | { type: 'yearly'; year: number }
-  | { type: 'custom'; start_date: string; end_date: string }
+  | { type: 'academic_year'; academic_year_id: number }
+  | { type: 'custom'; from: string; to: string }
 
 export interface ReportingEnvelope {
   report_type: string
@@ -79,8 +80,11 @@ export interface DepartmentReport extends ReportingEnvelope {
 
 export interface InstitutionReport extends ReportingEnvelope {
   source: string
+  scope: 'institution' | 'department'
+  department_id: number | null
   summary: {
     total_employees: number
+    active_employees: number
     total_departments: number
     tasks_assigned: number
     tasks_completed: number
@@ -88,11 +92,18 @@ export interface InstitutionReport extends ReportingEnvelope {
     reports_expected: number
     reports_submitted: number
     late_reports: number
+    late_submitted: number
+    late_outstanding: number
     pending_reports: number
+    awaiting_action: number
+    awaiting_submission: number
     approval_rate: number | null
     target_achievement_rate: number | null
     average_productivity: number | null
+    on_time_rate: number | null
     data_quality_score: number | null
+    data_quality_records_checked: number
+    data_quality_issues_found: number
   }
   calculation_version: string
   data_sources: string[]
@@ -182,8 +193,11 @@ export interface LateReport extends ReportingEnvelope {
     department: string | null
     task: string | null
     status: string
+    status_label: string
     submitted_at: string | null
     deadline: string | null
+    days_late: number
+    is_outstanding: boolean
   }>
   data_sources: string[]
 }
@@ -193,12 +207,28 @@ export interface PendingReport extends ReportingEnvelope {
     pending_reports: number
     pending_employees: number
     pending_departments: number
+    awaiting_review: number
+    revision_required: number
   }
   by_employee: Array<{ employee_id: number; employee_name: string; department: string | null; pending_reports: number }>
   by_department: Array<{ department_id: number | null; department_name: string; pending_reports: number }>
   by_status: Array<{ status: string; count: number }>
   by_month: Array<{ period: string; pending_reports: number }>
-  reports: Array<{ id: number; title: string; employee: string; department: string | null; status: string; submitted_at: string | null }>
+  reports: Array<{
+    id: number
+    title: string
+    employee: string
+    department: string | null
+    status: string
+    status_label: string
+    category: 'not_submitted' | 'pending_review' | 'revision_required' | 'approved' | 'closed'
+    submitted_at: string | null
+    deadline: string | null
+    days_remaining: number | null
+    days_overdue: number | null
+    is_overdue: boolean
+    required_action: string
+  }>
   data_sources: string[]
 }
 
@@ -209,13 +239,30 @@ export interface TargetReport extends ReportingEnvelope {
   unachieved: number
   in_progress: number
   achievement_rate: number | null
-  by_department: Array<{ department_id: number | null; department_name: string; total_targets: number; achieved: number; achievement_rate: number | null }>
+  total_target_value: number
+  total_actual: number
+  achievement_percentage: number | null
+  by_department: Array<{
+    department_id: number | null
+    department_name: string
+    total_targets: number
+    achieved: number
+    achievement_rate: number | null
+    total_target_value: number
+    total_actual: number
+    achievement_percentage: number | null
+  }>
   targets: Array<{
     id: number
     title: string
     status: string
+    status_label: string
     target_value: number
     target_unit: string | null
+    actual_value: number
+    achievement_percentage: number | null
+    remaining_target: number
+    period_type: 'monthly' | 'quarterly' | 'annual'
     employee: string
     department: string | null
     start_date: string | null
@@ -227,6 +274,10 @@ export interface TargetReport extends ReportingEnvelope {
 export interface DataQualityReport extends ReportingEnvelope {
   summary: {
     data_quality_score: number | null
+    evaluated: boolean
+    records_checked: number
+    issues_found: number
+    latest_scan_at: string | null
     total_issues: number
     open_issues: number
     critical: number
@@ -239,13 +290,20 @@ export interface DataQualityReport extends ReportingEnvelope {
   by_category: Array<{ label: string; count: number }>
   by_department: Array<{ label: string; count: number }>
   trends: Array<{ period: string; score: number | null }>
-  recent_scans: Array<{ id: number; status: string; created_at: string | null }>
+  recent_scans: Array<{
+    id: number
+    status: string
+    records_checked: number
+    issues_found: number
+    created_at: string | null
+  }>
   data_sources: string[]
 }
 
 export interface ManagementSummary {
   period: string
   period_label: string
+  period_type: string
   narrative: string
   key_takeaways: string[]
   has_data: boolean
@@ -256,12 +314,17 @@ export interface ManagementSummary {
     tasks_assigned: number
     task_completion_rate: number | null
     reports_submitted: number
+    pending_reports: number
     late_reports: number
+    on_time_rate: number | null
+    approval_rate: number | null
     data_quality_score: number | null
   }
   change?: {
-    period: string
+    period: string | null
+    period_label: string
     average_productivity_change: number | null
+    task_completion_change: number | null
     reports_change: number
     late_change: number
     previous_period: string
@@ -395,6 +458,7 @@ export interface ReportingFilters {
   start_date?: string
   end_date?: string
   department_id?: number
+  academic_year_id?: number
   employee_id?: number
   metric?: string
   limit?: number

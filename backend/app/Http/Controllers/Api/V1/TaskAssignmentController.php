@@ -9,6 +9,7 @@ use App\Http\Requests\TaskManagement\SubmitTaskRequest;
 use App\Http\Resources\Api\V1\TaskManagement\TaskAssignmentResource;
 use App\Http\Resources\Api\V1\TaskManagement\TaskProgressResource;
 use App\Http\Resources\Api\V1\TaskManagement\TaskReviewResource;
+use App\Http\Resources\Api\V1\TaskManagement\TaskSubmissionResource;
 use App\Models\Employee;
 use App\Models\Task;
 use App\Models\TaskAssignment;
@@ -17,6 +18,7 @@ use App\Services\TaskManagement\TaskReviewService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 
 class TaskAssignmentController extends Controller
 {
@@ -47,7 +49,7 @@ class TaskAssignmentController extends Controller
     {
         $this->authorize('view', $assignment);
 
-        return ApiResponse::success('Assignment retrieved successfully', new TaskAssignmentResource($assignment->load(['employee', 'task'])));
+        return ApiResponse::success('Assignment retrieved successfully', new TaskAssignmentResource($assignment->load(['employee', 'task', 'submissions.attachments', 'submissions.submittedBy'])));
     }
 
     public function accept(TaskAssignment $assignment, TaskAssignmentService $service): JsonResponse
@@ -69,9 +71,20 @@ class TaskAssignmentController extends Controller
     public function submit(SubmitTaskRequest $request, TaskAssignment $assignment, TaskAssignmentService $service): JsonResponse
     {
         $this->authorize('submit', $assignment);
-        $assignment = $service->submitAssignment($assignment, $assignment->employee, $request->validated()['remarks'] ?? null);
 
-        return ApiResponse::success('Assignment submitted successfully', new TaskAssignmentResource($assignment));
+        $data = $request->validated();
+        $assignment = $service->submitAssignment(
+            $assignment,
+            $assignment->employee,
+            $data['remarks'] ?? $data['notes'] ?? null,
+            $this->submissionPayload($data),
+            $this->uploadedFiles($request, $data['method']),
+        );
+
+        return ApiResponse::success(
+            'Assignment submitted successfully',
+            new TaskAssignmentResource($assignment->load(['submissions.attachments', 'submissions.submittedBy'])),
+        );
     }
 
     public function review(ReviewTaskRequest $request, TaskAssignment $assignment, TaskReviewService $service): JsonResponse
@@ -90,12 +103,37 @@ class TaskAssignmentController extends Controller
         return ApiResponse::success('Review recorded successfully', new TaskReviewResource($review));
     }
 
-    public function resubmit(TaskAssignment $assignment, TaskAssignmentService $service): JsonResponse
+    public function resubmit(SubmitTaskRequest $request, TaskAssignment $assignment, TaskAssignmentService $service): JsonResponse
     {
         $this->authorize('resubmit', $assignment);
-        $assignment = $service->resubmitAssignment($assignment, $assignment->employee);
 
-        return ApiResponse::success('Assignment resubmitted successfully', new TaskAssignmentResource($assignment));
+        $data = $request->validated();
+        $assignment = $service->resubmitAssignment(
+            $assignment,
+            $assignment->employee,
+            $this->submissionPayload($data),
+            $this->uploadedFiles($request, $data['method']),
+        );
+
+        return ApiResponse::success(
+            'Assignment resubmitted successfully',
+            new TaskAssignmentResource($assignment->load(['submissions.attachments', 'submissions.submittedBy'])),
+        );
+    }
+
+    public function submissions(TaskAssignment $assignment): JsonResponse
+    {
+        $this->authorize('view', $assignment);
+
+        $submissions = $assignment->submissions()
+            ->with(['attachments', 'submittedBy'])
+            ->orderByDesc('version')
+            ->get();
+
+        return ApiResponse::collection(
+            'Submission history retrieved successfully',
+            TaskSubmissionResource::collection($submissions),
+        );
     }
 
     public function progress(TaskAssignment $assignment): JsonResponse
@@ -110,5 +148,36 @@ class TaskAssignmentController extends Controller
         $this->authorize('view', $assignment);
 
         return ApiResponse::collection('Reviews retrieved successfully', TaskReviewResource::collection($assignment->reviews));
+    }
+
+    /**
+     * The fields persisted on the versioned submission record.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function submissionPayload(array $data): array
+    {
+        return [
+            'method' => $data['method'],
+            'url' => $data['url'] ?? null,
+            'written_response' => $data['written_response'] ?? null,
+            'notes' => $data['notes'] ?? null,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<int, UploadedFile>
+     */
+    private function uploadedFiles(Request $request, string $method): array
+    {
+        if (! in_array($method, ['upload', 'folder'], true)) {
+            return [];
+        }
+
+        $files = $request->file('files', []);
+
+        return is_array($files) ? array_values($files) : [$files];
     }
 }

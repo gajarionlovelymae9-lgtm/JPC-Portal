@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api\V1;
 
 use App\Enums\Role;
+use App\Models\Employee;
 use App\Models\Report;
 use App\Models\Role as RoleModel;
 use App\Models\User;
@@ -34,6 +35,14 @@ class AiReportProcessingTest extends TestCase
         return User::factory()->create(['role_id' => $role->id]);
     }
 
+    private function actingAsOwnedEmployeeUser(): array
+    {
+        $user = $this->actingAsUserWith('reports.view');
+        $employee = Employee::factory()->create(['user_id' => $user->id]);
+
+        return [$user, $employee];
+    }
+
     public function test_dashboard_returns_200_for_authorized_user(): void
     {
         $user = $this->actingAsUserWith('reports.view');
@@ -56,8 +65,8 @@ class AiReportProcessingTest extends TestCase
 
     public function test_process_queues_report(): void
     {
-        $report = Report::factory()->create();
-        $user = $this->actingAsUserWith('reports.update');
+        [$user, $employee] = $this->actingAsOwnedEmployeeUser();
+        $report = Report::factory()->create(['employee_id' => $employee->id]);
 
         $this->actingAs($user)
             ->postJson("/api/v1/ai-processing/{$report->id}/process")
@@ -68,8 +77,8 @@ class AiReportProcessingTest extends TestCase
 
     public function test_process_idempotent_no_duplicate_analysis(): void
     {
-        $report = Report::factory()->create();
-        $user = $this->actingAsUserWith('reports.update');
+        [$user, $employee] = $this->actingAsOwnedEmployeeUser();
+        $report = Report::factory()->create(['employee_id' => $employee->id]);
 
         $this->actingAs($user)
             ->postJson("/api/v1/ai-processing/{$report->id}/process");
@@ -85,8 +94,8 @@ class AiReportProcessingTest extends TestCase
 
     public function test_summary_returns_200_for_authorized_reviewer(): void
     {
-        $report = Report::factory()->create();
-        $user = $this->actingAsUserWith('reports.view');
+        [$user, $employee] = $this->actingAsOwnedEmployeeUser();
+        $report = Report::factory()->create(['employee_id' => $employee->id]);
 
         $this->actingAs($user)
             ->getJson("/api/v1/ai-processing/{$report->id}/ai-summary")

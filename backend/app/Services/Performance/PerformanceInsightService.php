@@ -48,26 +48,26 @@ class PerformanceInsightService
         // Check for score drops
         if ($delta <= -15.00) {
             $anomalies[] = "Significant performance drop of {$delta}% compared to the previous period.";
-            $recommendations[] = "Conduct supportive performance check-in to identify roadblocks or resource constraints.";
+            $recommendations[] = 'Conduct supportive performance check-in to identify roadblocks or resource constraints.';
         }
 
         // Check for late submissions
         $lateReports = (int) ($currentRecord?->metadata['late_reports'] ?? 0);
         if ($lateReports >= 2) {
             $anomalies[] = "Employee recorded {$lateReports} late report submissions during this period.";
-            $recommendations[] = "Review deadline feasibility and task workload distribution.";
+            $recommendations[] = 'Review deadline feasibility and task workload distribution.';
         }
 
         // Check for report rejections / low approval rate
         $approvalRate = (float) ($currentRecord?->approval_rate ?? 100.0);
         if ($approvalRate < 70.00 && ($currentRecord?->metadata['reviewed_reports'] ?? 0) > 0) {
             $anomalies[] = "Report approval rate is below benchmark ({$approvalRate}%).";
-            $recommendations[] = "Provide guidance on documentation standards and institutional report criteria.";
+            $recommendations[] = 'Provide guidance on documentation standards and institutional report criteria.';
         }
 
         // Check for high performance
         if ($currentScore >= 95.00) {
-            $recommendations[] = "Acknowledge top-tier performance and consider for departmental mentorship opportunities.";
+            $recommendations[] = 'Acknowledge top-tier performance and consider for departmental mentorship opportunities.';
         }
 
         $trendDirection = match (true) {
@@ -78,7 +78,7 @@ class PerformanceInsightService
 
         $summary = match ($trendDirection) {
             'improving' => "Employee performance is trending positively (+{$delta}%). Key accomplishments were met consistently.",
-            'declining' => "Employee performance decreased by " . abs($delta) . "% compared to prior period. Review identified warning indicators.",
+            'declining' => 'Employee performance decreased by '.abs($delta).'% compared to prior period. Review identified warning indicators.',
             default => "Employee maintained consistent performance across the evaluated period with a score of {$currentScore}%.",
         };
 

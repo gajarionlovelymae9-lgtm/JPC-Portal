@@ -36,12 +36,17 @@ class TaskReviewService
                 'reviewed_at' => now(),
             ]);
 
+            // Approval is the only action that closes an assignment. Force the
+            // progress value to 100 so an approved assignment can never keep an
+            // incomplete percentage, and stamp the approval completion time.
             $assignment->update([
                 'status' => 'completed',
-                'completed_at' => $assignment->completed_at ?? now(),
+                'progress_percentage' => 100,
+                'completed_at' => now(),
             ]);
 
             $this->recordActivity($assignment, $reviewer, 'approved', $remarks);
+            app(TaskService::class)->syncAggregateStatus($assignment->task);
             TaskReviewed::dispatch($assignment->fresh(), $reviewer, $review);
 
             return $review;
@@ -67,9 +72,16 @@ class TaskReviewService
                 'reviewed_at' => now(),
             ]);
 
-            $assignment->update(['status' => 'rejected']);
+            $assignment->update([
+                'status' => 'rejected',
+                // Reopening work means the assignment is no longer completed.
+                // Progress is preserved so the employee can continue from where
+                // they left off.
+                'completed_at' => null,
+            ]);
 
             $this->recordActivity($assignment, $reviewer, 'rejected', $remarks);
+            app(TaskService::class)->syncAggregateStatus($assignment->task);
             TaskReviewed::dispatch($assignment->fresh(), $reviewer, $review);
 
             return $review;
@@ -95,9 +107,15 @@ class TaskReviewService
                 'reviewed_at' => now(),
             ]);
 
-            $assignment->update(['status' => 'rejected']);
+            $assignment->update([
+                'status' => 'rejected',
+                // Revision keeps the employee's actual progress but clears the
+                // completion stamp until the work is approved again.
+                'completed_at' => null,
+            ]);
 
             $this->recordActivity($assignment, $reviewer, 'needs_revision', $remarks);
+            app(TaskService::class)->syncAggregateStatus($assignment->task);
             TaskReviewed::dispatch($assignment->fresh(), $reviewer, $review);
 
             return $review;

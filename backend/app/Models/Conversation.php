@@ -11,8 +11,14 @@ class Conversation extends Model
 {
     use HasFactory;
 
+    public const TYPE_DIRECT = 'direct';
+
+    public const TYPE_GROUP = 'group';
+
     protected $fillable = [
         'subject',
+        'description',
+        'icon',
         'type',
         'created_by',
         'last_message_at',
@@ -21,6 +27,14 @@ class Conversation extends Model
     protected $casts = [
         'last_message_at' => 'datetime',
     ];
+
+    /**
+     * Whether this is a group conversation rather than a 1:1 thread.
+     */
+    public function isGroup(): bool
+    {
+        return $this->type === self::TYPE_GROUP;
+    }
 
     public function creator(): BelongsTo
     {

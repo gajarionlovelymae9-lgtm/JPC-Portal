@@ -3,6 +3,10 @@
 Backups are only useful if they restore. This guide documents the process and
 how the system tracks it.
 
+> v1.0.0 operational view: see the consolidated
+> [`../operations/backup-recovery.md`](../operations/backup-recovery.md)
+> (verification chain, current restore-test status).
+
 > Detailed dump/restore steps (XAMPP `mysqldump`, verification database) are in
 > [`../BACKUP_AND_RESTORE.md`](../BACKUP_AND_RESTORE.md). This page covers the
 > Phase 13 verification workflow that surrounds them.
@@ -60,7 +64,9 @@ Until step 3 is done, `system:verify-backups` correctly reports the backup as
 
 The private disk holds report files and exports:
 
-- `backend/storage/app/private/reports/` — report uploads (OCR inputs)
+- `backend/storage/app/private/private/reports/` — report uploads (OCR inputs).
+  Note the double `private` nesting: uploads call `storeAs('private/reports/...')`
+  on the default `local` disk whose root is `storage/app/private`.
 - `backend/storage/app/private/report_exports/` — generated export files
 
 Copy the whole `storage/app/private` directory alongside the DB dump. See

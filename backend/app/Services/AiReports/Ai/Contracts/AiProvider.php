@@ -2,6 +2,9 @@
 
 namespace App\Services\AiReports\Ai\Contracts;
 
+use App\Services\AiReports\Ai\Exceptions\AiProviderConfigurationException;
+use App\Services\AiReports\Ai\Exceptions\AiProviderException;
+
 /**
  * Pluggable AI engine contract (Phase 3.3-K).
  *
@@ -19,8 +22,8 @@ interface AiProvider
     /**
      * Complete a chat exchange using the given system + user prompts.
      *
-     * @throws \App\Services\AiReports\Ai\Exceptions\AiProviderException
-     * @throws \App\Services\AiReports\Ai\Exceptions\AiProviderConfigurationException
+     * @throws AiProviderException
+     * @throws AiProviderConfigurationException
      */
     public function complete(string $system, string $user, AiRequest $request): AiCompletion;
 }

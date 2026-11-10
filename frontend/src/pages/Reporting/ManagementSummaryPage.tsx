@@ -12,7 +12,7 @@ export function ManagementSummaryPage() {
   const { year, month, setYear, setMonth, periodLabel } = useReportingPeriod()
 
   const report = useReportingResource(
-    useCallback(() => getManagementSummary(year, month), [year, month]),
+    useCallback(() => getManagementSummary({ year, month }), [year, month]),
     `mgmt-summary|${year}|${month}`,
     'Unable to load the management summary.',
   )
@@ -80,7 +80,7 @@ export function ManagementSummaryPage() {
                     { label: 'Task completion', value: `${toNumber(data.metrics.task_completion_rate)}%`, tone: 'info' as const },
                     { label: 'Reports submitted', value: data.metrics.reports_submitted },
                     { label: 'Late reports', value: data.metrics.late_reports, tone: 'warning' as const },
-                    { label: 'Data quality score', value: `${toNumber(data.metrics.data_quality_score)}%`, tone: 'info' as const },
+                    { label: 'Data quality score', value: data.metrics.data_quality_score === null ? 'N/A' : `${toNumber(data.metrics.data_quality_score)}%`, tone: 'info' as const },
                   ]}
                 />
               </ReportSection>

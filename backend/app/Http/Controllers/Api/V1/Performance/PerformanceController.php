@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1\Performance;
 
+use App\Enums\PerformanceRating;
 use App\Http\Controllers\Controller;
 use App\Models\Department;
 use App\Models\Employee;
@@ -66,6 +67,21 @@ class PerformanceController extends Controller
         // Get recent 6-month historical trend
         $history = $this->getEmployeeTrendSeries($employee, $period);
 
+        $metadata = $record->metadata ?? [];
+        $hasActivity = (int) ($metadata['total_tasks'] ?? 0) > 0
+            || (int) ($metadata['expected_reports'] ?? 0) > 0
+            || (int) ($metadata['submitted_reports'] ?? 0) > 0
+            || (float) ($metadata['total_target_val'] ?? 0) > 0
+            || (float) ($metadata['achieved_target_val'] ?? 0) > 0;
+
+        $rating = $record->rating
+            ?? PerformanceRating::fromScore((float) ($record->productivity_score ?? 0));
+
+        $breakdowns = $record->breakdown_data;
+        if (! is_array($breakdowns)) {
+            $breakdowns = $record->breakdowns->toArray();
+        }
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -91,11 +107,12 @@ class PerformanceController extends Controller
                     'target_achievement_rate' => (float) $record->target_achievement_rate,
                 ],
                 'productivity_score' => (float) $record->productivity_score,
-                'rating' => $record->rating?->value ?? (string) $record->rating,
-                'rating_color' => $record->rating?->color() ?? 'emerald',
+                'rating' => $rating->value,
+                'rating_color' => $rating->color(),
                 'calculation_version' => $record->calculation_version,
-                'breakdowns' => $record->breakdown_data ?? $record->breakdowns,
-                'metadata' => $record->metadata,
+                'breakdowns' => $breakdowns,
+                'metadata' => $metadata,
+                'has_activity' => $hasActivity,
                 'badges' => $badges,
                 'history' => $history,
             ],
@@ -370,6 +387,10 @@ class PerformanceController extends Controller
 
     /**
      * Compute multi-month time series for charts.
+     *
+     * Only periods with an evaluated record are returned. Months that have
+     * never been calculated are omitted instead of being reported as a
+     * fabricated zero score.
      */
     private function getEmployeeTrendSeries(Employee $employee, PerformancePeriod $currentPeriod, int $months = 6): array
     {
@@ -381,30 +402,26 @@ class PerformanceController extends Controller
             $mYear = (int) $targetDate->year;
             $mMonth = (int) $targetDate->month;
 
-            $p = PerformancePeriod::where('year', $mYear)
-                ->where('month', $mMonth)
+            $record = EmployeePerformanceRecord::query()
+                ->where('employee_id', $employee->id)
                 ->where('period_type', 'monthly')
+                ->whereDate('period_start', $targetDate->toDateString())
+                ->whereNotNull('productivity_score')
+                ->orderByDesc('calculated_at')
+                ->orderByDesc('id')
                 ->first();
 
-            $score = 0.0;
-            $rating = 'Unsatisfactory';
-
-            if ($p) {
-                $rec = EmployeePerformanceRecord::where('employee_id', $employee->id)
-                    ->where('performance_period_id', $p->id)
-                    ->first();
-                if ($rec) {
-                    $score = (float) $rec->productivity_score;
-                    $rating = $rec->rating?->value ?? 'Good';
-                }
+            if (! $record) {
+                continue;
             }
 
             $series[] = [
                 'period_label' => $targetDate->format('M Y'),
                 'year' => $mYear,
                 'month' => $mMonth,
-                'score' => $score,
-                'rating' => $rating,
+                'score' => (float) $record->productivity_score,
+                'rating' => $record->rating?->value
+                    ?? PerformanceRating::fromScore((float) $record->productivity_score)->value,
             ];
         }
 

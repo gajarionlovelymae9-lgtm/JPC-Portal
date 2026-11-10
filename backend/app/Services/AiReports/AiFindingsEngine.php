@@ -4,7 +4,6 @@ namespace App\Services\AiReports;
 
 use App\Models\AiAnalysis;
 use App\Models\AiFinding;
-use App\Models\AiSimilarityResult;
 use App\Models\AiValidationResult;
 use App\Models\Report;
 use App\Models\ReportVersion;
@@ -103,7 +102,7 @@ class AiFindingsEngine
                 [
                     'ai_analysis_id' => $analysis?->id,
                     'severity' => 'medium',
-                    'description' => 'Document scan quality is suboptimal (' . round($ocr->confidence_score * 100) . '% confidence). Manual verification of original document is recommended.',
+                    'description' => 'Document scan quality is suboptimal ('.round($ocr->confidence_score * 100).'% confidence). Manual verification of original document is recommended.',
                     'evidence' => 'OCR text extraction confidence below 0.70 threshold.',
                     'confidence_score' => $ocr->confidence_score,
                     'status' => 'open',

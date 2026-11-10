@@ -21,6 +21,7 @@ class TaskAttachment extends Model
     protected $fillable = [
         'task_id',
         'task_assignment_id',
+        'task_submission_id',
         'uploaded_by',
         'file_name',
         'file_path',
@@ -54,6 +55,14 @@ class TaskAttachment extends Model
     public function assignment(): BelongsTo
     {
         return $this->belongsTo(TaskAssignment::class, 'task_assignment_id');
+    }
+
+    /**
+     * The submission this attachment was uploaded with, if any.
+     */
+    public function submission(): BelongsTo
+    {
+        return $this->belongsTo(TaskSubmission::class, 'task_submission_id');
     }
 
     /**

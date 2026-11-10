@@ -21,6 +21,7 @@ class EmployeePerformanceRowResource extends JsonResource
         return [
             'rank' => $row['rank'] ?? null,
             'employee_id' => $row['employee_id'] ?? null,
+            'employee_number' => $row['employee_number'] ?? null,
             'employee_name' => $row['employee_name'] ?? null,
             'department_id' => $row['department_id'] ?? null,
             'department_name' => $row['department_name'] ?? null,
@@ -32,6 +33,13 @@ class EmployeePerformanceRowResource extends JsonResource
             'late' => $row['late'] ?? 0,
             'completion_rate' => $row['completion_rate'] ?? 0.0,
             'on_time_rate' => $row['on_time_rate'] ?? 0.0,
+            'reports_submitted' => $row['reports_submitted'] ?? 0,
+            'late_reports' => $row['late_reports'] ?? 0,
+            'approval_rate' => $row['approval_rate'] ?? null,
+            'target_achievement' => $row['target_achievement'] ?? null,
+            'total_targets' => $row['total_targets'] ?? 0,
+            'achieved_targets' => $row['achieved_targets'] ?? 0,
+            'performance_status' => $row['performance_status'] ?? null,
             'next_due_date' => $row['next_due_date'] ?? null,
             'recent_assignments' => $row['recent_assignments'] ?? null,
         ];

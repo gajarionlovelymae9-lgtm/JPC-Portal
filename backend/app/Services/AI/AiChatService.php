@@ -7,6 +7,9 @@ use App\Enums\AiMessageRole;
 use App\Models\AiChatConversation;
 use App\Models\User;
 use App\Services\AI\Tools\AiToolInterface;
+use App\Services\AI\Tools\RoleAwareAiToolInterface;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
 /**
@@ -27,24 +30,36 @@ use Illuminate\Support\Str;
 class AiChatService
 {
     /**
-     * Intent → tool name mapping. Extend when new report tools are added.
+     * Intent → ordered list of candidate tools. The first tool that exists and
+     * supports the caller's role is used. Role-specific candidates share an
+     * intent so "overdue tasks" answers institution-wide for an administrator
+     * and with the employee's own records for an employee.
      *
-     * @var array<string, string>
+     * @var array<string, list<string>>
      */
     private const INTENT_TOOL_MAP = [
-        AiIntent::LATE_REPORTS->value => 'GetLateReportAnalyticsTool',
-        AiIntent::MONTHLY_ACHIEVEMENTS->value => 'GetMonthlyPerformanceReportTool',
-        AiIntent::EMPLOYEE_PERFORMANCE->value => 'GetEmployeeProgressReportTool',
-        AiIntent::DEPARTMENT_PERFORMANCE->value => 'GetDepartmentReportTool',
-        AiIntent::TOP_PERFORMERS->value => 'GetRankingTool',
-        AiIntent::PERFORMANCE_TREND->value => 'GetPerformanceTrendTool',
-        AiIntent::TARGET_PROGRESS->value => 'GetTargetAnalyticsTool',
-        AiIntent::TARGET_ACHIEVEMENT->value => 'GetTargetAnalyticsTool',
-        AiIntent::MANAGEMENT_SUMMARY->value => 'GetManagementSummaryTool',
-        AiIntent::DATA_QUALITY_STATISTICS->value => 'GetDataQualityStatisticsTool',
-        AiIntent::DATA_QUALITY_TRENDS->value => 'GetDataQualityTrendsTool',
-        AiIntent::CRITICAL_DATA_QUALITY_ISSUES->value => 'GetCriticalDataQualityIssuesTool',
-        AiIntent::DATA_QUALITY_ISSUES->value => 'GetDataQualityIssuesTool',
+        AiIntent::LATE_REPORTS->value => ['GetLateReportAnalyticsTool'],
+        AiIntent::MONTHLY_ACHIEVEMENTS->value => ['GetMonthlyPerformanceReportTool'],
+        AiIntent::EMPLOYEE_PERFORMANCE->value => ['GetEmployeeProgressReportTool'],
+        AiIntent::DEPARTMENT_PERFORMANCE->value => ['GetDepartmentReportTool'],
+        AiIntent::TOP_PERFORMERS->value => ['GetRankingTool'],
+        AiIntent::PERFORMANCE_TREND->value => ['GetPerformanceTrendTool'],
+        AiIntent::TARGET_PROGRESS->value => ['GetTargetAnalyticsTool'],
+        AiIntent::TARGET_ACHIEVEMENT->value => ['GetTargetAnalyticsTool'],
+        AiIntent::MANAGEMENT_SUMMARY->value => ['GetManagementSummaryTool'],
+        AiIntent::DATA_QUALITY_STATISTICS->value => ['GetDataQualityStatisticsTool'],
+        AiIntent::DATA_QUALITY_TRENDS->value => ['GetDataQualityTrendsTool'],
+        AiIntent::CRITICAL_DATA_QUALITY_ISSUES->value => ['GetCriticalDataQualityIssuesTool'],
+        AiIntent::DATA_QUALITY_ISSUES->value => ['GetDataQualityIssuesTool'],
+
+        // Task monitoring — administrators first, employee-scoped fallback.
+        AiIntent::TASK_STATISTICS->value => ['GetTaskMonitoringSummaryTool', 'GetMyTaskSummaryTool'],
+        AiIntent::TASK_COMPLETION_RATE->value => ['GetTaskMonitoringSummaryTool', 'GetMyTaskSummaryTool'],
+        AiIntent::OVERDUE_TASKS->value => ['GetOverdueTasksTool', 'GetMyOverdueTasksTool'],
+        AiIntent::EMPLOYEE_TASKS->value => ['GetMyTaskSummaryTool'],
+        AiIntent::UPCOMING_DEADLINES->value => ['GetMyUpcomingDeadlinesTool'],
+        AiIntent::TASK_PRIORITIES->value => ['GetMyTaskPrioritiesTool'],
+        AiIntent::TASK_EXPLANATION->value => ['ExplainMyTaskTool'],
     ];
 
     public function __construct(
@@ -52,8 +67,9 @@ class AiChatService
         private readonly AiIntentDetector $intentDetector,
     ) {}
 
-    public function handleMessage(User $user, ?int $conversationId, string $message): array
+    public function handleMessage(User $user, ?int $conversationId, string $message, ?string $languagePreference = null): array
     {
+        $language = $this->resolveLanguage($user, $message, $languagePreference);
         $conversation = $conversationId
             ? AiChatConversation::find($conversationId)
             : AiChatConversation::create([
@@ -77,14 +93,14 @@ class AiChatService
         $intent = $detected['intent'];
         $filters = $detected['filters'] ?? [];
 
-        $tool = $this->resolveTool($intent);
+        $tool = $this->resolveTool($intent, $user);
 
         if ($tool === null) {
             return $this->respond(
                 $conversation,
                 $intent,
-                $this->helpMessage(),
-                ['matched_tool' => null, 'hint' => 'No reporting tool matched the request.'],
+                $this->helpMessage($user, $language),
+                ['matched_tool' => null, 'hint' => 'No reporting tool matched the request.', 'language' => $language],
             );
         }
 
@@ -95,9 +111,8 @@ class AiChatService
             return $this->respond(
                 $conversation,
                 $intent,
-                "You do not have permission to run the {$tool->description()} report. ".
-                "This requires the \"{$permission}\" permission, which your account does not currently hold.",
-                ['matched_tool' => $tool->name(), 'error' => 'permission_denied'],
+                $this->permissionDeniedMessage($tool, $permission, $language),
+                ['matched_tool' => $tool->name(), 'error' => 'permission_denied', 'language' => $language],
             );
         }
 
@@ -112,21 +127,22 @@ class AiChatService
                 [
                     'matched_tool' => $tool->name(),
                     'tool_result' => $this->slim($result),
+                    'language' => $language,
                 ],
             );
-        } catch (\Illuminate\Auth\Access\AuthorizationException) {
+        } catch (AuthorizationException) {
             return $this->respond(
                 $conversation,
                 $intent,
-                'That report is outside your allowed scope, so it cannot be generated for you.',
-                ['matched_tool' => $tool->name(), 'error' => 'forbidden'],
+                $this->forbiddenMessage($language),
+                ['matched_tool' => $tool->name(), 'error' => 'forbidden', 'language' => $language],
             );
         } catch (\Throwable $e) {
             return $this->respond(
                 $conversation,
                 $intent,
-                'The report tool ran into an error. Please narrow your filters and try again.',
-                ['matched_tool' => $tool->name(), 'error' => $e->getMessage()],
+                $this->errorMessage($language),
+                ['matched_tool' => $tool->name(), 'error' => $e->getMessage(), 'language' => $language],
             );
         }
     }
@@ -135,14 +151,34 @@ class AiChatService
      | Internals
      * ------------------------------------------------------------------- */
 
-    private function resolveTool(string $intent): ?AiToolInterface
+    /**
+     * Resolve the first candidate tool that exists and supports the caller.
+     *
+     * Role-aware tools (RoleAwareAiToolInterface) declare which callers they
+     * serve. That is what lets one intent — e.g. "overdue tasks" — return the
+     * institution-wide monitoring tool for an administrator and the
+     * employee-scoped tool for an employee. Tools without the interface keep
+     * their existing behaviour and are still permission-checked by the caller.
+     */
+    private function resolveTool(string $intent, User $user): ?AiToolInterface
     {
-        $toolName = self::INTENT_TOOL_MAP[$intent] ?? null;
-        if ($toolName === null) {
-            return null;
+        $toolNames = self::INTENT_TOOL_MAP[$intent] ?? [];
+
+        foreach ($toolNames as $toolName) {
+            $tool = $this->toolRegistry->find($toolName);
+
+            if ($tool === null) {
+                continue;
+            }
+
+            if ($tool instanceof RoleAwareAiToolInterface && ! $tool->supports($user)) {
+                continue;
+            }
+
+            return $tool;
         }
 
-        return $this->toolRegistry->find($toolName);
+        return null;
     }
 
     /**
@@ -162,6 +198,14 @@ class AiChatService
             $params['limit'] = $this->intentDetector->extractLimit($message);
         }
 
+        if (in_array($toolName, ['GetMyTaskPrioritiesTool'], true)) {
+            $params['limit'] = $this->intentDetector->extractLimit($message, 5);
+        }
+
+        if (in_array($toolName, ['ExplainMyTaskTool'], true)) {
+            $params['query'] = $message;
+        }
+
         if (in_array($toolName, ['GetPerformanceTrendTool'], true)) {
             $params['months'] = $filters['months'] ?? config('reports.trend_months', 6);
         }
@@ -175,6 +219,13 @@ class AiChatService
      */
     private function narrate(AiToolInterface $tool, array $result): string
     {
+        // Task tools compose their own grounded, human-readable answer from the
+        // real records. Prefer it over the generic metric read-out so the user
+        // gets a direct reply instead of a field dump.
+        if (isset($result['answer']) && is_string($result['answer']) && trim($result['answer']) !== '') {
+            return $result['answer'];
+        }
+
         $label = $tool->name();
 
         $period = $result['period'] ?? ($result['period_label'] ?? now()->format('F Y'));
@@ -245,23 +296,126 @@ class AiChatService
         return $out;
     }
 
-    private function helpMessage(): string
+    private function helpMessage(User $user, string $language = 'english'): string
     {
-        $tools = $this->toolRegistry->all();
+        $tools = array_filter(
+            $this->toolRegistry->all(),
+            function (AiToolInterface $tool) use ($user): bool {
+                if ($tool instanceof RoleAwareAiToolInterface && ! $tool->supports($user)) {
+                    return false;
+                }
+
+                $permission = $tool->requiredPermission();
+
+                return $permission === null || $user->hasPermission($permission);
+            },
+        );
 
         $lines = array_map(
-            fn (AiToolInterface $t) => '- '.$t->name().': '.$t->description(),
+            fn (AiToolInterface $t) => '- '.$t->description(),
             $tools,
         );
 
-        return "I can answer performance questions using your live reports. Ask me things like:\n".implode("\n", $lines);
+        $intro = match ($this->effectiveLanguage($language)) {
+            'filipino' => 'Makakasagot ako ng mga tanong tungkol sa performance gamit ang iyong live na mga report at awtorisadong data. Maaari mo akong tanungin ng mga tulad ng:',
+            'taglish' => 'Makakasagot ako ng performance questions gamit ang live reports at authorized data mo. Puwede mo akong tanungin ng mga tulad ng:',
+            default => 'I can answer performance questions using your live reports. Ask me things like:',
+        };
+
+        return $intro."\n".implode("\n", $lines);
+    }
+
+    private function permissionDeniedMessage(AiToolInterface $tool, string $permission, string $language): string
+    {
+        return match ($this->effectiveLanguage($language)) {
+            'filipino' => "Wala kang pahintulot na patakbuhin ang {$tool->description()} report. Kailangan nito ang \"{$permission}\" permission na wala sa iyong account.",
+            'taglish' => "Wala kang permission na i-run ang {$tool->description()} report. Kailangan nito ang \"{$permission}\" permission na hindi kasama sa account mo.",
+            default => "You do not have permission to run the {$tool->description()} report. This requires the \"{$permission}\" permission, which your account does not currently hold.",
+        };
+    }
+
+    private function forbiddenMessage(string $language): string
+    {
+        return match ($this->effectiveLanguage($language)) {
+            'filipino' => 'Wala sa iyong awtorisadong saklaw ang report na ito, kaya hindi ito maaaring gawin para sa iyo.',
+            'taglish' => 'Outside ng authorized scope mo ang report na ito, kaya hindi ito puwedeng i-generate para sa iyo.',
+            default => 'That report is outside your allowed scope, so it cannot be generated for you.',
+        };
+    }
+
+    private function errorMessage(string $language): string
+    {
+        return match ($this->effectiveLanguage($language)) {
+            'filipino' => 'Nagkaroon ng error ang report tool. Pakilinaw ang iyong mga filter at subukang muli.',
+            'taglish' => 'Nagka-error ang report tool. Paki-narrow ang filters mo at subukan ulit.',
+            default => 'The report tool ran into an error. Please narrow your filters and try again.',
+        };
+    }
+
+    private function resolveLanguage(User $user, string $message, ?string $override = null): string
+    {
+        $candidate = $this->normalizeLanguage($override);
+        if ($candidate !== 'auto') {
+            return $candidate;
+        }
+
+        $userPref = $this->normalizeLanguage($user->ai_language_preference ?? null);
+        if ($userPref !== 'auto') {
+            return $userPref;
+        }
+
+        return $this->detectLanguage($message);
+    }
+
+    private function normalizeLanguage(?string $value): string
+    {
+        $value = strtolower(trim((string) $value));
+        if ($value === 'tagalog') {
+            $value = 'filipino';
+        }
+
+        return in_array($value, ['auto', 'english', 'filipino', 'taglish'], true) ? $value : 'auto';
+    }
+
+    private function effectiveLanguage(string $language): string
+    {
+        $language = $this->normalizeLanguage($language);
+        return $language === 'auto' ? 'english' : $language;
+    }
+
+    private function detectLanguage(string $message): string
+    {
+        $text = mb_strtolower($message);
+        $filipino = 0;
+        $english = 0;
+        $padded = ' '.preg_replace('/\s+/u', ' ', $text).' ';
+
+        foreach ([' ako ', ' ikaw ', ' kami ', ' tayo ', ' ang ', ' ng ', ' mga ', ' sa ', ' para ', ' hindi ', ' wala ', ' meron ', ' may ', ' po ', ' opo ', ' paki', ' pwede ', ' puwede ', ' kailangan ', ' gusto ', ' salamat ', ' ulat ', ' buod ', ' gawin ', ' natapos '] as $marker) {
+            if (str_contains($padded, $marker)) {
+                $filipino++;
+            }
+        }
+        foreach ([' the ', ' and ', ' or ', ' but ', ' with ', ' for ', ' this ', ' that ', ' my ', ' your ', ' please ', ' report ', ' summary ', ' completed ', ' tasks ', ' show ', ' help '] as $marker) {
+            if (str_contains($padded, $marker)) {
+                $english++;
+            }
+        }
+
+        if ($filipino >= 2 && $english >= 2) {
+            return 'taglish';
+        }
+        if ($filipino > $english && $filipino >= 1) {
+            return 'filipino';
+        }
+
+        return 'english';
     }
 
     /**
      * Persist the assistant message and return the Phase 7 envelope.
      *
      * @param  array<string, mixed>  $results
-     * @return array{message: AiChatConversation|\Illuminate\Database\Eloquent\Model, intent: string, period: string, results: array, actions: list<mixed>}
+     * @return array{message: AiChatConversation|Model, intent: string, period: string, results: array, actions: list<mixed>}
      */
     private function respond(AiChatConversation $conversation, string $intent, string $content, array $results): array
     {
@@ -289,7 +443,12 @@ class AiChatService
      */
     private function slim(array $result): array
     {
-        $keysToTrim = ['by_employee', 'by_department', 'department_rankings', 'targets', 'reports', 'ranking', 'trend'];
+        $keysToTrim = [
+            'by_employee', 'by_department', 'department_rankings', 'targets',
+            'reports', 'ranking', 'trend', 'pending_by_employee',
+            'overdue_by_employee', 'departments', 'upcoming_deadlines',
+            'overdue_tasks', 'tasks', 'priorities', 'deadlines', 'candidates',
+        ];
         foreach ($keysToTrim as $key) {
             if (isset($result[$key]) && is_array($result[$key]) && count($result[$key]) > 10) {
                 $result[$key] = array_slice($result[$key], 0, 10);

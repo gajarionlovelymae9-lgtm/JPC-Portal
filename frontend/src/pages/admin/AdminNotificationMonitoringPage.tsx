@@ -14,10 +14,13 @@ export default function AdminNotificationMonitoringPage() {
   const [retryingId, setRetryingId] = useState<number | null>(null)
   const [channelFilter, setChannelFilter] = useState<string>('')
   const [statusFilter, setStatusFilter] = useState<string>('')
+  const [typeFilter, setTypeFilter] = useState<string>('')
+  const [fromFilter, setFromFilter] = useState<string>('')
+  const [toFilter, setToFilter] = useState<string>('')
 
   useEffect(() => {
     loadData()
-  }, [channelFilter, statusFilter])
+  }, [channelFilter, statusFilter, typeFilter, fromFilter, toFilter])
 
   const loadData = async () => {
     setLoading(true)
@@ -25,6 +28,9 @@ export default function AdminNotificationMonitoringPage() {
       const params: Record<string, unknown> = { per_page: 25 }
       if (channelFilter) params.channel = channelFilter
       if (statusFilter) params.status = statusFilter
+      if (typeFilter) params.type = typeFilter
+      if (fromFilter) params.from = fromFilter
+      if (toFilter) params.to = toFilter
 
       const [mRes, lRes] = await Promise.all([
         getNotificationMetrics(),
@@ -131,8 +137,32 @@ export default function AdminNotificationMonitoringPage() {
             <p className="text-xs text-gray-500 mt-0.5">Audit trail of individual notification transmissions.</p>
           </div>
 
-          {/* Filters */}
-          <div className="flex items-center gap-3">
+          {/* Filters — combinable, updating the log list live */}
+          <div className="flex flex-wrap items-center gap-3">
+            <input
+              type="text"
+              placeholder="Event type (e.g. task_assigned)"
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="px-3 py-1.5 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-blue-500"
+            />
+
+            <input
+              type="date"
+              aria-label="From date"
+              value={fromFilter}
+              onChange={(e) => setFromFilter(e.target.value)}
+              className="px-3 py-1.5 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-blue-500"
+            />
+
+            <input
+              type="date"
+              aria-label="To date"
+              value={toFilter}
+              onChange={(e) => setToFilter(e.target.value)}
+              className="px-3 py-1.5 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-blue-500"
+            />
+
             <select
               value={channelFilter}
               onChange={(e) => setChannelFilter(e.target.value)}
@@ -149,10 +179,20 @@ export default function AdminNotificationMonitoringPage() {
               className="px-3 py-1.5 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Statuses</option>
-              <option value="sent">Sent / Delivered</option>
+              <option value="sent">Delivered</option>
+              <option value="read">Read</option>
               <option value="queued">Queued</option>
               <option value="failed">Failed</option>
             </select>
+
+            {(typeFilter || fromFilter || toFilter) && (
+              <button
+                onClick={() => { setTypeFilter(''); setFromFilter(''); setToFilter('') }}
+                className="text-xs font-bold text-gray-500 hover:text-gray-800"
+              >
+                Clear
+              </button>
+            )}
           </div>
         </div>
 

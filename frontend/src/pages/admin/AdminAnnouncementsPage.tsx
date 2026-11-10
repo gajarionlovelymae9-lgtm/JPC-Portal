@@ -5,13 +5,19 @@ import {
   updateAnnouncement,
   deleteAnnouncement,
   publishAnnouncement,
+  scheduleAnnouncement,
+  unscheduleAnnouncement,
+  archiveAnnouncement,
   type AnnouncementItem,
 } from '../../services/notificationCenterService'
+
+const CATEGORIES = ['general', 'academic', 'event', 'deadline', 'policy', 'reminder', 'other']
 
 export default function AdminAnnouncementsPage() {
   const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string>('')
+  const [categoryFilter, setCategoryFilter] = useState<string>('')
   const [showModal, setShowModal] = useState(false)
   const [editingItem, setEditingItem] = useState<AnnouncementItem | null>(null)
 
@@ -19,6 +25,7 @@ export default function AdminAnnouncementsPage() {
   const [title, setTitle] = useState('')
   const [message, setMessage] = useState('')
   const [priority, setPriority] = useState('normal')
+  const [category, setCategory] = useState('general')
   const [audienceType, setAudienceType] = useState('all')
   const [audienceId, setAudienceId] = useState('')
   const [startDate, setStartDate] = useState('')
@@ -28,13 +35,14 @@ export default function AdminAnnouncementsPage() {
 
   useEffect(() => {
     loadAnnouncements()
-  }, [statusFilter])
+  }, [statusFilter, categoryFilter])
 
   const loadAnnouncements = async () => {
     setLoading(true)
     try {
       const params: Record<string, unknown> = { per_page: 20 }
       if (statusFilter) params.status = statusFilter
+      if (categoryFilter) params.category = categoryFilter
       const res = await getAnnouncements(params)
       const dataAny = res.data as unknown
       const list = Array.isArray(dataAny)
@@ -53,6 +61,7 @@ export default function AdminAnnouncementsPage() {
     setTitle('')
     setMessage('')
     setPriority('normal')
+    setCategory('general')
     setAudienceType('all')
     setAudienceId('')
     setStartDate('')
@@ -66,6 +75,7 @@ export default function AdminAnnouncementsPage() {
     setTitle(item.title)
     setMessage(item.message)
     setPriority(item.priority)
+    setCategory(item.category ?? 'general')
     setAudienceType(item.audience_type)
     setAudienceId(item.audience_id ?? '')
     setStartDate(item.start_date ? item.start_date.split('T')[0] : '')
@@ -83,6 +93,7 @@ export default function AdminAnnouncementsPage() {
       title,
       message,
       priority,
+      category,
       audience_type: audienceType,
       audience_id: audienceId || null,
       start_date: startDate || null,
@@ -124,6 +135,47 @@ export default function AdminAnnouncementsPage() {
     }
   }
 
+  const handleSchedule = async (id: number) => {
+    const input = window.prompt(
+      'Publish at (local time, format YYYY-MM-DDTHH:MM):',
+      '2026-10-25T09:00',
+    )
+    if (!input) return
+
+    const publishAt = new Date(input)
+    if (Number.isNaN(publishAt.getTime()) || publishAt.getTime() <= Date.now()) {
+      alert('Enter a valid future date and time.')
+      return
+    }
+
+    try {
+      await scheduleAnnouncement(id, publishAt.toISOString())
+      await loadAnnouncements()
+    } catch (err: unknown) {
+      alert((err as Error).message || 'Failed to schedule announcement.')
+    }
+  }
+
+  const handleUnschedule = async (id: number) => {
+    if (!window.confirm('Cancel the schedule and return this announcement to draft?')) return
+    try {
+      await unscheduleAnnouncement(id)
+      await loadAnnouncements()
+    } catch (err: unknown) {
+      alert((err as Error).message || 'Failed to cancel the schedule.')
+    }
+  }
+
+  const handleArchive = async (id: number) => {
+    if (!window.confirm('Archive this announcement? It stays in the list but stops being visible.')) return
+    try {
+      await archiveAnnouncement(id)
+      await loadAnnouncements()
+    } catch (err: unknown) {
+      alert((err as Error).message || 'Failed to archive announcement.')
+    }
+  }
+
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8">
       {/* Header */}
@@ -146,11 +198,11 @@ export default function AdminAnnouncementsPage() {
       </div>
 
       {/* Filter Bar */}
-      <div className="flex items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+      <div className="flex items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex-wrap">
         <div className="flex items-center gap-2">
           <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Status:</span>
           <div className="flex gap-1">
-            {['', 'draft', 'published', 'expired'].map((st) => (
+            {['', 'draft', 'scheduled', 'published', 'expired'].map((st) => (
               <button
                 key={st}
                 onClick={() => setStatusFilter(st)}
@@ -166,7 +218,25 @@ export default function AdminAnnouncementsPage() {
           </div>
         </div>
 
-        <span className="text-xs font-bold text-gray-500">{announcements.length} announcements</span>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2">
+            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Category:</span>
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="px-3 py-1.5 rounded-xl text-xs font-bold border border-gray-200 bg-gray-50 text-gray-600 focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All categories</option>
+              {CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <span className="text-xs font-bold text-gray-500">{announcements.length} announcements</span>
+        </div>
       </div>
 
       {/* Announcements List */}
@@ -194,17 +264,23 @@ export default function AdminAnnouncementsPage() {
               >
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <span
-                      className={`text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full ${
-                        isPublished
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : a.status === 'draft'
-                          ? 'bg-gray-100 text-gray-700'
-                          : 'bg-amber-100 text-amber-800'
-                      }`}
-                    >
-                      {a.status}
-                    </span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span
+                        className={`text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full ${
+                          isPublished
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : a.status === 'draft'
+                            ? 'bg-gray-100 text-gray-700'
+                            : 'bg-amber-100 text-amber-800'
+                        }`}
+                      >
+                        {a.status}
+                      </span>
+
+                      <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">
+                        {a.category ?? 'general'}
+                      </span>
+                    </div>
 
                     <span
                       className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
@@ -231,8 +307,15 @@ export default function AdminAnnouncementsPage() {
                     )}
                   </div>
 
-                  <div className="flex items-center justify-end gap-2 pt-1">
-                    {!isPublished && (
+                  <div className="flex items-center justify-end gap-2 pt-1 flex-wrap">
+                    {isPublished ? (
+                      <button
+                        onClick={() => handleArchive(a.id)}
+                        className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-xs rounded-xl transition-colors"
+                      >
+                        📦 Archive
+                      </button>
+                    ) : (
                       <>
                         <button
                           onClick={() => handlePublish(a.id)}
@@ -241,11 +324,27 @@ export default function AdminAnnouncementsPage() {
                           📢 Publish
                         </button>
                         <button
-                          onClick={() => handleOpenEdit(a)}
-                          className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold text-xs rounded-xl transition-colors"
+                          onClick={() => handleSchedule(a.id)}
+                          className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs rounded-xl transition-colors"
                         >
-                          ✏️ Edit
+                          🗓️ {a.status === 'scheduled' ? 'Reschedule' : 'Schedule'}
                         </button>
+                        {a.status === 'scheduled' && (
+                          <button
+                            onClick={() => handleUnschedule(a.id)}
+                            className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold text-xs rounded-xl transition-colors"
+                          >
+                            ↩ Unschedule
+                          </button>
+                        )}
+                        {(a.status === 'draft' || a.status === 'scheduled') && (
+                          <button
+                            onClick={() => handleOpenEdit(a)}
+                            className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold text-xs rounded-xl transition-colors"
+                          >
+                            ✏️ Edit
+                          </button>
+                        )}
                       </>
                     )}
 
@@ -332,17 +431,33 @@ export default function AdminAnnouncementsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Audience Type</label>
+                  <label htmlFor="announcement-category" className="block text-xs font-bold text-gray-700 mb-1">Category</label>
                   <select
-                    value={audienceType}
-                    onChange={(e) => setAudienceType(e.target.value)}
+                    id="announcement-category"
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="all">All Employees</option>
-                    <option value="department">By Department</option>
-                    <option value="role">By Role</option>
+                    {CATEGORIES.map((c) => (
+                      <option key={c} value={c}>
+                        {c.charAt(0).toUpperCase() + c.slice(1)}
+                      </option>
+                    ))}
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Audience Type</label>
+                <select
+                  value={audienceType}
+                  onChange={(e) => setAudienceType(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">All Employees</option>
+                  <option value="department">By Department</option>
+                  <option value="role">By Role</option>
+                </select>
               </div>
 
               {audienceType !== 'all' && (

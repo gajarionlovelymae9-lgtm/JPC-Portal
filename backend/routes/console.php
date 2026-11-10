@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\DataQuality\RunDataQualityScanJob;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
 
@@ -23,4 +24,8 @@ Schedule::command('reports:cleanup-exports')->dailyAt('03:15');
 // DataQualityScanner pipeline via the queued job).
 Schedule::command('system:check-health')->dailyAt('05:00');
 Schedule::command('system:verify-backups')->dailyAt('05:30');
-Schedule::job(new \App\Jobs\DataQuality\RunDataQualityScanJob('full', null, null))->weeklyOn(1, '06:30');
+Schedule::job(new RunDataQualityScanJob('full', null, null))->weeklyOn(1, '06:30');
+
+// Announcements scheduled with a future publication time go live (and notify
+// their audience) as soon as that time passes.
+Schedule::command('announcements:publish-due')->everyMinute();

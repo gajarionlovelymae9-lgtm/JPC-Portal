@@ -129,7 +129,6 @@ final class JsonSchemaValidator
     }
 
     /**
-     * @param  mixed  $value
      * @return list<array{category: string, severity: string, finding: string, evidence: string, recommendation: string}>
      *
      * @throws AiOutputException

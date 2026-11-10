@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Api\V1\Notifications;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\V1\Notifications\NotificationResource;
 use App\Models\Notification;
+use App\Models\NotificationLog;
 use App\Support\ApiResponse;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class NotificationController extends Controller
 {
@@ -67,7 +69,18 @@ class NotificationController extends Controller
         $this->authorize('update', $notification);
 
         if ($notification->read_at === null) {
-            $notification->update(['read_at' => now()]);
+            DB::transaction(function () use ($notification): void {
+                $notification->update(['read_at' => now()]);
+
+                // Record the read transition on the recipient's own delivery
+                // log only — reading is strictly per-recipient.
+                NotificationLog::query()
+                    ->where('notification_id', $notification->id)
+                    ->where('user_id', $notification->user_id)
+                    ->where('channel', 'in_app')
+                    ->where('status', '!=', 'failed')
+                    ->update(['status' => 'read']);
+            });
         }
 
         return ApiResponse::success('Notification marked as read', new NotificationResource($notification->fresh('user')));

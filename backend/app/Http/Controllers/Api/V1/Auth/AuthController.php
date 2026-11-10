@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers\Api\V1\Auth;
 
+use App\Enums\Role;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Resources\UserProfileResource;
 use App\Models\User;
-use App\Services\Auth\LoginActivityService;
 use App\Services\ActivityLogs\ActivityLogService;
+use App\Services\Auth\LoginActivityService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -25,15 +26,24 @@ class AuthController extends Controller
      * POST /api/v1/auth/login
      *
      * Authenticates the user, starts the web session (Sanctum SPA) and returns
-     * the authenticated user's profile. Failures return a generic message so
+     * the authenticated user's profile. The selected role must match the
+     * user's actual role in the database. Failures return a generic message so
      * account existence, status, or password correctness is never revealed.
      */
     public function login(LoginRequest $request): JsonResponse
     {
-        $credentials = $request->only('email', 'password');
+        $credentials = $request->only('email', 'password', 'role');
         $email = strtolower($credentials['email']);
+        $selectedRole = Role::normalizeForLogin($credentials['role'] ?? null);
 
-        $user = User::query()->where('email', $email)->first();
+        $user = User::query()->with('role')->where('email', $email)->first();
+
+        \Illuminate\Support\Facades\Log::info('Login debug', [
+            'email' => $email,
+            'user_found' => (bool) $user,
+            'password_match' => $user ? \Illuminate\Support\Facades\Hash::check($credentials['password'], $user->password) : false,
+            'status' => $user?->status?->value,
+        ]);
 
         if (! $user || ! Hash::check($credentials['password'], $user->password)) {
             $this->activity->recordFailed($email, $request);
@@ -49,6 +59,16 @@ class AuthController extends Controller
 
             return ApiResponse::error(
                 'These credentials do not match our records.',
+                status: JsonResponse::HTTP_UNAUTHORIZED,
+            );
+        }
+
+        $actualRole = $user->roleName();
+        if ($selectedRole === null || $actualRole !== $selectedRole) {
+            $this->activity->recordFailed($email, $request);
+
+            return ApiResponse::error(
+                'The selected role does not match this account.',
                 status: JsonResponse::HTTP_UNAUTHORIZED,
             );
         }

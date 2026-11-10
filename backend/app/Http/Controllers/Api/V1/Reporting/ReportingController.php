@@ -9,6 +9,7 @@ use App\Services\Reporting\AnalyticsService;
 use App\Services\Reporting\ManagementSummaryService;
 use App\Services\Reporting\ReportingService;
 use App\Support\ApiResponse;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -42,7 +43,7 @@ class ReportingController extends Controller
 
         try {
             $report = $this->reportingService->generateEmployeeReport($employeeId, $request->validated(), $user);
-        } catch (\Illuminate\Auth\Access\AuthorizationException) {
+        } catch (AuthorizationException) {
             return ApiResponse::error('Unauthorized to view this employee report', null, 403);
         }
 
@@ -64,7 +65,7 @@ class ReportingController extends Controller
 
         try {
             $report = $this->reportingService->generateDepartmentReport($deptId, $request->validated(), $user);
-        } catch (\Illuminate\Auth\Access\AuthorizationException) {
+        } catch (AuthorizationException) {
             return ApiResponse::error('Unauthorized to view other department reports', null, 403);
         }
 
@@ -77,7 +78,7 @@ class ReportingController extends Controller
 
         try {
             $report = $this->reportingService->generateInstitutionReport($request->validated(), $user);
-        } catch (\Illuminate\Auth\Access\AuthorizationException) {
+        } catch (AuthorizationException) {
             return ApiResponse::error('Unauthorized to view institutional reports', null, 403);
         }
 
@@ -92,7 +93,7 @@ class ReportingController extends Controller
 
         try {
             $report = $this->reportingService->generateMonthlyReport($year, $month, $user);
-        } catch (\Illuminate\Auth\Access\AuthorizationException) {
+        } catch (AuthorizationException) {
             return ApiResponse::error('Unauthorized to view monthly performance reports', null, 403);
         }
 
@@ -103,7 +104,7 @@ class ReportingController extends Controller
     {
         try {
             $report = $this->reportingService->generateAchievementReport($request->validated(), $request->user());
-        } catch (\Illuminate\Auth\Access\AuthorizationException) {
+        } catch (AuthorizationException) {
             return ApiResponse::error('Unauthorized to view achievement reports', null, 403);
         }
 
@@ -143,13 +144,12 @@ class ReportingController extends Controller
      */
     public function managementSummary(ReportFilterRequest $request): JsonResponse
     {
-        $user = $request->user();
-        $year = (int) $request->input('year', date('Y'));
-        $month = (int) $request->input('month', date('n'));
-
         try {
-            $summary = $this->managementSummaryService->generateSummary($year, $month, $user);
-        } catch (\Illuminate\Auth\Access\AuthorizationException) {
+            $summary = $this->managementSummaryService->generateSummaryForPeriod(
+                $request->validated(),
+                $request->user(),
+            );
+        } catch (AuthorizationException) {
             return ApiResponse::error('Unauthorized to view management summaries', null, 403);
         }
 
@@ -187,7 +187,7 @@ class ReportingController extends Controller
                 ),
                 default => throw new \InvalidArgumentException('Unsupported comparison type'),
             };
-        } catch (\Illuminate\Auth\Access\AuthorizationException) {
+        } catch (AuthorizationException) {
             return ApiResponse::error('Unauthorized to run this comparison', null, 403);
         }
 

@@ -36,7 +36,7 @@ class ReportAssignmentRule implements DataQualityRuleInterface
 
     public function check(mixed $entity): ?array
     {
-        if (!($entity instanceof Report)) {
+        if (! ($entity instanceof Report)) {
             return null;
         }
 
@@ -45,7 +45,7 @@ class ReportAssignmentRule implements DataQualityRuleInterface
                 'issue_type' => DataQualityIssueType::REPORT_WITHOUT_TASK,
                 'severity' => DataQualityIssueSeverity::HIGH,
                 'title' => "Report '{$entity->title}' (ID: {$entity->id}) is not linked to any task",
-                'description' => "Report record is missing mandatory task_id relationship.",
+                'description' => 'Report record is missing mandatory task_id relationship.',
                 'detected_value' => ['task_id' => null],
                 'expected_value' => ['task_id' => 'valid_task_id'],
                 'department_id' => $entity->department_id,
@@ -59,12 +59,12 @@ class ReportAssignmentRule implements DataQualityRuleInterface
                 ->where('employee_id', $entity->employee_id)
                 ->exists();
 
-            if (!$isAssigned) {
+            if (! $isAssigned) {
                 return [
                     'issue_type' => DataQualityIssueType::REPORT_TASK_ASSIGNMENT_MISMATCH,
                     'severity' => $this->getSeverity(),
                     'title' => "Report #{$entity->id} submitter (Employee #{$entity->employee_id}) is not assigned to Task #{$entity->task_id}",
-                    'description' => "Cross-assignment inconsistency: The employee submitted a progress report for a task they are not officially assigned to.",
+                    'description' => 'Cross-assignment inconsistency: The employee submitted a progress report for a task they are not officially assigned to.',
                     'detected_value' => [
                         'report_employee_id' => $entity->employee_id,
                         'task_id' => $entity->task_id,

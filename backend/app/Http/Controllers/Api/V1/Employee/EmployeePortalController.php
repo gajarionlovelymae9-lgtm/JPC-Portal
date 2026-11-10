@@ -7,7 +7,7 @@ use App\Services\Employee\EmployeePortalService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Http\UploadedFile;
 
 /**
  * Employee Portal (Phase 3.3-V) — self-service surface.
@@ -23,19 +23,26 @@ use Illuminate\Validation\ValidationException;
  */
 class EmployeePortalController extends Controller
 {
-    public function __construct(private readonly EmployeePortalService $employeePortalService)
-    {
-    }
+    public function __construct(private readonly EmployeePortalService $employeePortalService) {}
 
     // ─────────────────────────────────────────────────────────────────────────
     // Dashboard
     // ─────────────────────────────────────────────────────────────────────────
 
-    public function dashboard(): JsonResponse
+    public function dashboard(Request $request): JsonResponse
     {
+        $validated = $request->validate([
+            'year' => ['nullable', 'integer', 'min:2000', 'max:2100'],
+            'month' => ['nullable', 'integer', 'min:1', 'max:12'],
+        ]);
+
         return ApiResponse::success(
             'Dashboard loaded',
-            $this->employeePortalService->dashboard(request()->user())
+            $this->employeePortalService->dashboard(
+                $request->user(),
+                $validated['year'] ?? null,
+                $validated['month'] ?? null,
+            )
         );
     }
 
@@ -80,7 +87,7 @@ class EmployeePortalController extends Controller
     public function submitTask(Request $request, int $assignmentId): JsonResponse
     {
         $validated = $request->validate([
-            'notes'       => ['nullable', 'string', 'max:2000'],
+            'notes' => ['nullable', 'string', 'max:2000'],
             'late_reason' => ['nullable', 'string', 'max:1000'],
         ]);
 
@@ -96,78 +103,163 @@ class EmployeePortalController extends Controller
 
     public function reports(Request $request): JsonResponse
     {
-        $filters = $request->only(['status', 'search', 'page', 'per_page']);
+        $validated = $request->validate([
+            'status' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'report_type' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'reporting_period' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'ai_summary_status' => ['sometimes', 'nullable', 'string', 'max:40'],
+            'submitted_from' => ['sometimes', 'nullable', 'date'],
+            'submitted_to' => ['sometimes', 'nullable', 'date'],
+            'search' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'page' => ['sometimes', 'integer', 'min:1'],
+            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
+        ]);
 
         return ApiResponse::success(
             'Reports loaded',
-            $this->employeePortalService->reports($request->user(), $filters)
+            $this->employeePortalService->reports($request->user(), $validated)
         );
     }
 
-    public function report(Request $request, int $reportId): JsonResponse
+    public function report(Request $request, int $report): JsonResponse
     {
         return ApiResponse::success(
             'Report loaded',
-            $this->employeePortalService->report($request->user(), $reportId)
+            $this->employeePortalService->report($request->user(), $report)
         );
     }
 
     public function createReport(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'task_id'    => ['required', 'integer'],
-            'title'      => ['required', 'string', 'max:500'],
-            'content'    => ['nullable', 'string'],
-            'references' => ['nullable', 'string'],
-        ]);
+        $validated = $request->validate($this->reportRules(false));
+        $report = $this->employeePortalService->createReport($request->user(), $validated, $this->attachments($request));
 
-        $report = $this->employeePortalService->createReport($request->user(), $validated);
-
-        return ApiResponse::success('Report created', ['report' => $report], 201);
+        return ApiResponse::success('Report created', ['report' => $this->reportShape($report)], 201);
     }
 
-    public function updateReport(Request $request, int $reportId): JsonResponse
+    public function updateReport(Request $request, int $report): JsonResponse
     {
-        $validated = $request->validate([
-            'title'      => ['nullable', 'string', 'max:500'],
-            'content'    => ['nullable', 'string'],
-            'references' => ['nullable', 'string'],
-        ]);
+        $validated = $request->validate($this->reportRules(true));
+        $updated = $this->employeePortalService->updateReport($request->user(), $report, $validated, $this->attachments($request));
 
-        $report = $this->employeePortalService->updateReport($request->user(), $reportId, $validated);
-
-        return ApiResponse::success('Report updated', ['report' => $report]);
+        return ApiResponse::success('Report updated', ['report' => $this->reportShape($updated)]);
     }
 
-    public function submitReport(Request $request, int $reportId): JsonResponse
+    public function submitReport(Request $request, int $report): JsonResponse
     {
-        $report = $this->employeePortalService->submitReport($request->user(), $reportId);
+        $validated = $request->validate($this->reportRules(true));
+        $result = $this->employeePortalService->submitReport($request->user(), $report, $validated, $this->attachments($request));
 
-        return ApiResponse::success('Report submitted for review', ['report' => $report]);
+        return ApiResponse::success('Report submitted for review', $result);
     }
 
-    public function createRevision(Request $request, int $reportId): JsonResponse
+    public function createRevision(Request $request, int $report): JsonResponse
     {
         $validated = $request->validate([
-            'title'          => ['nullable', 'string', 'max:500'],
-            'content'        => ['nullable', 'string'],
-            'revision_notes' => ['nullable', 'string', 'max:2000'],
+            'revision_notes' => ['sometimes', 'nullable', 'string', 'max:5000'],
+            'title' => ['sometimes', 'string', 'max:255'],
+            'report_type' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'reporting_period' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'report_description' => ['sometimes', 'nullable', 'string', 'max:100000'],
+            'content' => ['sometimes', 'nullable', 'string', 'max:100000'],
+            'accomplishments' => ['sometimes', 'nullable', 'string', 'max:50000'],
+            'completed_tasks' => ['sometimes', 'nullable', 'string', 'max:50000'],
+            'completed_tasks_summary' => ['sometimes', 'nullable', 'string', 'max:50000'],
+            'challenges_encountered' => ['sometimes', 'nullable', 'string', 'max:50000'],
+            'next_plans' => ['sometimes', 'nullable', 'string', 'max:50000'],
+            'references' => ['sometimes', 'nullable', 'string', 'max:10000'],
         ]);
 
-        $report = $this->employeePortalService->createRevision($request->user(), $reportId, $validated);
+        $revised = $this->employeePortalService->createRevision($request->user(), $report, $validated);
 
-        return ApiResponse::success('Revision created', ['report' => $report]);
+        return ApiResponse::success('Revision created', ['report' => $revised]);
+    }
+
+    public function generateReportSummary(Request $request, int $report): JsonResponse
+    {
+        $validated = $request->validate([
+            'regenerate' => ['sometimes', 'boolean'],
+        ]);
+
+        $result = $this->employeePortalService->generateReportSummary(
+            $request->user(),
+            $report,
+            (bool) ($validated['regenerate'] ?? false),
+        );
+
+        return ApiResponse::success('AI summary processed', $result);
+    }
+
+    public function downloadReportFile(Request $request, int $report, int $file)
+    {
+        return $this->employeePortalService->downloadReportFile($request->user(), $report, $file);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function reportRules(bool $isUpdate): array
+    {
+        $required = $isUpdate ? ['sometimes'] : ['required'];
+
+        return [
+            'task_id' => [$isUpdate ? 'sometimes' : 'required', 'integer'],
+            'title' => [...$required, 'string', 'max:255'],
+            'report_type' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'reporting_period' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'report_description' => ['sometimes', 'nullable', 'string', 'max:100000'],
+            'content' => ['sometimes', 'nullable', 'string', 'max:100000'],
+            'accomplishments' => ['sometimes', 'nullable', 'string', 'max:50000'],
+            'completed_tasks' => ['sometimes', 'nullable', 'string', 'max:50000'],
+            'completed_tasks_summary' => ['sometimes', 'nullable', 'string', 'max:50000'],
+            'challenges_encountered' => ['sometimes', 'nullable', 'string', 'max:50000'],
+            'next_plans' => ['sometimes', 'nullable', 'string', 'max:50000'],
+            'references' => ['sometimes', 'nullable', 'string', 'max:10000'],
+            'attachments' => ['sometimes', 'array', 'max:10'],
+            'attachments.*' => ['file', 'max:10240', 'mimes:pdf,doc,docx,txt,png,jpg,jpeg'],
+        ];
+    }
+
+    /**
+     * @return list<UploadedFile>
+     */
+    private function attachments(Request $request): array
+    {
+        $files = $request->file('attachments', []);
+
+        if ($files instanceof UploadedFile) {
+            return [$files];
+        }
+
+        return is_array($files) ? array_values(array_filter($files, fn ($file) => $file instanceof UploadedFile)) : [];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function reportShape(\App\Models\Report $report): array
+    {
+        return $this->employeePortalService->report(request()->user(), $report->id);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Calendar
     // ─────────────────────────────────────────────────────────────────────────
 
-    public function calendar(): JsonResponse
+    public function calendar(Request $request): JsonResponse
     {
+        $validated = $request->validate([
+            'year' => ['nullable', 'integer', 'min:2000', 'max:2100'],
+            'month' => ['nullable', 'integer', 'min:1', 'max:12'],
+        ]);
+
         return ApiResponse::success(
             'Calendar loaded',
-            $this->employeePortalService->calendar(request()->user())
+            $this->employeePortalService->calendar(
+                $request->user(),
+                $validated['year'] ?? null,
+                $validated['month'] ?? null,
+            )
         );
     }
 
@@ -246,8 +338,8 @@ class EmployeePortalController extends Controller
     public function changePassword(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'current_password'      => ['required', 'string'],
-            'password'              => ['required', 'string', 'min:8', 'confirmed'],
+            'current_password' => ['required', 'string'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
             'password_confirmation' => ['required', 'string'],
         ]);
 

@@ -11,8 +11,8 @@ export default function EmployeeNotificationsPage() {
 
   useEffect(() => {
     getMyNotifications()
-      .then(r => setNotifications(Array.isArray(r.data) ? r.data : []))
-      .catch(() => setError('Unable to load notifications.'))
+      .then(r => setNotifications(Array.isArray(r.data?.notifications) ? r.data.notifications : []))
+      .catch(() => setError('Unable to load notifications. Please try again.'))
       .finally(() => setLoading(false))
   }, [])
 
@@ -28,14 +28,16 @@ export default function EmployeeNotificationsPage() {
         <div className="space-y-3">
           {notifications.map(n => (
             <div key={n.id} className={`bg-white border rounded-xl p-4 flex items-start gap-4 transition-colors ${!n.is_read ? 'border-blue-200 bg-blue-50/30' : 'border-gray-200'}`}>
-              <div className="text-2xl">{TYPE_ICONS[n.type] ?? '🔔'}</div>
+<div className="text-2xl">{TYPE_ICONS[n.type ?? ''] ?? '🔔'}</div>
               <div className="flex-1">
                 <div className="flex items-center justify-between">
                   <p className={`font-medium ${!n.is_read ? 'text-gray-900' : 'text-gray-700'}`}>{n.title}</p>
                   {!n.is_read && <span className="w-2 h-2 bg-blue-600 rounded-full"/>}
                 </div>
                 <p className="text-sm text-gray-600 mt-0.5">{n.message}</p>
-                <p className="text-xs text-gray-400 mt-1">{new Date(n.created_at).toLocaleString()}</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {n.created_at ? new Date(n.created_at).toLocaleString() : ''}
+                </p>
               </div>
             </div>
           ))}

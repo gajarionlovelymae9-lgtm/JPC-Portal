@@ -2,8 +2,6 @@
 
 namespace App\Services\DataQuality;
 
-use App\Enums\DataQualityIssueSeverity;
-use App\Enums\DataQualityIssueStatus;
 use App\Models\DataQualityIssue;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -17,29 +15,29 @@ class DataQualityIssueService
 
         $this->applyRoleScope($query, $user);
 
-        if (!empty($filters['status'])) {
+        if (! empty($filters['status'])) {
             $query->where('status', $filters['status']);
         }
-        if (!empty($filters['severity'])) {
+        if (! empty($filters['severity'])) {
             $query->where('severity', $filters['severity']);
         }
-        if (!empty($filters['issue_type'])) {
+        if (! empty($filters['issue_type'])) {
             $query->where('issue_type', $filters['issue_type']);
         }
-        if (!empty($filters['entity_type'])) {
+        if (! empty($filters['entity_type'])) {
             $query->where('entity_type', $filters['entity_type']);
         }
-        if (!empty($filters['department_id'])) {
+        if (! empty($filters['department_id'])) {
             $query->where('department_id', $filters['department_id']);
         }
-        if (!empty($filters['employee_id'])) {
+        if (! empty($filters['employee_id'])) {
             $query->where('employee_id', $filters['employee_id']);
         }
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $search = $filters['search'];
             $query->where(function (Builder $q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                    ->orWhere('description', 'like', "%{$search}%");
             });
         }
 
@@ -56,9 +54,10 @@ class DataQualityIssueService
         // Department Head: scoped to their department
         if ($user->hasRole('department_head')) {
             $deptId = $user->employee?->department_id;
+
             return $query->where(function (Builder $q) use ($deptId) {
                 $q->where('department_id', $deptId)
-                  ->orWhereNull('department_id');
+                    ->orWhereNull('department_id');
             });
         }
 

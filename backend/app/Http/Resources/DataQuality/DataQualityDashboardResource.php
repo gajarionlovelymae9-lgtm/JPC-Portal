@@ -19,6 +19,7 @@ class DataQualityDashboardResource extends JsonResource
             'low' => $this->resource['low'] ?? 0,
             'resolved' => $this->resource['resolved'] ?? 0,
             'dismissed' => $this->resource['dismissed'] ?? 0,
+            'scan_summary' => $this->resource['scan_summary'] ?? null,
             'by_category' => $this->resource['by_category'] ?? [],
             'by_department' => $this->resource['by_department'] ?? [],
             'recent_scans' => DataQualityScanResource::collection($this->resource['recent_scans'] ?? []),

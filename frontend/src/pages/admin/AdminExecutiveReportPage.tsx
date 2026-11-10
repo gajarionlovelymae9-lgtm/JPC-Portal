@@ -16,7 +16,7 @@ export default function AdminExecutiveReportPage() {
     return <div className="p-8 text-center text-gray-500">Generating Executive Report...</div>
   }
 
-  const { institution, kpis, department_performance, ai_executive_summary } = data
+  const { institution, kpis, department_performance, ai_executive_summary, operational_digest } = data
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
@@ -41,7 +41,17 @@ export default function AdminExecutiveReportPage() {
         {/* Executive Overview */}
         <div className="space-y-3">
           <h3 className="text-base font-extrabold text-gray-900 border-l-4 border-blue-600 pl-3">1. Executive Overview</h3>
-          <p className="text-sm text-gray-700 leading-relaxed">{ai_executive_summary.text}</p>
+          {operational_digest.available ? (
+            <p className="text-sm text-gray-700 leading-relaxed">{operational_digest.text}</p>
+          ) : (
+            <p className="text-sm text-gray-500 italic">{ai_executive_summary.message}</p>
+          )}
+          {!ai_executive_summary.available ? (
+            <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              No AI insight is available. Provider <strong>{ai_executive_summary.provider_status.configured_provider}</strong>{' '}
+              ({ai_executive_summary.provider_status.model}) — {ai_executive_summary.provider_status.note}
+            </p>
+          ) : null}
         </div>
 
         {/* Core Metrics Table */}
@@ -97,9 +107,14 @@ export default function AdminExecutiveReportPage() {
         {/* Strategic Guidance */}
         <div className="space-y-3">
           <h3 className="text-base font-extrabold text-gray-900 border-l-4 border-blue-600 pl-3">4. Strategic Recommendations</h3>
-          <ul className="text-xs text-gray-700 space-y-1.5 pl-4 list-disc">
-            {ai_executive_summary.recommendations.map((r, idx) => <li key={idx}>{r}</li>)}
-          </ul>
+          {operational_digest.recommendations.length > 0 ? (
+            <ul className="text-xs text-gray-700 space-y-1.5 pl-4 list-disc">
+              {operational_digest.recommendations.map((r: string, idx: number) => <li key={idx}>{r}</li>)}
+            </ul>
+          ) : (
+            <p className="text-xs text-gray-500 italic">No recommendations generated for this period.</p>
+          )}
+          <p className="text-[11px] text-gray-400">{operational_digest.disclaimer}</p>
         </div>
       </div>
     </div>

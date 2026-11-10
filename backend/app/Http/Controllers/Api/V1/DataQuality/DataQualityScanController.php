@@ -21,10 +21,15 @@ class DataQualityScanController extends Controller
     {
         $this->authorize('viewAny', DataQualityScan::class);
 
+        // Clamp server-side: an unvalidated `per_page` would otherwise let a
+        // caller request the whole table in one page. 100 is the shared
+        // pagination ceiling used by every other paginated endpoint.
+        $perPage = min(max((int) $request->input('per_page', 15), 1), 100);
+
         $scans = DataQualityScan::query()
             ->with('initiatedBy:id,name')
             ->orderBy('created_at', 'desc')
-            ->paginate((int)$request->input('per_page', 15));
+            ->paginate($perPage);
 
         return ApiResponse::collection(
             'Data quality scans retrieved successfully',

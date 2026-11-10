@@ -2,6 +2,8 @@
 
 namespace App\Services\System;
 
+use App\Models\MaintenanceLog;
+
 /**
  * Aggregates the per-component health checks into one system-health payload.
  *
@@ -86,7 +88,7 @@ class SystemHealthService
 
     private function lastBackup(): ?array
     {
-        $log = \App\Models\MaintenanceLog::query()
+        $log = MaintenanceLog::query()
             ->where('maintenance_type', 'Database Backup')
             ->orderByDesc('performed_at')
             ->first();

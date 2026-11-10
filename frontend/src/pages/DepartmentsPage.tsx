@@ -1,10 +1,8 @@
-import { PlaceholderPage } from '../components/PlaceholderPage'
-
-export default function DepartmentsPage() {
-  return (
-    <PlaceholderPage
-      title="Departments"
-      description="Department management will be implemented in a future phase."
-    />
-  )
-}
+/**
+ * DepartmentsPage.tsx
+ *
+ * Re-exports the full AdminPeopleDepartmentsPage for the legacy /departments
+ * route used by the HR portal.  Admin users access the same page via the
+ * consolidated People Management sidebar (/admin/people/departments).
+ */
+export { default } from './admin/AdminPeopleDepartmentsPage'

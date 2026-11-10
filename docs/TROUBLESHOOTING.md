@@ -81,6 +81,11 @@ Then:
    ```bash
    cd backend && php artisan config:clear && php artisan cache:clear
    ```
+   If a previous deploy ran `php artisan optimize`, also clear the compiled
+   routes/events/views so the new config is picked up fresh:
+   ```bash
+   php artisan optimize:clear
+   ```
 5. Confirm you're not accidentally pointing at the test DB:
    automated tests force `DB_DATABASE=acadtrack_db_test` via `phpunit.xml`.
 
@@ -129,7 +134,36 @@ npx tsc -b
 npx oxlint src
 ```
 
-(54 oxlint warnings are pre-existing and non-blocking; 0 errors is the target.)
+(58 oxlint warnings are pre-existing and non-blocking; 0 errors is the target.)
+
+**React build fails after backend changes:** the frontend is a separate build.
+If the API changed, verify `VITE_API_BASE_URL` still points at the API origin
+and re-run `npm run build`, then hard-reload the browser (stale cached bundle).
+
+---
+
+## Laravel 500 / blank page after deploy
+
+**Symptoms:** any page returns 500, or the app hangs returning nothing.
+
+Check:
+
+1. `php artisan about` — is `APP_DEBUG=true`? (it must be `false` in
+   production, but enable it briefly to see the real error locally).
+2. Clear stale caches from a previous deploy/environment:
+   ```bash
+   cd backend && php artisan optimize:clear
+   ```
+   A cached `config`/`routes`/`views` from an earlier machine or `.env` is the
+   most common cause of a post-deploy 500.
+3. Storage permissions: `storage/` and `bootstrap/cache/` must be writable by
+   the web/PHP process.
+4. `APP_KEY` — if it does not match the one used for the database/sessions, data
+   cannot be decrypted: re-run `php artisan key:generate` **only** if you intend
+   to discard old encrypted/signed data (re-encrypt or restore APP_KEY from the
+   backup first — see [`BACKUP_AND_RESTORE.md`](BACKUP_AND_RESTORE.md)).
+5. `storage/logs/laravel-*.log` — the exception stack trace names the failing
+   class; search the trace for your own `app/` classes first.
 
 ---
 
@@ -241,6 +275,43 @@ Check:
 - Login fails with 500? Check `APP_KEY` is set (`php artisan key:generate`) —
   `.env.testing` (if present) shadows `.env` when `APP_ENV=testing`, so keep test
   configuration in `phpunit.xml`.
+
+---
+
+## Demo accounts / sample data appear on production
+
+**Symptoms:** fictional employees, departments or the demo accounts
+(`admin@jpc.local`, …) show up in production data.
+
+The development seeders are gated by `SEED_DEVELOPMENT_DATA`, and it **defaults
+to `true`**. Setting `APP_ENV=production` alone does not disable them. Fix:
+
+1. In `backend/.env` set `SEED_DEVELOPMENT_DATA=false`.
+2. Re-run `php artisan optimize:clear` and `php artisan config:clear`.
+3. Remove or deactivate the demo accounts/data as appropriate (the demo users
+   exist only when the dev seeders ran; delete them via admin/tinker if they
+   were created).
+4. Run `php artisan db:seed` with the flag false → only the structural seeders
+   (roles/permissions/departments/positions/academic year) run; no demo data.
+
+See [`INSTALLATION.md`](INSTALLATION.md) §4.4 and
+[`DEPLOYMENT.md`](DEPLOYMENT.md) §6.
+
+---
+
+## Automated tests need a dedicated database
+
+Backend tests (`php artisan test`) require the database `acadtrack_db_test`
+to exist (`phpunit.xml` sets `DB_DATABASE=acadtrack_db_test`). If tests fail
+with connection errors to that database, create it:
+
+```sql
+CREATE DATABASE IF NOT EXISTS acadtrack_db_test
+  CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+The test database is isolated from `acadtrack_db`, so the automated suite can
+never touch development data. See [`INSTALLATION.md`](INSTALLATION.md) §3.
 
 ---
 

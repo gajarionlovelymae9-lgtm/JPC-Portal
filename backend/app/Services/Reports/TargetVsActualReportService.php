@@ -3,7 +3,6 @@
 namespace App\Services\Reports;
 
 use App\Models\AcademicYear;
-use App\Models\Department;
 use App\Models\EmployeeTarget;
 use App\Models\User;
 use App\Services\Reports\Concerns\ComputesReportMetrics;

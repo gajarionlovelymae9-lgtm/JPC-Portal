@@ -35,6 +35,8 @@ class TaskService
                     'start_date' => $data['start_date'] ?? null,
                     'due_date' => $data['due_date'],
                     'estimated_hours' => $data['estimated_hours'] ?? null,
+                    'target_value' => $data['target_value'] ?? null,
+                    'target_unit' => $data['target_unit'] ?? null,
                     'required_output' => $data['required_output'] ?? null,
                     'created_by' => $creator->id,
                     'updated_by' => null,
@@ -129,31 +131,80 @@ class TaskService
     }
 
     /**
-     * Determine the overall status from task assignments.
+     * Determine the overall status from the task's current assignments.
+     *
+     * A task can have several assignees, so the aggregate status describes the
+     * whole set: it is only completed once every assignee is done, it is
+     * submitted as soon as one assignee is waiting for review, and it is in
+     * progress once any assignee has started (or completed part of) the work.
      */
     public function getOverallTaskStatus(Task $task): string
     {
-        $assignments = $task->assignments;
-
-        if ($assignments->isEmpty()) {
-            return $task->status;
+        if ($task->status === 'cancelled') {
+            return 'cancelled';
         }
 
-        $statuses = $assignments->pluck('status')->all();
+        $statuses = $task->assignments()->pluck('status')->all();
+        $active = array_values(array_filter(
+            $statuses,
+            fn (string $status) => $status !== 'cancelled',
+        ));
 
-        if (in_array('in_progress', $statuses, true)) {
-            return 'in_progress';
+        if ($active === []) {
+            return $statuses === [] ? $task->status : 'cancelled';
         }
 
-        if (in_array('submitted', $statuses, true)) {
-            return 'submitted';
-        }
-
-        if (array_count_values($statuses)['completed'] === $assignments->count()) {
+        if (count(array_filter($active, fn (string $s) => $s === 'completed')) === count($active)) {
             return 'completed';
         }
 
-        return 'in_progress';
+        if (in_array('submitted', $active, true) || in_array('under_review', $active, true)) {
+            return 'submitted';
+        }
+
+        if (
+            in_array('in_progress', $active, true)
+            || in_array('accepted', $active, true)
+            || in_array('completed', $active, true)
+        ) {
+            return 'in_progress';
+        }
+
+        if (in_array('rejected', $active, true)) {
+            return 'in_progress';
+        }
+
+        return 'assigned';
+    }
+
+    /**
+     * Keep the aggregate task status aligned with its assignments so the task
+     * header no longer disagrees with what an employee/reviewer sees.
+     */
+    public function syncAggregateStatus(Task $task): void
+    {
+        $task->refresh();
+
+        if ($task->status === 'cancelled') {
+            return;
+        }
+
+        $status = $this->getOverallTaskStatus($task);
+
+        $attributes = ['status' => $status];
+
+        if ($status === 'completed' && $task->completed_at === null) {
+            // The task is only completed once every assignment is approved.
+            // Stamp the completion time the assignment approval produced.
+            $attributes['completed_at'] = now();
+        } elseif ($status !== 'completed' && $task->completed_at !== null) {
+            // Work was legitimately reopened; a completed date would be wrong.
+            $attributes['completed_at'] = null;
+        }
+
+        if ($status !== $task->status || count($attributes) > 1) {
+            $task->update($attributes);
+        }
     }
 
     /**

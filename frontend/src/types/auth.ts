@@ -21,3 +21,12 @@ export interface UserProfile {
 }
 
 export type AuthResponse = ApiResponse<UserProfile>
+
+export const LOGIN_ROLES = [
+  { value: 'admin', label: 'Admin' },
+  { value: 'hr', label: 'HR' },
+  { value: 'department_head', label: 'Department Head' },
+  { value: 'employee', label: 'Employee' },
+] as const
+
+export type LoginRoleValue = (typeof LOGIN_ROLES)[number]['value']

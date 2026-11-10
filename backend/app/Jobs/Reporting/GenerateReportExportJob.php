@@ -3,6 +3,8 @@
 namespace App\Jobs\Reporting;
 
 use App\Enums\ReportExportStatus;
+use App\Models\Department;
+use App\Models\Employee;
 use App\Models\ReportExport;
 use App\Models\User;
 use App\Services\Reporting\Export\ReportRowBuilder;
@@ -27,7 +29,7 @@ use Illuminate\Support\Str;
  * ReportExportService writers. The single-flight guarantee (ShouldBeUnique)
  * prevents duplicate file generation for the same export row.
  */
-class GenerateReportExportJob implements ShouldQueue, ShouldBeUnique
+class GenerateReportExportJob implements ShouldBeUnique, ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -118,12 +120,22 @@ class GenerateReportExportJob implements ShouldQueue, ShouldBeUnique
     {
         return match ($reportType) {
             'employee_progress' => $service->generateEmployeeReport(
-                (int) ($filters['employee_id'] ?? $user->employee?->id ?? 0),
+                (int) ($filters['employee_id']
+                    // No employee filter -> fall back to the owner's own record,
+                    // then to the first active employee, never to fake ID 0
+                    // (which resolved to "employee not found" -> Forbidden).
+                    ?? $user->employee?->id
+                    ?? (Employee::query()->active()->orderBy('id')->value('id') ?? 0)),
                 $filters,
                 $user,
             ),
             'department_performance' => $service->generateDepartmentReport(
-                (int) ($filters['department_id'] ?? 0),
+                (int) ($filters['department_id']
+                    // Export requests default to no department filter; admin/HR
+                    // get the first active department rather than a fake ID 0
+                    // (which resolved to "department not found" -> Forbidden and
+                    // failed every bare department export).
+                    ?? (Department::query()->active()->orderBy('id')->value('id') ?? 0)),
                 $filters,
                 $user,
             ),

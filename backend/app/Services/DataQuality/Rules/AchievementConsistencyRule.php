@@ -35,7 +35,7 @@ class AchievementConsistencyRule implements DataQualityRuleInterface
 
     public function check(mixed $entity): ?array
     {
-        if (!($entity instanceof MonthlyAchievement)) {
+        if (! ($entity instanceof MonthlyAchievement)) {
             return null;
         }
 
@@ -44,7 +44,7 @@ class AchievementConsistencyRule implements DataQualityRuleInterface
                 'issue_type' => DataQualityIssueType::MISSING_PERFORMANCE_DATA,
                 'severity' => DataQualityIssueSeverity::HIGH,
                 'title' => "Monthly Achievement ID {$entity->id} has no linked employee",
-                'description' => "Achievement record is unassigned with NULL employee_id.",
+                'description' => 'Achievement record is unassigned with NULL employee_id.',
                 'detected_value' => ['employee_id' => null],
                 'expected_value' => ['employee_id' => 'valid_employee_id'],
                 'department_id' => $entity->department_id,

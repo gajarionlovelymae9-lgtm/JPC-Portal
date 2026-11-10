@@ -9,10 +9,12 @@ use App\Http\Resources\Api\V1\TaskManagement\TaskResource;
 use App\Models\Employee;
 use App\Models\Task;
 use App\Models\TaskAssignment;
+use App\Services\TaskManagement\TaskAssignmentService;
 use App\Services\TaskManagement\TaskService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class TaskController extends Controller
 {
@@ -77,9 +79,45 @@ class TaskController extends Controller
         return ApiResponse::collection('Tasks retrieved successfully', TaskResource::collection($tasks));
     }
 
-    public function store(StoreTaskRequest $request, TaskService $service): JsonResponse
-    {
-        $task = $service->createTask($request->validated(), $request->user());
+    public function store(
+        StoreTaskRequest $request,
+        TaskService $service,
+        TaskAssignmentService $assignmentService,
+    ): JsonResponse {
+        $this->authorize('create', Task::class);
+
+        $data = $request->validated();
+        $employeeIds = array_values(array_unique(array_map('intval', $data['assigned_employee_ids'] ?? [])));
+        unset($data['assigned_employee_ids']);
+
+        $task = DB::transaction(function () use ($data, $employeeIds, $request, $service, $assignmentService) {
+            $task = $service->createTask($data, $request->user());
+
+            if ($employeeIds !== []) {
+                $this->authorize('assign', $task);
+
+                $employees = Employee::query()->whereIn('id', $employeeIds)->get()->keyBy('id');
+
+                foreach ($employeeIds as $employeeId) {
+                    $employee = $employees->get($employeeId);
+
+                    if ($employee === null) {
+                        continue;
+                    }
+
+                    $assignmentService->assignEmployee($task, $employee, $request->user());
+                }
+
+                // A task with assignees has left the draft state and entered the
+                // assigned stage of the workflow.
+                $task->update([
+                    'status' => 'assigned',
+                    'updated_by' => $request->user()->id,
+                ]);
+            }
+
+            return $task->load(['department', 'assignments.employee']);
+        });
 
         return ApiResponse::created('Task created successfully', new TaskResource($task));
     }
@@ -88,7 +126,7 @@ class TaskController extends Controller
     {
         $this->authorize('view', $task);
 
-        return ApiResponse::success('Task retrieved successfully', new TaskResource($task->load(['annualPlan', 'departmentPlan', 'departmentTarget', 'employeeTarget', 'assignments', 'progress', 'reviews'])));
+        return ApiResponse::success('Task retrieved successfully', new TaskResource($task->load(['annualPlan', 'departmentPlan', 'departmentTarget', 'employeeTarget', 'assignments.reviews', 'assignments.submissions.attachments', 'assignments.submissions.submittedBy', 'progress', 'reviews'])));
     }
 
     public function update(UpdateTaskRequest $request, Task $task, TaskService $service): JsonResponse

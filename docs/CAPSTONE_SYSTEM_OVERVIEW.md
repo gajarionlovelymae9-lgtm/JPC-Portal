@@ -1,10 +1,10 @@
-﻿# JPC Portal â€” Capstone System Overview
+﻿# JPC Portal — Capstone System Overview
 
 Academic summary of the completed system.
 
 ## System title
 
-**JPC Portal â€” AI-Driven Employee Progress Monitoring & Management System**
+**JPC Portal — AI-Driven Employee Progress Monitoring & Management System**
 
 ## Problem addressed
 
@@ -16,13 +16,13 @@ was not available in one place.
 
 ## Objectives
 
-1. Centralize **annual plan â†’ target â†’ task â†’ report â†’ review â†’ achievement** workflows.
+1. Centralize **annual plan → target → task → report → review → achievement** workflows.
 2. Automate **OCR + AI analysis** of submitted reports (summary, validation, reference
    and similarity indicators).
 3. Provide **role-based dashboards** for Admin, HR, Department Head and Employee.
 4. Compute **performance/KPI** data deterministically and surface **achievements**.
 5. Add **data-quality scans**, **reporting & analytics**, **AI Chat**, and an
-   **audit trail** â€” with human review always in control.
+   **audit trail** — with human review always in control.
 
 ## Users & roles
 
@@ -36,9 +36,9 @@ was not available in one place.
 ## Major features
 
 - Employee/department/position management with history
-- Academic year â†’ annual plan â†’ targets (department + employee)
+- Academic year → annual plan → targets (department + employee)
 - Task management (assignments, progress, references, comments, attachments, review)
-- Report workflow (draft â†’ submitted â†’ review â†’ approved/revision/rejected) with
+- Report workflow (draft → submitted → review → approved/revision/rejected) with
   immutable versions, files, timeline
 - OCR document processing (offline fake engine + optional Google Vision)
 - AI analysis pipeline (summary, validation, references, similarity indicators),
@@ -56,19 +56,19 @@ was not available in one place.
 
 ## Architecture
 
-React (Vite + TS) SPA â†’ Laravel 12 REST API `/api/v1` (Sanctum cookie auth, RBAC,
-Services, Resources) â†’ MySQL 8 (`acadtrack_db`), with database queues, scheduler,
+React (Vite + TS) SPA → Laravel 12 REST API `/api/v1` (Sanctum cookie auth, RBAC,
+Services, Resources) → MySQL 8 (`acadtrack_db`), with database queues, scheduler,
 OCR/AI (server-side), notifications, reporting/analytics, and audit logging.
 See [`FINAL_ARCHITECTURE.md`](FINAL_ARCHITECTURE.md).
 
 ## AI functionality
 
-- Deterministic offline engine by default (`AI_PROVIDER=fake`) â€” works fully offline.
+- Deterministic offline engine by default (`AI_PROVIDER=fake`) — works fully offline.
 - Optional OpenAI-compatible provider (`AI_PROVIDER=openai`, `AI_ENDPOINT`).
 - Summarizes, validates against configured requirements, compares against
   references, detects similarity indicators, finds data inconsistencies, generates
   insights, and answers authorized questions via AI Chat tools.
-- **AI never makes approval/HR decisions** â€” see [`AI_GOVERNANCE.md`](AI_GOVERNANCE.md).
+- **AI never makes approval/HR decisions** — see [`AI_GOVERNANCE.md`](AI_GOVERNANCE.md).
 
 ## OCR functionality
 
@@ -79,9 +79,9 @@ See [`FINAL_ARCHITECTURE.md`](FINAL_ARCHITECTURE.md).
 ## Workflow
 
 ```
-Task â†’ Report(draft) â†’ upload/OCR â†’ AI summary+validation â†’ submit
-â†’ under_review â†’ [revision_required â†’ resubmit] â†’ approved/rejected
-â†’ performance records â†’ achievements â†’ analytics/reporting/exports
+Task → Report(draft) → upload/OCR → AI summary+validation → submit
+→ under_review → [revision_required → resubmit] → approved/rejected
+→ performance records → achievements → analytics/reporting/exports
 ```
 
 ## Database overview

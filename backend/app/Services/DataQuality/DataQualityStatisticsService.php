@@ -4,6 +4,7 @@ namespace App\Services\DataQuality;
 
 use App\Enums\DataQualityIssueSeverity;
 use App\Enums\DataQualityIssueStatus;
+use App\Enums\DataQualityScanStatus;
 use App\Models\DataQualityIssue;
 use App\Models\DataQualityScan;
 use App\Models\User;
@@ -22,11 +23,12 @@ class DataQualityStatisticsService
         $baseQuery = DataQualityIssue::query();
         $this->issueService->applyRoleScope($baseQuery, $user);
 
+        $scanSummary = $this->getScanSummary();
         $totalIssues = (clone $baseQuery)->count();
         $openIssues = (clone $baseQuery)->whereIn('status', [
             DataQualityIssueStatus::OPEN,
             DataQualityIssueStatus::UNDER_REVIEW,
-            DataQualityIssueStatus::CONFIRMED
+            DataQualityIssueStatus::CONFIRMED,
         ])->count();
 
         $criticalCount = (clone $baseQuery)->where('severity', DataQualityIssueSeverity::CRITICAL)->whereIn('status', [DataQualityIssueStatus::OPEN, DataQualityIssueStatus::UNDER_REVIEW, DataQualityIssueStatus::CONFIRMED])->count();
@@ -57,7 +59,7 @@ class DataQualityStatisticsService
             ->map(fn ($r) => [
                 'department_id' => $r->department_id,
                 'department_name' => $r->department?->name ?? "Department #{$r->department_id}",
-                'count' => (int)$r->count,
+                'count' => (int) $r->count,
             ])
             ->toArray();
 
@@ -71,6 +73,17 @@ class DataQualityStatisticsService
         // Monthly trends (last 6 months)
         $trends = $this->getMonthlyTrends($user);
 
+        // Record coverage: of the records covered by the latest completed
+        // scan, the ones without any detected issue count as complete.
+        $recordsWithIssues = 0;
+        $totalRecords = (int) ($scanSummary['records_checked'] ?? 0);
+        if ($totalRecords > 0 && ($scan = DataQualityScan::query()->where('status', DataQualityScanStatus::COMPLETED)->orderByDesc('completed_at')->orderByDesc('id')->first())) {
+            $recordsWithIssues = DataQualityIssue::query()
+                ->where('scan_id', $scan->id)
+                ->distinct()
+                ->count(DB::raw("CONCAT(entity_type, '-', entity_id)"));
+        }
+
         return [
             'score' => $score,
             'total_issues' => $totalIssues,
@@ -81,10 +94,47 @@ class DataQualityStatisticsService
             'low' => $lowCount,
             'resolved' => $resolvedCount,
             'dismissed' => $dismissedCount,
+            'scan_summary' => array_merge($scanSummary, [
+                'total_records' => $totalRecords,
+                'records_with_issues' => (int) $recordsWithIssues,
+                'complete_records' => max(0, $totalRecords - (int) $recordsWithIssues),
+            ]),
             'by_category' => $byCategory,
             'by_department' => $byDept,
             'recent_scans' => $recentScans,
             'trends' => $trends,
+        ];
+    }
+
+    /**
+     * Coverage metadata for the dashboard's Data Quality Score card.
+     *
+     * The score itself is derived from issues, which can legitimately be zero
+     * before any scan has ever run. `evaluated` distinguishes "checked and
+     * clean" from "never checked" so the UI can render N/A instead of a
+     * misleading 100%.
+     *
+     * @return array{evaluated: bool, records_checked: int, issues_found: int, latest_scan_at: string|null, latest_records_checked: int, latest_issues_found: int}
+     */
+    public function getScanSummary(): array
+    {
+        $completed = DataQualityScan::query()
+            ->where('status', DataQualityScanStatus::COMPLETED);
+
+        $latest = (clone $completed)
+            ->orderByDesc('completed_at')
+            ->orderByDesc('id')
+            ->first();
+
+        return [
+            'evaluated' => $latest !== null,
+            // Coverage comes from the most recent completed scan: summing every
+            // scan would double count records that were re-checked.
+            'records_checked' => (int) ($latest->records_checked ?? 0),
+            'issues_found' => (int) ($latest->issues_found ?? 0),
+            'latest_scan_at' => $latest?->completed_at?->toIso8601String(),
+            'latest_records_checked' => (int) ($latest->records_checked ?? 0),
+            'latest_issues_found' => (int) ($latest->issues_found ?? 0),
         ];
     }
 

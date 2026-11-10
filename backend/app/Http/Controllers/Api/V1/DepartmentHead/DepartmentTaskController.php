@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1\DepartmentHead;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\TaskManagement\StoreDepartmentTaskRequest;
 use App\Models\Task;
 use App\Services\DepartmentHead\DepartmentTaskService;
 use App\Support\ApiResponse;
@@ -23,22 +24,9 @@ class DepartmentTaskController extends Controller
         return ApiResponse::success('Department tasks loaded successfully.', $tasks);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreDepartmentTaskRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'priority' => 'nullable|in:low,medium,high,urgent',
-            'start_date' => 'nullable|date',
-            'deadline' => 'nullable|date',
-            'requirements' => 'nullable|string',
-            'instructions' => 'nullable|string',
-            'assigned_employee_ids' => 'nullable|array',
-            'assigned_employee_ids.*' => 'integer|exists:employees,id',
-            'department_id' => 'nullable|integer',
-        ]);
-
-        $task = $this->taskService->createTask($request->user(), $validated);
+        $task = $this->taskService->createTask($request->user(), $request->validated());
 
         return ApiResponse::success('Task created and assigned successfully.', $task, 201);
     }

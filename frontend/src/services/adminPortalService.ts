@@ -1,4 +1,9 @@
 import { apiRequest, toQueryString } from './api'
+import type {
+  DepartmentEscalationDetail,
+  DepartmentEscalationListResult,
+  EscalationSummary,
+} from './departmentHeadService'
 
 const BASE = '/admin'
 
@@ -7,6 +12,7 @@ export interface AdminExecutiveDashboardData {
     name: string
     system_name: string
     academic_year: string
+    academic_year_status: string
     current_term: string
   }
   kpis: {
@@ -25,6 +31,18 @@ export interface AdminExecutiveDashboardData {
     on_time_rate: number
     approval_rate: number
     institution_progress: number
+    in_progress_tasks: number
+    not_started_tasks: number
+    late_tasks: number
+    reports_pending: number
+    reports_approved: number
+    reports_needs_revision: number
+    reports_rejected: number
+    reports_under_review: number
+    reports_late: number
+    avg_kpi_achievement: number
+    ai_validation_score: number
+    department_performance: number
   }
   status_distribution: {
     tasks: {
@@ -76,13 +94,60 @@ export interface AdminExecutiveDashboardData {
     open_escalations_count: number
     ocr_failed_count: number
   }
-  ai_executive_summary: {
-    text: string
-    key_accomplishments: string[]
-    areas_needing_attention: string[]
-    recommendations: string[]
-    disclaimer: string
+  ai_executive_summary: AdminAiExecutiveSummary
+  operational_digest: AdminOperationalDigest
+}
+
+/**
+ * AI provenance for the executive header.
+ *
+ * `available` is false whenever there is no real insight row, and
+ * `provider_status.live` is false while the configured provider is the
+ * `fake` driver. The UI must render the empty state instead of implying
+ * that generated analysis exists.
+ */
+export interface AdminAiExecutiveSummary {
+  available: boolean
+  generated: boolean
+  message: string
+  items: AdminAiInsightItem[]
+  total: number
+  validation_score: number | null
+  validation_is_sample_data: boolean
+  provider_status: {
+    configured_provider: string
+    model: string
+    is_sample_data: boolean
+    live: boolean
+    note: string
   }
+}
+
+export interface AdminAiInsightItem {
+  id: number
+  type: string
+  title: string
+  summary: string
+  confidence: number | null
+  score: number | null
+  employee_id: number | null
+  employee_name: string | null
+  department_name: string | null
+  is_sample_data: boolean
+  created_at: string
+}
+
+/**
+ * Deterministic arithmetic digest. This is NOT AI output and must never be
+ * labelled as such in the UI.
+ */
+export interface AdminOperationalDigest {
+  available: boolean
+  text: string
+  key_accomplishments: string[]
+  areas_needing_attention: string[]
+  recommendations: string[]
+  disclaimer: string
 }
 
 export interface AdminDepartmentItem {
@@ -203,26 +268,6 @@ export interface AdminReportDetail {
   }>
 }
 
-export interface AdminAiStatusData {
-  health: {
-    status: string
-    success_rate: number
-    average_time_seconds: number
-    total_pipelines: number
-  }
-  jobs: {
-    queued: number
-    processing: number
-    completed: number
-    failed: number
-  }
-  pipelines: Array<{
-    name: string
-    status: string
-    success_rate: number
-  }>
-}
-
 export interface AdminOcrItem {
   id: number
   document_name: string
@@ -230,21 +275,6 @@ export interface AdminOcrItem {
   status: string
   confidence: number
   processed_at: string | null
-}
-
-export interface AdminEscalationItem {
-  id: number
-  title: string
-  department_name: string
-  type: string
-  reason: string
-  priority: string
-  status: string
-  resolution_notes: string | null
-  created_by_name: string
-  resolver_name: string | null
-  created_at: string
-  resolved_at: string | null
 }
 
 // ─── API Methods ────────────────────────────────────────────────────────────
@@ -272,9 +302,6 @@ export const overrideAdminReport = (reportId: number | string, payload: {
   body: payload,
 })
 
-export const getAdminAiStatus = () =>
-  apiRequest<AdminAiStatusData>(`${BASE}/ai/status`)
-
 export const getAdminOcrList = () =>
   apiRequest<AdminOcrItem[]>(`${BASE}/ai/ocr`)
 
@@ -283,13 +310,45 @@ export const retryAdminAiJob = (jobId: number | string) =>
     method: 'POST',
   })
 
-export const getAdminEscalations = (params: Record<string, unknown> = {}) =>
-  apiRequest<AdminEscalationItem[]>(`${BASE}/escalations${toQueryString(params)}`)
+// ─── Escalations (review workflow) ──────────────────────────────────────────
 
-export const resolveAdminEscalation = (escalationId: number | string, payload: {
-  status: 'under_review' | 'resolved' | 'closed'
-  resolution_notes: string
-}) => apiRequest<{ id: number; status: string }>(`${BASE}/escalations/${escalationId}/resolve`, {
+export interface AdminEscalationOptions {
+  administrators: Array<{ id: number; name: string }>
+  statuses: Array<{ value: string; label: string; is_terminal: boolean }>
+}
+
+export const getAdminEscalations = (params: Record<string, unknown> = {}) =>
+  apiRequest<DepartmentEscalationListResult>(`${BASE}/escalations${toQueryString(params)}`)
+
+export const getAdminEscalationSummary = () =>
+  apiRequest<EscalationSummary>(`${BASE}/escalations/summary`)
+
+export const getAdminEscalationOptions = () =>
+  apiRequest<AdminEscalationOptions>(`${BASE}/escalations/options`)
+
+export const getAdminEscalation = (escalationId: number | string) =>
+  apiRequest<DepartmentEscalationDetail>(`${BASE}/escalations/${escalationId}`)
+
+export const assignAdminEscalation = (
+  escalationId: number | string,
+  payload: { assigned_to: number; note?: string },
+) => apiRequest<DepartmentEscalationDetail>(`${BASE}/escalations/${escalationId}/assign`, {
+  method: 'POST',
+  body: payload,
+})
+
+export const updateAdminEscalationStatus = (
+  escalationId: number | string,
+  payload: { status: string; resolution_notes?: string; internal_note?: string },
+) => apiRequest<DepartmentEscalationDetail>(`${BASE}/escalations/${escalationId}/status`, {
+  method: 'POST',
+  body: payload,
+})
+
+export const addAdminEscalationNote = (
+  escalationId: number | string,
+  payload: { note: string; is_internal?: boolean },
+) => apiRequest<DepartmentEscalationDetail>(`${BASE}/escalations/${escalationId}/notes`, {
   method: 'POST',
   body: payload,
 })

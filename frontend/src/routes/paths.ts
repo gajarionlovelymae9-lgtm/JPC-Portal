@@ -25,6 +25,8 @@ export const PATHS = {
   employeeReportEdit: '/employee/reports/:reportId/edit',
   employeeReportRevise: '/employee/reports/:reportId/revise',
   employeePerformance: '/employee/performance',
+  employeeAiInsights: '/employee/ai-insights',
+  employeeAiAssistant: '/employee/ai-assistant',
   employeeTargets: '/employee/targets',
   employeeAchievements: '/employee/achievements',
   employeeCalendar: '/employee/calendar',
@@ -64,6 +66,29 @@ export const PATHS = {
   adminFeedback: '/admin/feedback',
   feedback: '/feedback',
 
+  // Full Admin Dashboard sections (all API-backed, no hardcoded metrics)
+  adminPerformanceOverview: '/admin/performance',
+  adminKpiTargets: '/admin/kpi-targets',
+  adminTargetAdjustments: '/admin/target-adjustments',
+  adminEmployeeProgress: '/admin/employee-progress',
+  adminTaskMonitoring: '/admin/task-monitoring',
+  adminTaskCreate: '/admin/tasks/create',
+  adminReportMonitoring: '/admin/report-monitoring',
+  adminCalendar: '/admin/calendar',
+  adminAchievements: '/admin/achievements',
+  // Distinct from `adminNotificationMonitoring` (delivery monitor) below, which
+  // already owns `/admin/notifications`.
+  adminNotificationsPage: '/admin/notification-centre',
+  adminAuditTrail: '/admin/audit-trail',
+  adminUserManagement: '/admin/users',
+  adminAiInsights: '/admin/ai-insights',
+  adminPlatformStatus: '/admin/platform-status',
+
+  // People Management (consolidated)
+  adminPeople: '/admin/people',
+  adminPeopleDepartments: '/admin/people/departments',
+  adminPeopleRoles: '/admin/people/roles',
+
   // Notification & Communication (Phase 3.3-Z)
   notificationPreferences: '/settings/notifications',
   messages: '/messages',
@@ -77,6 +102,7 @@ export const PATHS = {
   // Phase 7 AI Assistant & Analytics
   aiChat: '/ai/chat',
   aiInsights: '/ai/insights',
+  adminAiAssistant: '/admin/ai-assistant',
 
   // Phase 8 Data Quality & Integrity Monitoring
   dataQualityDashboard: '/data-quality',
@@ -104,6 +130,8 @@ export const PATHS = {
   // Management dashboards
   adminDashboard: '/admin/dashboard',
   hrDashboard: '/hr/dashboard',
+  hrAchievements: '/hr/achievements',
+  hrCalendar: '/hr/calendar',
 } as const
 
 export function reportAnalysisPath(reportId: number | string): string {
@@ -158,9 +186,30 @@ export function adminReportDetailPath(reportId: number | string): string {
   return `/admin/reports/${reportId}`
 }
 
-/** Management dashboard route for the authenticated user's role. */
+/**
+ * Home route for an authenticated user's role.
+ *
+ * Employee accounts land on the Employee Dashboard, managers on their own
+ * portals. The generic foundation page (/dashboard) is never the landing
+ * destination for any role.
+ */
+export function homePathForRole(role: string): string {
+  switch (role) {
+    case 'employee':
+      return PATHS.employeeDashboard
+    case 'hr':
+      return PATHS.hrDashboard
+    case 'department_head':
+      return PATHS.departmentHeadDashboard
+    case 'admin':
+      return PATHS.adminDashboard
+    default:
+      return PATHS.dashboard
+  }
+}
+
+
+/** Legacy alias kept for callers that reason about "management" dashboards. */
 export function managementDashboardPath(role: string): string {
-  if (role === 'hr') return PATHS.hrDashboard
-  if (role === 'department_head') return PATHS.departmentHeadDashboard
-  return PATHS.adminDashboard
+  return homePathForRole(role)
 }

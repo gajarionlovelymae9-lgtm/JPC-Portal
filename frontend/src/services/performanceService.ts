@@ -50,6 +50,29 @@ interface MyAchievementsData {
   monthly_history: MonthlyAchievementHistoryItem[]
 }
 
+/** One badge entry of the /achievements/progress payload. */
+export interface AchievementProgressItem {
+  badge_id: number
+  code: string
+  name: string
+  description: string | null
+  icon: string | null
+  category: string | null
+  tier: string | null
+  criteria_type: string | null
+  earned: boolean
+  award_dates: string[]
+  progress: number | null
+  criteria?: string | null
+  current_value?: number
+  target_value?: number
+}
+
+interface AchievementProgressData {
+  stats: Record<string, number>
+  badges: AchievementProgressItem[]
+}
+
 interface MonthlyAchievementsData {
   period: PerformancePeriod
   employee_of_the_month?: MonthlyAchievementHistoryItem
@@ -66,7 +89,9 @@ export const performanceService = {
     if (month) params.append('month', month.toString())
 
     return apiRequest<EmployeePerformanceData>(
-      `/api/v1/performance/me?${params.toString()}`
+      `/performance/me?${params.toString()}`,
+      // Always re-read the authoritative snapshot when the employee refreshes.
+      { cache: 'no-store' },
     )
   },
 
@@ -74,7 +99,7 @@ export const performanceService = {
    * Fetch personal multi-month history trend.
    */
   async getMyHistory(): Promise<ApiResponse<PerformanceHistoryPoint[]>> {
-    return apiRequest<PerformanceHistoryPoint[]>('/api/v1/performance/me/history')
+    return apiRequest<PerformanceHistoryPoint[]>('/performance/me/history')
   },
 
   /**
@@ -90,7 +115,7 @@ export const performanceService = {
     if (params.page) query.append('page', params.page.toString())
     if (params.per_page) query.append('per_page', params.per_page.toString())
 
-    return apiRequest<PerformanceListData>(`/api/v1/performance?${query.toString()}`)
+    return apiRequest<PerformanceListData>(`/performance?${query.toString()}`)
   },
 
   /**
@@ -101,7 +126,7 @@ export const performanceService = {
     if (year) params.append('year', year.toString())
     if (month) params.append('month', month.toString())
 
-    return apiRequest<EmployeePerformanceDetail>(`/api/v1/performance/employees/${employeeId}?${params.toString()}`)
+    return apiRequest<EmployeePerformanceDetail>(`/performance/employees/${employeeId}?${params.toString()}`)
   },
 
   /**
@@ -113,16 +138,16 @@ export const performanceService = {
     if (month) query.append('month', month.toString())
     if (departmentId) query.append('department_id', departmentId.toString())
 
-    return apiRequest<RankingsData>(`/api/v1/performance/rankings?${query.toString()}`)
+    return apiRequest<RankingsData>(`/performance/rankings?${query.toString()}`)
   },
 
   /**
    * Trigger authoritative recalculation.
    */
   async recalculatePerformance(data: { year: number; month: number; employee_id?: number; reason?: string }): Promise<ApiResponse<any>> {
-    return apiRequest<any>('/api/v1/performance/recalculate', {
+    return apiRequest<any>('/performance/recalculate', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: data,
     })
   },
 
@@ -130,14 +155,21 @@ export const performanceService = {
    * Catalog of all system badges.
    */
   async getBadgesCatalog(): Promise<ApiResponse<BadgeItem[]>> {
-    return apiRequest<BadgeItem[]>('/api/v1/achievements')
+    return apiRequest<BadgeItem[]>('/achievements')
   },
 
   /**
    * Current user's badges and achievements.
    */
   async getMyAchievements(): Promise<ApiResponse<MyAchievementsData>> {
-    return apiRequest<MyAchievementsData>('/api/v1/achievements/me')
+    return apiRequest<MyAchievementsData>('/achievements/me')
+  },
+
+  /**
+   * Earned badges plus tracked progress toward every unearned badge.
+   */
+  async getMyAchievementProgress(): Promise<ApiResponse<AchievementProgressData>> {
+    return apiRequest<AchievementProgressData>('/achievements/progress')
   },
 
   /**
@@ -148,6 +180,6 @@ export const performanceService = {
     if (year) query.append('year', year.toString())
     if (month) query.append('month', month.toString())
 
-    return apiRequest<MonthlyAchievementsData>(`/api/v1/achievements/monthly?${query.toString()}`)
+    return apiRequest<MonthlyAchievementsData>(`/achievements/monthly?${query.toString()}`)
   },
 }

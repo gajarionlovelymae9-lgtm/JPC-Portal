@@ -212,7 +212,7 @@ export default function ReportAiAnalysisPage() {
       {/* Tabs Navigation */}
       <div className="flex items-center gap-2 border-b border-gray-100 overflow-x-auto pb-px">
         {[
-          { key: 'summary', label: 'AI Summary', icon: '🤖' },
+          { key: 'summary', label: 'JPC AIDE Summary', icon: '🤖' },
           { key: 'validation', label: 'Requirements', icon: '✓' },
           { key: 'findings', label: 'AI Findings', icon: '⚠️', badge: findings.length },
           { key: 'references', label: 'References', icon: '🔗' },

@@ -85,7 +85,7 @@ class DataQualityScanner
             };
 
             $fingerprint = DataQualityIssue::generateFingerprint(
-                $issueData['issue_type']->value ?? (string)$issueData['issue_type'],
+                $issueData['issue_type']->value ?? (string) $issueData['issue_type'],
                 $entityType,
                 $entityId,
                 $issueData['sub_key'] ?? null
@@ -129,7 +129,7 @@ class DataQualityScanner
                     'new_status' => DataQualityIssueStatus::OPEN->value,
                     'action' => 'created',
                     'performed_by' => $scan->initiated_by,
-                    'notes' => 'Issue detected automatically during scan #' . $scan->id,
+                    'notes' => 'Issue detected automatically during scan #'.$scan->id,
                 ]);
             }
         };
@@ -168,7 +168,7 @@ class DataQualityScanner
             );
 
         } catch (Exception $e) {
-            Log::error("DataQuality scan #{$scan->id} failed: " . $e->getMessage(), [
+            Log::error("DataQuality scan #{$scan->id} failed: ".$e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
             ]);
 

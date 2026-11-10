@@ -10,7 +10,6 @@ use App\Models\ReportVersion;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
-use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class ReportReviewService
@@ -41,7 +40,7 @@ class ReportReviewService
                 'actor_id' => $reviewer->id,
                 'event_type' => 'comment_added',
                 'title' => 'Reviewer Comment Added',
-                'description' => "{$reviewer->name} added feedback on section: " . ($data['section_key'] ?? 'general'),
+                'description' => "{$reviewer->name} added feedback on section: ".($data['section_key'] ?? 'general'),
                 'metadata' => [
                     'comment_id' => $comment->id,
                     'section_key' => $data['section_key'] ?? 'general',

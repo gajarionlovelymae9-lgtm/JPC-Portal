@@ -30,7 +30,7 @@ Module · Status · Requested By · Created · Resolution**.
 ## Status vocabulary
 
 `OPEN` → `BACKLOGGED` → `IN_PROGRESS` → `RESOLVED` (or `DROPPED`). Each item is
-closed in a release note in [`CHANGELOG.md`](../../CHANGELOG.md).
+closed in a release note in [`CHANGELOG.md`](../CHANGELOG.md).
 
 ## Categories
 

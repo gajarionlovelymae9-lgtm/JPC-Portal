@@ -13,7 +13,10 @@ use Illuminate\Support\Facades\DB;
 class TaskProgressService
 {
     /**
-     * Record a progress update. Progress must move forward only.
+     * Record a progress update.
+     *
+     * Progress normally moves forward, but an assignment returned for revision
+     * may legitimately move backwards while the employee reworks it.
      */
     public function updateProgress(TaskAssignment $assignment, float $percentage, ?string $comment, Employee $employee): TaskProgress
     {
@@ -22,27 +25,38 @@ class TaskProgressService
         }
 
         $latest = $assignment->progress()->latest()->first();
+        $isRevision = $assignment->status === 'rejected';
 
-        if ($latest !== null && $percentage < $latest->new_percentage) {
+        if (! $isRevision && $latest !== null && $percentage < $latest->new_percentage) {
             throw InvalidProgressException::backwardProgress($latest->new_percentage, $percentage);
         }
 
-        return DB::transaction(function () use ($assignment, $percentage, $comment, $employee, $latest) {
+        return DB::transaction(function () use ($assignment, $percentage, $comment, $employee, $latest, $isRevision) {
             $progress = TaskProgress::query()->create([
                 'task_id' => $assignment->task_id,
                 'task_assignment_id' => $assignment->id,
                 'employee_id' => $assignment->employee_id,
                 'previous_percentage' => $latest?->new_percentage ?? 0,
                 'new_percentage' => $percentage,
-                'status' => $percentage === 100 ? 'completed' : 'in_progress',
+                // A progress update is never a submission; it only moves work
+                // forward. Submission is a separate, explicit action.
+                'status' => 'in_progress',
                 'comment' => $comment,
                 'updated_by' => $employee->user_id,
             ]);
 
-            $assignment->update([
+            $attributes = [
                 'progress_percentage' => $percentage,
-                'completed_at' => $percentage === 100 ? now() : ($assignment->completed_at ?? null),
-            ]);
+                // Completion is stamped only when work is approved. Any stale
+                // value from an older submission leaves with this update.
+                'completed_at' => null,
+            ];
+
+            if (! $isRevision && in_array($assignment->status, ['assigned', 'accepted'], true)) {
+                $attributes['status'] = 'in_progress';
+            }
+
+            $assignment->update($attributes);
 
             app(ActivityLogService::class)->log(
                 $employee->user,
@@ -56,6 +70,8 @@ class TaskProgressService
                     'new_percentage' => $percentage,
                 ],
             );
+
+            app(TaskService::class)->syncAggregateStatus($assignment->task);
 
             return $progress;
         });

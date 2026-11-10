@@ -42,7 +42,7 @@ describe('reportingService', () => {
     await getPendingReport({ year: 2026, month: 9 })
     await getTargetReport({ year: 2026, month: 9 })
     await getDataQualityReport({ year: 2026, month: 9 })
-    await getManagementSummary(2026, 9)
+    await getManagementSummary({ year: 2026, month: 9 })
 
     const urls = fetchMock.mock.calls.map((call) => String(call[0]))
     expect(urls[0]).toContain('/reports/employee?')

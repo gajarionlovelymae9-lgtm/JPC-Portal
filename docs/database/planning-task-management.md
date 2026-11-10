@@ -5,7 +5,7 @@
 | Database | `acadtrack_db` (MySQL 8 / XAMPP local) |
 | Scope | Planning → targets → tasks → assignments → progress → review/monitoring |
 | Status | **DESIGN ONLY (3.3-A)** — SQL artifact produced; no migrations/models yet |
-| SQL file | [`../../database/sql/phase_3_3_a_planning_task_management.sql`](../../database/sql/phase_3_3_a_planning_task_management.sql) |
+| SQL file | [`../../backend/database/sql/phase_3_3_a_planning_task_management.sql`](../../backend/database/sql/phase_3_3_a_planning_task_management.sql) |
 | Related docs | [`employee-management.md`](employee-management.md), [`database-design.md`](database-design.md), [`schema.sql`](schema.sql), [`seeders.md`](seeders.md) |
 
 ---

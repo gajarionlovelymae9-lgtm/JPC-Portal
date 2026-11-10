@@ -35,7 +35,7 @@ class PerformanceConsistencyRule implements DataQualityRuleInterface
 
     public function check(mixed $entity): ?array
     {
-        if (!($entity instanceof EmployeePerformanceRecord)) {
+        if (! ($entity instanceof EmployeePerformanceRecord)) {
             return null;
         }
 
@@ -50,19 +50,19 @@ class PerformanceConsistencyRule implements DataQualityRuleInterface
 
         foreach ($metrics as $name => $val) {
             if ($val !== null) {
-                $f = (float)$val;
+                $f = (float) $val;
                 if ($f < 0.0 || $f > 100.0) {
                     $invalidMetrics[$name] = $f;
                 }
             }
         }
 
-        if (!empty($invalidMetrics)) {
+        if (! empty($invalidMetrics)) {
             return [
                 'issue_type' => DataQualityIssueType::INVALID_KPI_VALUE,
                 'severity' => $this->getSeverity(),
                 'title' => "Performance record ID {$entity->id} has out-of-bounds KPI values",
-                'description' => "KPI rates must mathematically range between 0.00% and 100.00%. Invalid values detected: " . json_encode($invalidMetrics),
+                'description' => 'KPI rates must mathematically range between 0.00% and 100.00%. Invalid values detected: '.json_encode($invalidMetrics),
                 'detected_value' => $invalidMetrics,
                 'expected_value' => ['valid_range' => '0.00 - 100.00'],
                 'department_id' => null,

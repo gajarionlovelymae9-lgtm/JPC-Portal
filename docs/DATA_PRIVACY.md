@@ -45,8 +45,10 @@ file bytes.
 
 **Storage & protection:**
 
-- Private disk only (`storage/app/private/reports`) — **no public URL, no public
-  symlink**.
+- Private disk only (`storage/app/private/private/reports`) — **no public URL,
+  no public symlink** (the double `private` nesting is expected; the upload
+  writes under `private/reports/...` on the `local` disk rooted at
+  `storage/app/private`).
 - Download requires authentication + ownership/permission check on every request.
 - Filename regenerated server-side; user-supplied paths are never used.
 - Size/mime limits enforced (`REPORT_MAX_FILE_SIZE_KB`).

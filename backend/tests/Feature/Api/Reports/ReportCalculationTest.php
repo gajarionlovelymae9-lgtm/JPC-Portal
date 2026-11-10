@@ -5,8 +5,8 @@ namespace Tests\Feature\Api\Reports;
 use App\Models\AcademicYear;
 use App\Models\Department;
 use App\Models\EmployeeTarget;
-use App\Models\MonthlyAchievement;
 use App\Models\Task;
+use App\Models\TaskAssignment;
 use Illuminate\Support\Carbon;
 
 class ReportCalculationTest extends ReportTestCase
@@ -331,6 +331,24 @@ class ReportCalculationTest extends ReportTestCase
         $this->assertEquals(1, $performers[0]['rank']);
     }
 
+    public function test_per_page_contract_accepts_the_server_cap_and_rejects_more(): void
+    {
+        // The React hub/table pages send per_page=100; the contract must keep
+        // accepting exactly the server cap (config('reports.max_per_page'))
+        // while anything above it still 422s with the actionable message.
+        $this->login($this->adminUser());
+
+        $this->getJson('/api/v1/reports/task-completion?per_page=100')
+            ->assertOk();
+
+        $this->getJson('/api/v1/reports/employees?per_page=101')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('per_page');
+
+        $this->getJson('/api/v1/reports/task-completion?per_page=999')
+            ->assertUnprocessable();
+    }
+
     public function test_filters_are_revalidated_server_side(): void
     {
         $dept = Department::factory()->create();
@@ -345,12 +363,12 @@ class ReportCalculationTest extends ReportTestCase
         $this->getJson('/api/v1/reports/task-completion?per_page=999')->assertUnprocessable();
         $this->getJson("/api/v1/reports/task-completion?department_id={$dept->id}")->assertOk();
 
-        $this->getJson("/api/v1/reports/task-completion?department_id=999999")->assertUnprocessable();
+        $this->getJson('/api/v1/reports/task-completion?department_id=999999')->assertUnprocessable();
     }
 
     private function createAssignment(object $employee, Task $task, Carbon $monthStart, bool $completed)
     {
-        return \App\Models\TaskAssignment::factory()->create([
+        return TaskAssignment::factory()->create([
             'employee_id' => $employee->id,
             'task_id' => $task->id,
             'status' => $completed ? 'completed' : 'submitted',

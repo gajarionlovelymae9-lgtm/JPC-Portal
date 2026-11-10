@@ -3,7 +3,6 @@
 namespace App\Services\DepartmentHead;
 
 use App\Models\AuditLog;
-use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Notification;
 use App\Models\Report;
@@ -11,10 +10,7 @@ use App\Models\ReportReview;
 use App\Models\TaskAssignment;
 use App\Models\User;
 use Carbon\Carbon;
-use Illuminate\Http\Exceptions\HttpResponseException;
-use App\Support\ApiResponse;
 use Illuminate\Support\Facades\DB;
-use Symfony\Component\HttpFoundation\Response;
 
 class DepartmentReportReviewService
 {
@@ -27,25 +23,25 @@ class DepartmentReportReviewService
         $department = $this->context->resolveDepartment($user, $filters['department_id'] ?? null);
         $employeeIds = Employee::where('department_id', $department->id)->pluck('id');
 
-$query = Report::whereIn('employee_id', $employeeIds)
+        $query = Report::whereIn('employee_id', $employeeIds)
             ->with([
                 'employee.position:id,name',
                 'task:id,title,due_date',
                 'reviews.reviewer:id,name',
             ]);
 
-        if (!empty($filters['status']) && $filters['status'] !== 'all') {
+        if (! empty($filters['status']) && $filters['status'] !== 'all') {
             $query->where('status', $filters['status']);
         }
 
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
-                  ->orWhereHas('employee', function ($eq) use ($search) {
-                      $eq->where('first_name', 'like', "%{$search}%")
-                         ->orWhere('last_name', 'like', "%{$search}%");
-                  });
+                    ->orWhereHas('employee', function ($eq) use ($search) {
+                        $eq->where('first_name', 'like', "%{$search}%")
+                            ->orWhere('last_name', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -61,7 +57,7 @@ $query = Report::whereIn('employee_id', $employeeIds)
                 'task_id' => $r->task_id,
                 'task_title' => $r->task?->title ?? '—',
                 'employee_id' => $r->employee_id,
-                'employee_name' => $r->employee ? $r->employee->first_name . ' ' . $r->employee->last_name : '—',
+                'employee_name' => $r->employee ? $r->employee->first_name.' '.$r->employee->last_name : '—',
                 'employee_number' => $r->employee?->employee_number,
                 'submitted_at' => $r->submitted_at ? Carbon::parse($r->submitted_at)->toIso8601String() : null,
                 'deadline' => $r->task?->due_date ? Carbon::parse($r->task->due_date)->format('Y-m-d') : null,
@@ -77,7 +73,7 @@ $query = Report::whereIn('employee_id', $employeeIds)
         $department = $this->context->resolveDepartment($user);
         $this->context->authorizeReport($department, $report);
 
-$report->load([
+        $report->load([
             'employee.position:id,name',
             'employee.user:id,email',
             'task:id,title,description,due_date,required_output',
@@ -85,10 +81,10 @@ $report->load([
             'files',
         ]);
 
-        $latestAnalysis   = $report->aiAnalyses()->latest('id')->first();
-        $latestSummary    = $report->aiSummaries()->latest('id')->first();
+        $latestAnalysis = $report->aiAnalyses()->latest('id')->first();
+        $latestSummary = $report->aiSummaries()->latest('id')->first();
         $latestValidation = $report->aiValidationResults()->latest('id')->first();
-        $latestOcr        = $report->ocrProcessings()->latest('id')->first();
+        $latestOcr = $report->ocrProcessings()->latest('id')->first();
 
         $ocr = $latestOcr;
         $aiSummary = $latestSummary;
@@ -123,11 +119,11 @@ $report->load([
             'approved_at' => $report->approved_at ? Carbon::parse($report->approved_at)->toIso8601String() : null,
             'employee' => [
                 'id' => $report->employee?->id,
-                'name' => $report->employee ? $report->employee->first_name . ' ' . $report->employee->last_name : '—',
+                'name' => $report->employee ? $report->employee->first_name.' '.$report->employee->last_name : '—',
                 'employee_number' => $report->employee?->employee_number,
                 'position' => $report->employee?->position?->name ?? 'Faculty',
             ],
-'task' => [
+            'task' => [
                 'id' => $report->task?->id,
                 'title' => $report->task?->title ?? '—',
                 'description' => $report->task?->description,
@@ -140,7 +136,7 @@ $report->load([
                 'size' => $f->file_size ?? 0,
                 'url' => $f->file_path ?? '#',
             ]),
-'ocr' => $ocr ? [
+            'ocr' => $ocr ? [
                 'status' => $ocr->status ?? 'completed',
                 'extracted_text' => $ocr->raw_text,
                 'confidence' => $ocr->confidence_score ? round($ocr->confidence_score * 100) : 95,
@@ -240,7 +236,7 @@ $report->load([
             if ($newStatus === 'approved' && $report->task_id && $report->employee_id) {
                 TaskAssignment::where('task_id', $report->task_id)
                     ->where('employee_id', $report->employee_id)
-->update([
+                    ->update([
                         'status' => 'completed',
                         'progress_percentage' => 100,
                         'completed_at' => Carbon::now(),
@@ -248,11 +244,11 @@ $report->load([
             }
 
             // Audit
-            AuditLog::create([
+            AuditLog::forceCreate([
                 'user_id' => $user->id,
                 'action' => "department_head.report.{$newStatus}",
-                'auditable_type' => Report::class,
-                'auditable_id' => $report->id,
+                'entity_type' => Report::class,
+                'entity_id' => $report->id,
                 'new_values' => [
                     'decision' => $newStatus,
                     'comments' => $comments,
@@ -265,7 +261,7 @@ $report->load([
                     'user_id' => $report->employee->user_id,
                     'type' => $newStatus === 'approved' ? 'approval' : ($newStatus === 'revision_required' ? 'revision' : 'report'),
                     'title' => "Report {$newStatus}: {$report->title}",
-'message' => $comments ?: "Your report has been {$newStatus} by your Department Head.",
+                    'message' => $comments ?: "Your report has been {$newStatus} by your Department Head.",
                     'data' => ['record_id' => $report->id],
                     'read_at' => null,
                 ]);

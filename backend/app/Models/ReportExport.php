@@ -75,6 +75,25 @@ class ReportExport extends Model
     }
 
     /**
+     * Canonical filter equality for the duplicate-submit guard: key order
+     * must not matter, so both sides go through a recursive sort before the
+     * string comparison.
+     */
+    public function isSameFilters(array $filters): bool
+    {
+        $canonical = static function (array $value) use (&$canonical): array {
+            ksort($value);
+
+            return array_map(
+                fn ($item) => is_array($item) ? $canonical($item) : $item,
+                $value,
+            );
+        };
+
+        return json_encode($canonical($this->filters ?? [])) === json_encode($canonical($filters));
+    }
+
+    /**
      * Absolute path on the download server for streaming the file.
      */
     public function absolutePath(): ?string

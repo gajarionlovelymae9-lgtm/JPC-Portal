@@ -39,12 +39,12 @@ class OrphanRecordRule implements DataQualityRuleInterface
     {
         if ($entity instanceof TaskAssignment) {
             $taskExists = Task::query()->where('id', $entity->task_id)->exists();
-            if (!$taskExists) {
+            if (! $taskExists) {
                 return [
                     'issue_type' => DataQualityIssueType::ORPHAN_RECORD,
                     'severity' => $this->getSeverity(),
                     'title' => "Task Assignment ID {$entity->id} references missing Task ID {$entity->task_id}",
-                    'description' => "Orphan foreign key: Parent task was deleted or does not exist.",
+                    'description' => 'Orphan foreign key: Parent task was deleted or does not exist.',
                     'detected_value' => ['task_id' => $entity->task_id],
                     'expected_value' => ['task_exists' => true],
                     'department_id' => null,
@@ -54,12 +54,12 @@ class OrphanRecordRule implements DataQualityRuleInterface
             }
 
             $empExists = Employee::query()->where('id', $entity->employee_id)->exists();
-            if (!$empExists) {
+            if (! $empExists) {
                 return [
                     'issue_type' => DataQualityIssueType::ORPHAN_RECORD,
                     'severity' => $this->getSeverity(),
                     'title' => "Task Assignment ID {$entity->id} references missing Employee ID {$entity->employee_id}",
-                    'description' => "Orphan foreign key: Parent employee was deleted or does not exist.",
+                    'description' => 'Orphan foreign key: Parent employee was deleted or does not exist.',
                     'detected_value' => ['employee_id' => $entity->employee_id],
                     'expected_value' => ['employee_exists' => true],
                     'department_id' => null,

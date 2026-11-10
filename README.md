@@ -12,6 +12,10 @@ audit trail.
 | **Status** | READY (see [docs/GO_LIVE_CHECKLIST.md](docs/GO_LIVE_CHECKLIST.md)) |
 | **License** | Internal / academic |
 
+> **New to the system?** Follow [docs/INSTALLATION.md](docs/INSTALLATION.md) for a
+> complete fresh-machine install, and [docs/RELEASE_NOTES.md](docs/RELEASE_NOTES.md)
+> for the v1.0.0 release notes.
+
 ## Features
 
 - Role-based portals: **Admin**, **HR**, **Department Head**, **Employee**
@@ -62,6 +66,7 @@ See [docs/XAMPP_SETUP.md](docs/XAMPP_SETUP.md) for a full local setup walkthroug
 
 ```sql
 CREATE DATABASE IF NOT EXISTS acadtrack_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS acadtrack_db_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; -- for the test suite
 ```
 
 ### 2. Backend (Laravel)
@@ -73,7 +78,8 @@ copy .env.example .env                 # Windows; `cp .env.example .env` on Linu
 php artisan key:generate
 # edit .env → DB_DATABASE=acadtrack_db, DB_USERNAME, DB_PASSWORD, CORS/SANCTUM origins
 php artisan migrate
-php artisan db:seed                     # roles, permissions, demo accounts, sample data
+php artisan db:seed                     # roles + permissions + demo accounts + sample data (dev only;
+                                        # set SEED_DEVELOPMENT_DATA=false on non-development)
 php artisan serve                       # → http://localhost:8000
 ```
 
@@ -199,9 +205,10 @@ deployment**):
 
 Passwords are stored hashed. Development passwords come from
 `SEED_ADMIN_PASSWORD`, `SEED_HR_PASSWORD`, `SEED_DEPARTMENT_HEAD_PASSWORD`,
-`SEED_EMPLOYEE_PASSWORD` (fallback `P@ssw0rd2026`). Development seeders are
-disabled on production unless `SEED_DEVELOPMENT_DATA=true` is set explicitly.
-The demo dataset is entirely fictional.
+`SEED_EMPLOYEE_PASSWORD` (fallback `P@ssw0rd2026`). The development seeders are
+gated by `SEED_DEVELOPMENT_DATA`, which **defaults to `true`** — production
+must set `SEED_DEVELOPMENT_DATA=false` explicitly (setting `APP_ENV=production`
+alone does not disable them). The demo dataset is entirely fictional.
 
 ## Testing
 
@@ -244,9 +251,11 @@ The system ships with built-in monitoring and maintenance tooling:
 - **Scheduled monitoring**: daily 05:00 `system:check-health`, 05:30
   `system:verify-backups`, weekly Mondays a full queued data-quality scan.
 
-Maintenance runbooks: [docs/maintenance/](docs/maintenance) (monitoring,
-backup-restore, incident-response, troubleshooting, security, AI, OCR, database,
-release-process, monthly checklist). Change log: [CHANGELOG.md](CHANGELOG.md).
+Operations runbooks: [docs/operations/](docs/operations) (monitoring,
+incident-response, backup-recovery, maintenance). Maintenance runbooks:
+[docs/maintenance/](docs/maintenance) (monitoring, backup-restore,
+incident-response, troubleshooting, security, AI, OCR, database, release-process,
+monthly checklist). Change log: [CHANGELOG.md](CHANGELOG.md).
 
 ## Known limitations (v1.0.0)
 
@@ -271,19 +280,23 @@ notification problems.
 
 | Topic | Doc |
 | --- | --- |
+| Installation (fresh machine) | [docs/INSTALLATION.md](docs/INSTALLATION.md) |
 | Architecture | [docs/FINAL_ARCHITECTURE.md](docs/FINAL_ARCHITECTURE.md) |
 | Database & ERD | [docs/DATABASE.md](docs/DATABASE.md), [docs/database/erd.md](docs/database/erd.md) |
 | Deployment | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md), [docs/XAMPP_SETUP.md](docs/XAMPP_SETUP.md) |
 | Backup & restore | [docs/BACKUP_AND_RESTORE.md](docs/BACKUP_AND_RESTORE.md) |
-| Maintenance | [docs/MAINTENANCE.md](docs/MAINTENANCE.md), [docs/maintenance/](docs/maintenance) (monitoring, backup-restore, incident-response, troubleshooting, security, AI, OCR, database, release-process, monthly-checklist) |
+| Maintenance | [docs/MAINTENANCE.md](docs/MAINTENANCE.md), [docs/maintenance-log.md](docs/maintenance-log.md), [docs/maintenance/](docs/maintenance) (monitoring, backup-restore, incident-response, troubleshooting, security, AI, OCR, database, release-process, monthly-checklist) |
+| Operations (monitoring / incidents / backup / maintenance) | [docs/operations/](docs/operations) ([monitoring.md](docs/operations/monitoring.md), [incident-response.md](docs/operations/incident-response.md), [backup-recovery.md](docs/operations/backup-recovery.md), [maintenance.md](docs/operations/maintenance.md)) |
 | Readiness record | [docs/maintenance/maintenance-readiness.md](docs/maintenance/maintenance-readiness.md) |
 | Continuous improvement | [docs/BACKLOG.md](docs/BACKLOG.md) |
+| Release notes & versioning | [docs/RELEASE_NOTES.md](docs/RELEASE_NOTES.md), [docs/VERSION_MANAGEMENT.md](docs/VERSION_MANAGEMENT.md) |
 | Change log | [CHANGELOG.md](CHANGELOG.md) |
 | Troubleshooting | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) |
 | Security | [docs/SECURITY.md](docs/SECURITY.md) |
 | AI Governance | [docs/AI_GOVERNANCE.md](docs/AI_GOVERNANCE.md) |
 | Privacy | [docs/DATA_PRIVACY.md](docs/DATA_PRIVACY.md) |
-| Admin / HR / Dept-Heads / Employee guides | [docs/ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md), [docs/HR_GUIDE.md](docs/HR_GUIDE.md), [docs/DEPARTMENT_HEAD_GUIDE.md](docs/DEPARTMENT_HEAD_GUIDE.md), [docs/EMPLOYEE_GUIDE.md](docs/EMPLOYEE_GUIDE.md) |
+| Employee user guide | [docs/user-guides/employee-guide.md](docs/user-guides/employee-guide.md), [docs/EMPLOYEE_GUIDE.md](docs/EMPLOYEE_GUIDE.md) |
+| Management user guide (Admin / HR / Dept-Heads) | [docs/user-guides/management-guide.md](docs/user-guides/management-guide.md), [docs/ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md), [docs/HR_GUIDE.md](docs/HR_GUIDE.md), [docs/DEPARTMENT_HEAD_GUIDE.md](docs/DEPARTMENT_HEAD_GUIDE.md) |
 | Handovers | [docs/DEVELOPER_HANDOVER.md](docs/DEVELOPER_HANDOVER.md), [docs/ADMIN_HANDOVER.md](docs/ADMIN_HANDOVER.md) |
 | Capstone overview | [docs/CAPSTONE_SYSTEM_OVERVIEW.md](docs/CAPSTONE_SYSTEM_OVERVIEW.md) |
 | Demo script | [docs/FINAL_DEMO_SCRIPT.md](docs/FINAL_DEMO_SCRIPT.md) |

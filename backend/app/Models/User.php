@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\Role as RoleEnum;
 use App\Enums\UserStatus;
 use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
@@ -27,9 +29,11 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'username',
         'password',
         'role_id',
         'status',
+        'ai_language_preference',
         'last_login_at',
     ];
 
@@ -56,6 +60,66 @@ class User extends Authenticatable
             'status' => UserStatus::class,
             'last_login_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Accounts created outside the People Management form (seeders, factories,
+     * direct model writes) still need a unique username, so derive one from the
+     * email when the caller did not supply it.
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (User $user): void {
+            if (blank($user->username)) {
+                $source = filled($user->email) ? (string) $user->email : (string) $user->name;
+
+                $user->username = self::generateUsername($source);
+            }
+        });
+    }
+
+    /**
+     * Build a unique, URL-safe username from an email/name source.
+     *
+     * Collisions are resolved deterministically with `.1`, `.2`, … so seeding
+     * the same dataset twice cannot break the unique index.
+     */
+    public static function generateUsername(string $source): string
+    {
+        $local = Str::contains($source, '@') ? Str::before($source, '@') : $source;
+
+        $base = Str::of($local)
+            ->lower()
+            ->replaceMatches('/[^a-z0-9._-]+/', '.')
+            ->trim('._-')
+            ->substr(0, 60)
+            ->value();
+
+        if ($base === '') {
+            $base = 'user';
+        }
+
+        $candidate = $base;
+        $suffix = 1;
+
+        while (static::query()->where('username', $candidate)->exists()) {
+            $candidate = $base.'.'.$suffix;
+            $suffix++;
+        }
+
+        return $candidate;
+    }
+
+    /**
+     * Usernames are compared case-insensitively, so store one canonical form.
+     */
+    protected function username(): Attribute
+    {
+        return Attribute::make(
+            set: fn (?string $value): ?string => $value === null || trim($value) === ''
+                ? null
+                : Str::lower(trim($value)),
+        );
     }
 
     /**

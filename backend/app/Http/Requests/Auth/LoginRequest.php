@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Enums\Role;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class LoginRequest extends FormRequest
 {
@@ -23,6 +25,7 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'role' => ['required', 'string', Rule::in(Role::loginValues())],
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
         ];
@@ -36,6 +39,8 @@ class LoginRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'role.required' => 'Please select your role.',
+            'role.in' => 'Please select a valid role.',
             'email.required' => 'The email field is required.',
             'email.email' => 'The email must be a valid email address.',
             'password.required' => 'The password field is required.',

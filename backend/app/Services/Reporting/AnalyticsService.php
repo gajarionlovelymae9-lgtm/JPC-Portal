@@ -2,6 +2,7 @@
 
 namespace App\Services\Reporting;
 
+use App\Enums\PerformanceRating;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeePerformanceRecord;
@@ -362,7 +363,7 @@ class AnalyticsService
 
             foreach ($records as $record) {
                 $score = (float) ($record->productivity_score ?? $record->overall_score ?? 0);
-                $bands[\App\Enums\PerformanceRating::fromScore($score)->value] = $bands[\App\Enums\PerformanceRating::fromScore($score)->value] + 1;
+                $bands[PerformanceRating::fromScore($score)->value] = $bands[PerformanceRating::fromScore($score)->value] + 1;
             }
 
             return [

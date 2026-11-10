@@ -63,6 +63,37 @@ export const DataQualityDashboardPage: React.FC = () => {
 
       <DataQualityScanProgress scanning={scanning} />
 
+      {/* Record coverage cards (requirement: Total / Complete / Issues) */}
+      {data?.scan_summary?.evaluated ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[
+            { label: 'Total Records Checked', value: data.scan_summary.total_records, icon: '📋' },
+            {
+              label: 'Complete Records',
+              value: data.scan_summary.complete_records,
+              icon: '✅',
+              sub: data.scan_summary.total_records > 0
+                ? `${Math.round((data.scan_summary.complete_records / data.scan_summary.total_records) * 100)}% of checked records`
+                : undefined,
+            },
+            { label: 'Issues Found', value: data.scan_summary.issues_found, icon: '⚠️' },
+          ].map((card) => (
+            <div key={card.label} className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm flex items-center gap-4">
+              <span className="text-2xl" aria-hidden>{card.icon}</span>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{card.label}</p>
+                <p className="text-2xl font-black text-slate-900 dark:text-white">{card.value.toLocaleString()}</p>
+                {card.sub ? <p className="text-[11px] text-slate-400">{card.sub}</p> : null}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : data && !data.scan_summary?.evaluated ? (
+        <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
+          No completed scan has evaluated the institution yet — run a scan to populate the record coverage cards.
+        </div>
+      ) : null}
+
       {/* Main Score Card */}
       {data && (
         <DataQualityScoreCard

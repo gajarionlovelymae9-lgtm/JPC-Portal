@@ -95,9 +95,17 @@ php artisan db:seed
 
 - On local/staging this creates roles, permissions, departments, positions, the
   academic year, the four demo accounts and the fictional development dataset.
-- The development seeders are **no-ops on production** unless
-  `SEED_DEVELOPMENT_DATA=true` is set explicitly. Do not enable sample data on
-  production.
+- **Production (and staging) must set `SEED_DEVELOPMENT_DATA=false` in `.env`
+  explicitly.** The flag is the single gate for demo data and it **defaults to
+  `true`** (`config/jpc.php` reads `env('SEED_DEVELOPMENT_DATA', true)`), so
+  setting `APP_ENV=production` ALONE does **not** disable the development
+  seeders.
+- With `SEED_DEVELOPMENT_DATA=false`, `php artisan db:seed` runs only the
+  **structural** seeders (roles, permissions, departments, positions, academic
+  year, badges, AI prompt versions) and creates **no** demo users or fictional
+  data. First real administrator accounts are then created via
+  `php artisan tinker` or the admin API (see [`INSTALLATION.md`](INSTALLATION.md)
+  §9).
 
 ## 7. Configure storage (private files)
 
@@ -106,9 +114,12 @@ cd backend
 php artisan storage:link   # public symlinks if you use the public disk
 ```
 
-- Uploaded report documents are stored on the **private** `local` disk
-  (`storage/app/private/reports`), served through authenticated controllers only —
-  never through public URLs.
+- Uploaded report documents are stored on the **private** `local` disk and are
+  served through authenticated controllers only — never through public URLs.
+  The on-disk path is `storage/app/private/private/reports` (the report upload
+  code stores under `private/reports/...` on the default `local` disk, whose
+  root is already `storage/app/private`; both halves are private). Include this
+  whole subtree in backups.
 - Exports live under `storage/app/private/report_exports` and are cleaned by the
   daily `reports:cleanup-exports` task.
 
@@ -139,12 +150,19 @@ For production add a cron entry:
 
 For local development run `php artisan schedule:work`.
 
-Scheduled tasks (defined in `routes/console.php`):
+Scheduled tasks (defined in `routes/console.php`) — **seven** in total:
 
 - 07:00 daily — `tasks:send-deadline-reminders`
 - 07:30 daily — `tasks:send-overdue-notifications`
 - 06:00 on the 1st — `reports:generate-monthly`
 - 03:15 daily — `reports:cleanup-exports`
+- 05:00 daily — `system:check-health` (writes `system_health_checks`)
+- 05:30 daily — `system:verify-backups` (backup-freshness verdict)
+- 06:30 Mondays — weekly full data-quality scan
+  (`RunDataQualityScanJob('full', null, null)`)
+
+All seven run through the single `schedule:run` cron entry (or
+`schedule:work` in development); there is no separate cron per task.
 
 ## 10. Configure mail
 
@@ -266,3 +284,48 @@ them there. It does not bypass backups — a backup must be taken first.
 **Verifying success:** `php artisan migrate:status` lists every migration with
 `Ran`/`Pending`; all entries should be `Ran`; spot-check new tables exist:
 `SHOW TABLES LIKE '%report_exports%'`.
+
+## 19. Production deployment checklist
+
+Run through this before declaring a go-live, together with
+[`GO_LIVE_CHECKLIST.md`](GO_LIVE_CHECKLIST.md):
+
+- [ ] `backend/.env` exists with correct values; `APP_KEY` generated;
+      `APP_DEBUG=false`.
+- [ ] **`SEED_DEVELOPMENT_DATA=false` is set** (defaults to `true` — do not
+      rely on `APP_ENV=production` alone).
+- [ ] `composer install --no-dev --optimize-autoloader` completed.
+- [ ] Database created; `php artisan migrate --force` applied; `migrate:status`
+      all `Ran`.
+- [ ] `php artisan db:seed --force` (structural only on production) — or the
+      first administrator created via tinker/admin API.
+- [ ] `php artisan storage:link` completed; private storage subtree exists.
+- [ ] `php artisan optimize` ran with the correct `.env`.
+- [ ] Queue worker running (`queue:work` persistent service).
+- [ ] Cron installed for `schedule:run`; `php artisan schedule:list` shows the
+      seven tasks.
+- [ ] Frontend `npm run build` completed with no errors; `frontend/dist` served
+      with SPA fallback; `/api` proxied to Laravel.
+- [ ] CORS/Sanctum origins match the SPA URL; HTTPS enabled.
+- [ ] Backup job + off-machine copies configured and verified (see
+      [`BACKUP_AND_RESTORE.md`](BACKUP_AND_RESTORE.md)).
+- [ ] `php artisan system:check-health` returns ok.
+- [ ] Exit criteria recorded in the maintenance log (type `Release`).
+
+## 20. Deployment smoke test
+
+After deploy, on the production URL:
+
+1. `GET /api/v1/health` → `{ "success": true }`.
+2. Log in as each deployed role; open the dashboard.
+3. Create a draft report, upload a PDF, submit it → status moves to
+   `submitted`.
+4. Reviewer (HR/Dept Head/Admin) approves → status `approved`; check the
+   timeline shows each step.
+5. Queue worker processed the jobs (`php artisan queue:failed` empty; queue
+   size returns to 0 after processing).
+6. Create an export → confirm it becomes `ready` and downloads.
+7. Confirm one notification was delivered/stored without error.
+
+If any step fails, see [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md) and the
+`storage/logs/laravel-*.log` files, then fix before go-live.

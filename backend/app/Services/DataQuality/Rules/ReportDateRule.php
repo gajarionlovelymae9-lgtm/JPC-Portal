@@ -36,7 +36,7 @@ class ReportDateRule implements DataQualityRuleInterface
 
     public function check(mixed $entity): ?array
     {
-        if (!($entity instanceof Report)) {
+        if (! ($entity instanceof Report)) {
             return null;
         }
 
@@ -49,7 +49,7 @@ class ReportDateRule implements DataQualityRuleInterface
                     'issue_type' => DataQualityIssueType::INVALID_REPORT_DATES,
                     'severity' => $this->getSeverity(),
                     'title' => "Report #{$entity->id} approval timestamp ({$approved->toDateTimeString()}) precedes submission timestamp ({$submitted->toDateTimeString()})",
-                    'description' => "Logical anomaly: Report was recorded as approved before it was submitted by the employee.",
+                    'description' => 'Logical anomaly: Report was recorded as approved before it was submitted by the employee.',
                     'detected_value' => [
                         'submitted_at' => $submitted->toDateTimeString(),
                         'approved_at' => $approved->toDateTimeString(),

@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { ApiError } from '../../services/api'
 import { performanceService } from '../../services/performanceService'
 import type { EmployeePerformanceData } from '../../types/performance'
 import { ProductivityScoreCard } from '../../components/performance/ProductivityScoreCard'
@@ -29,13 +30,10 @@ export default function EmployeePerformancePage() {
     { value: 12, label: 'December' },
   ]
 
-  const years = [2025, 2026, 2027]
+  const currentYear = new Date().getFullYear()
+  const years = [currentYear - 1, currentYear, currentYear + 1]
 
-  useEffect(() => {
-    loadPerformance()
-  }, [selectedMonth, selectedYear])
-
-  const loadPerformance = async () => {
+  const loadPerformance = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
@@ -43,15 +41,31 @@ export default function EmployeePerformancePage() {
       if (res.success && res.data) {
         setData(res.data)
       } else {
+        setData(null)
         setError('Failed to retrieve performance calculations.')
       }
     } catch (err) {
       console.error(err)
-      setError('Unable to connect to the performance service.')
+      setData(null)
+      // Surface the real API failure instead of masking every cause behind the
+      // same "cannot connect" message.
+      if (err instanceof ApiError) {
+        setError(
+          err.status === 0
+            ? 'Unable to connect to the performance service. Check your network connection and try again.'
+            : err.message,
+        )
+      } else {
+        setError('Unable to load performance data. Please try again.')
+      }
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedMonth, selectedYear])
+
+  useEffect(() => {
+    void loadPerformance()
+  }, [loadPerformance])
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -93,8 +107,9 @@ export default function EmployeePerformancePage() {
           </select>
 
           <button
-            onClick={loadPerformance}
-            className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors"
+            onClick={() => void loadPerformance()}
+            disabled={loading}
+            className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold transition-colors"
           >
             🔄 Refresh
           </button>
@@ -109,6 +124,15 @@ export default function EmployeePerformancePage() {
       ) : error || !data ? (
         <div className="p-6 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs font-medium">
           ⚠️ {error || 'No performance records found for this period.'}
+        </div>
+      ) : data.has_activity === false ? (
+        <div className="p-10 bg-white border border-gray-200 rounded-2xl text-center shadow-sm">
+          <span className="text-3xl block mb-2">🗓️</span>
+          <h2 className="text-sm font-bold text-gray-800">No performance activity for this period</h2>
+          <p className="text-xs text-gray-500 mt-1 max-w-md mx-auto">
+            No tasks, reports, or targets are recorded for {data.period.name}. Once work is assigned and
+            completed, refresh to see verified KPIs and your productivity score.
+          </p>
         </div>
       ) : (
         <>

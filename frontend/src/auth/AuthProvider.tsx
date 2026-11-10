@@ -41,11 +41,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string, role: string) => {
     setError(null)
     try {
-      const profile = await authService.login(email, password)
+      const profile = await authService.login(email, password, role)
       setUser(profile)
+      return profile
     } catch (e) {
       const message =
         e instanceof ApiError && e.message ? e.message : 'Unable to sign in right now.'

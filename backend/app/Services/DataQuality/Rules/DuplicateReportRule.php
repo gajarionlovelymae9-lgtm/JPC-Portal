@@ -35,7 +35,7 @@ class DuplicateReportRule implements DataQualityRuleInterface
 
     public function check(mixed $entity): ?array
     {
-        if (!($entity instanceof Report) || empty($entity->task_id) || empty($entity->employee_id)) {
+        if (! ($entity instanceof Report) || empty($entity->task_id) || empty($entity->employee_id)) {
             return null;
         }
 

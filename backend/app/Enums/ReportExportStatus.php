@@ -46,4 +46,13 @@ enum ReportExportStatus: string
     {
         return $this === self::Completed;
     }
+
+    /**
+     * FAILED is the one non-terminal outcome a user can act on with the retry
+     * endpoint: the request itself was valid, only generation failed.
+     */
+    public function isRetryable(): bool
+    {
+        return $this === self::Failed;
+    }
 }

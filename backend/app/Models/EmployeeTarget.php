@@ -80,6 +80,39 @@ class EmployeeTarget extends Model
     }
 
     /**
+     * Sub-targets this target is broken down into.
+     */
+    public function breakdowns(): HasMany
+    {
+        return $this->hasMany(EmployeeTargetBreakdown::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    /**
+     * Milestone checkpoints on the way to achieving this target.
+     */
+    public function milestones(): HasMany
+    {
+        return $this->hasMany(EmployeeTargetMilestone::class)
+            ->orderBy('threshold_percent')->orderBy('sort_order')->orderBy('id');
+    }
+
+    /**
+     * Adjustment requests raised against this target.
+     */
+    public function adjustmentRequests(): HasMany
+    {
+        return $this->hasMany(EmployeeTargetAdjustmentRequest::class)->latest('id');
+    }
+
+    /**
+     * Achievement notes recorded against this target.
+     */
+    public function notes(): HasMany
+    {
+        return $this->hasMany(EmployeeTargetNote::class)->latest('id');
+    }
+
+    /**
      * Targets in the active lifecycle stage.
      */
     public function scopeActive(Builder $query): Builder

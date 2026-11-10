@@ -71,12 +71,16 @@ export function TaskTable({
         </thead>
         <tbody>
           {tasks.map((task) => {
-            const assignment = task.assignments?.[0]
-            const percent = assignment
-              ? assignment.completion_percentage
-              : task.status === 'completed'
-                ? 100
-                : 0
+            const assignments = task.assignments ?? []
+            const percent =
+              assignments.length > 0
+                ? assignments.reduce(
+                    (sum, assignment) => sum + toNumber(assignment.completion_percentage),
+                    0,
+                  ) / assignments.length
+                : task.status === 'completed'
+                  ? 100
+                  : 0
 
             return (
               <tr key={task.id} className={task.is_overdue ? 'task-table__row--overdue' : undefined}>

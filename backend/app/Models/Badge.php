@@ -25,9 +25,12 @@ class Badge extends Model
         'code',
         'description',
         'icon',
+        'category',
+        'tier',
         'criteria_type',
         'criteria_value',
         'is_active',
+        'allow_repeats',
     ];
 
     /**
@@ -40,6 +43,7 @@ class Badge extends Model
         return [
             'criteria_value' => 'array',
             'is_active' => 'boolean',
+            'allow_repeats' => 'boolean',
         ];
     }
 

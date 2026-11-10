@@ -18,7 +18,7 @@ class AdminAnnouncementController extends Controller
     public function index(Request $request): JsonResponse
     {
         $list = $this->announcements->list($request->only([
-            'status', 'audience_type', 'search', 'per_page',
+            'status', 'audience_type', 'category', 'search', 'per_page',
         ]));
 
         return ApiResponse::success('Announcements retrieved', $list);
@@ -30,6 +30,7 @@ class AdminAnnouncementController extends Controller
             'title' => 'required|string|max:255',
             'message' => 'required|string|max:5000',
             'priority' => 'nullable|in:low,normal,high,critical',
+            'category' => 'nullable|string|in:'.implode(',', Announcement::CATEGORIES),
             'audience_type' => 'nullable|in:all,department,role,user',
             'audience_id' => 'nullable|string|max:100',
             'start_date' => 'nullable|date',
@@ -38,7 +39,7 @@ class AdminAnnouncementController extends Controller
 
         $announcement = $this->announcements->create(
             $request->user(),
-            $request->only(['title', 'message', 'priority', 'audience_type', 'audience_id', 'start_date', 'end_date']),
+            $request->only(['title', 'message', 'priority', 'category', 'audience_type', 'audience_id', 'start_date', 'end_date']),
         );
 
         return ApiResponse::success('Announcement created', $announcement->load('creator'), 201);
@@ -50,6 +51,7 @@ class AdminAnnouncementController extends Controller
             'title' => 'nullable|string|max:255',
             'message' => 'nullable|string|max:5000',
             'priority' => 'nullable|in:low,normal,high,critical',
+            'category' => 'nullable|string|in:'.implode(',', Announcement::CATEGORIES),
             'audience_type' => 'nullable|in:all,department,role,user',
             'audience_id' => 'nullable|string|max:100',
             'start_date' => 'nullable|date',
@@ -58,7 +60,7 @@ class AdminAnnouncementController extends Controller
 
         $updated = $this->announcements->update(
             $announcement,
-            $request->only(['title', 'message', 'priority', 'audience_type', 'audience_id', 'start_date', 'end_date']),
+            $request->only(['title', 'message', 'priority', 'category', 'audience_type', 'audience_id', 'start_date', 'end_date']),
         );
 
         return ApiResponse::success('Announcement updated', $updated);
@@ -76,5 +78,30 @@ class AdminAnnouncementController extends Controller
         $published = $this->announcements->publish($announcement);
 
         return ApiResponse::success('Announcement published', $published);
+    }
+
+    public function schedule(Request $request, Announcement $announcement): JsonResponse
+    {
+        $request->validate([
+            'published_at' => 'required|date|after:now',
+        ]);
+
+        $scheduled = $this->announcements->schedule($announcement, $request->input('published_at'));
+
+        return ApiResponse::success('Announcement scheduled', $scheduled);
+    }
+
+    public function unschedule(Announcement $announcement): JsonResponse
+    {
+        $unscheduled = $this->announcements->unschedule($announcement);
+
+        return ApiResponse::success('Announcement returned to draft', $unscheduled);
+    }
+
+    public function archive(Announcement $announcement): JsonResponse
+    {
+        $archived = $this->announcements->archive($announcement);
+
+        return ApiResponse::success('Announcement archived', $archived);
     }
 }

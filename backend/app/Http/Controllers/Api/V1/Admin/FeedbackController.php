@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AiFeedback;
 use App\Models\UserFeedback;
 use App\Services\System\FeedbackService;
 use App\Support\ApiResponse;
@@ -51,7 +52,7 @@ class FeedbackController extends Controller
 
     public function aiIndex(): JsonResponse
     {
-        $rows = \App\Models\AiFeedback::query()
+        $rows = AiFeedback::query()
             ->with('user:id,name,email')
             ->orderByDesc('created_at')
             ->limit(50)

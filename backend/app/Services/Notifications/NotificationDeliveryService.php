@@ -2,6 +2,7 @@
 
 namespace App\Services\Notifications;
 
+use App\Jobs\SendNotificationJob;
 use App\Models\NotificationLog;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -66,11 +67,33 @@ class NotificationDeliveryService
         return $query->paginate($filters['per_page'] ?? 20);
     }
 
+    /**
+     * Retry a failed delivery.
+     *
+     * Only supported for logs that reference an actual in-app notification
+     * row: the queued job is re-dispatched with the stored payload so the
+     * recipient is really re-delivered (the job's idempotency window prevents
+     * duplicates). Logs without a notification payload (e.g. the email
+     * channel, which processes through its own transport) cannot be retried
+     * here — we do not fabricate a "sent" state.
+     */
     public function retry(NotificationLog $log): NotificationLog
     {
         if ($log->status !== 'failed') {
             abort(422, 'Only failed notifications can be retried.');
         }
+
+        if ($log->notification_id === null) {
+            abort(422, 'This delivery has no stored payload to retry.');
+        }
+
+        $notification = $log->load('notification')->notification;
+
+        if (! $notification) {
+            abort(422, 'The referenced notification no longer exists.');
+        }
+
+        $payload = is_array($notification->data) ? $notification->data : [];
 
         $log->update([
             'status' => 'queued',
@@ -78,6 +101,15 @@ class NotificationDeliveryService
             'error_message' => null,
             'failed_at' => null,
         ]);
+
+        SendNotificationJob::dispatch(
+            userId: $log->user_id,
+            eventType: $notification->type,
+            title: $notification->title,
+            message: (string) ($notification->message ?? ''),
+            data: $payload,
+            priority: $notification->priority ?? 'normal',
+        );
 
         return $log->fresh('user');
     }

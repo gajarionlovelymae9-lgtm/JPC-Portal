@@ -108,6 +108,14 @@ class TaskAssignment extends Model
     }
 
     /**
+     * Versioned submission history for this assignment.
+     */
+    public function submissions(): HasMany
+    {
+        return $this->hasMany(TaskSubmission::class);
+    }
+
+    /**
      * Assignments still in assigned state.
      */
     public function scopeAssigned(Builder $query): Builder

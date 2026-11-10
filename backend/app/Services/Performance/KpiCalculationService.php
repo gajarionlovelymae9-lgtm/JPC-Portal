@@ -171,7 +171,7 @@ class KpiCalculationService
         }
 
         $approved = $reports->filter(function ($r) {
-            return $r->status === 'approved' 
+            return $r->status === 'approved'
                 || (is_object($r->status) && property_exists($r->status, 'value') && $r->status->value === 'approved')
                 || (is_object($r->status) && method_exists($r->status, 'name') && $r->status->name === 'Approved');
         })->count();
@@ -226,7 +226,7 @@ class KpiCalculationService
 
         foreach ($targets as $target) {
             $targetVal = (float) ($target->target_value ?? 100.00);
-            
+
             if (isset($target->achieved_value) && $target->achieved_value !== null) {
                 $achievedVal = (float) $target->achieved_value;
             } elseif (in_array(strtolower((string) $target->status), ['achieved', 'completed', 'approved'], true)) {

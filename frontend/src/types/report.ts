@@ -107,6 +107,7 @@ export interface TaskCompletionReport {
 export interface EmployeePerformanceRow {
   rank: number | null
   employee_id: number | null
+  employee_number: string | null
   employee_name: string | null
   department_id: number | null
   department_name: string | null
@@ -118,6 +119,13 @@ export interface EmployeePerformanceRow {
   late: number
   completion_rate: number
   on_time_rate: number
+  reports_submitted: number
+  late_reports: number
+  approval_rate: number | null
+  target_achievement: number | null
+  total_targets: number
+  achieved_targets: number
+  performance_status: string | null
   next_due_date: string | null
 }
 
@@ -153,6 +161,13 @@ export interface DepartmentPerformanceRow {
   late: number
   completion_rate: number
   on_time_rate: number
+  reports_submitted: number
+  late_reports: number
+  approval_rate: number | null
+  on_time_submission_rate: number | null
+  target_achievement: number | null
+  total_targets: number
+  achieved_targets: number
   next_due_date: string | null
 }
 

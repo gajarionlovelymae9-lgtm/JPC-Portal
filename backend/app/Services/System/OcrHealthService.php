@@ -2,6 +2,7 @@
 
 namespace App\Services\System;
 
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -87,8 +88,8 @@ class OcrHealthService
 
         $total = 0.0;
         foreach ($rows as $row) {
-            $start = \Carbon\Carbon::parse($row->started_at);
-            $end = \Carbon\Carbon::parse($row->completed_at);
+            $start = Carbon::parse($row->started_at);
+            $end = Carbon::parse($row->completed_at);
             $total += max(0, $end->diffInSeconds($start));
         }
 

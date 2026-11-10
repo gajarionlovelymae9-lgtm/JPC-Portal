@@ -14,7 +14,10 @@ trait BuildsTaskNotification
 {
     private function taskCode(Task $task): string
     {
-        return $task->task_code;
+        // Legacy/manually-created tasks can have no code; fall back to the same
+        // display identifier the read models use instead of crashing the
+        // notification (which would roll back the whole assignment).
+        return $task->task_code ?? "TSK-{$task->id}";
     }
 
     private function employeeName(TaskAssignment $assignment): string

@@ -30,7 +30,8 @@ export function EmployeeReportPage() {
   )
 
   const employees = useReportingResource(
-    useCallback(() => getEmployeePerformance({ department_id: departmentId, per_page: 200, page: 1 }), [departmentId]),
+    // Server caps per_page at 100; 200 used to 422 the dropdown load.
+    useCallback(() => getEmployeePerformance({ department_id: departmentId, per_page: 100, page: 1 }), [departmentId]),
     `employee-report-employees|${String(departmentId)}`,
     'Unable to load faculty members.',
   )

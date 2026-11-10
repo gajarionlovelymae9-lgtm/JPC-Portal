@@ -20,7 +20,7 @@ jpc-portal/
 │   │   ├── Services/              # business logic (Employee, Reports, AiReports, AI, DataQuality, Performance, Reporting, Audit, Notifications)
 │   ├── config/               # all config (ai, ai_reports, performance, reports, jpc, task, ...)
 │   ├── database/
-│   │   ├── migrations/       # schema (source of truth; ~90 files)
+│   │   ├── migrations/       # schema (source of truth; 78 files)
 │   │   └── seeders/          # static + development seeders
 │   ├── routes/api.php + console.php
 │   ├── tests/                # PHPUnit (Feature + Unit)
@@ -91,7 +91,21 @@ jpc-portal/
 
 - `acadtrack_db` (dev data), `acadtrack_db_test` (test isolation, set in
   `phpunit.xml`). **Never run `migrate:fresh` on `acadtrack_db`.**
+- Schema is created entirely by the ~78 Laravel migrations in
+  `database/migrations/` — there is no root-level `database/` SQL directory.
 - See [`DATABASE.md`](DATABASE.md) and [`database/erd.md`](database/erd.md).
+
+## 5a. Private file storage (important for backups)
+
+- Uploaded report documents are stored under
+  `backend/storage/app/private/private/reports/{report_id}/` — the upload code
+  calls `storeAs('private/reports/...')` on the default `local` disk whose root
+  is already `storage/app/private`, producing the double `private`. Back up the
+  whole `storage/app/private` subtree.
+- Exports live at `backend/storage/app/private/report_exports` (TTL-cleaned by
+  `reports:cleanup-exports`).
+- `storage/app/public/reports` does not exist — reports are private-only, served
+  through authorized download controllers.
 
 ## 6. Queue jobs
 
@@ -103,15 +117,21 @@ jpc-portal/
 - `Reporting/GenerateReportExportJob`
 - `SendNotificationJob`
 
-Queues use `QUEUE_CONNECTION=database`. Run `php artisan queue:work`; monitor
-`php artisan queue:failed`.
+Queues use `QUEUE_CONNECTION=database` (default connection `database`; failed
+driver `database-uuids` → `failed_jobs` table). Run `php artisan queue:work`;
+monitor `php artisan queue:failed`; retry with `php artisan queue:retry all`.
 
 ## 7. Scheduled tasks (`routes/console.php`)
+
+Seven tasks:
 
 - `tasks:send-deadline-reminders` daily 07:00
 - `tasks:send-overdue-notifications` daily 07:30
 - `reports:generate-monthly` monthly on 1st at 06:00
 - `reports:cleanup-exports` daily 03:15
+- `system:check-health` daily 05:00 (source `scheduled`; persists `SystemHealthCheck`)
+- `system:verify-backups` daily 05:30 (maintenance-log + dump-freshness verdict)
+- `RunDataQualityScanJob('full', null, null)` weekly Mondays 06:30
 
 Run with `php artisan schedule:work` locally; cron `schedule:run` in production.
 
@@ -150,7 +170,7 @@ Frontend:
 ```bash
 cd frontend
 npm test                  # vitest
-npm run lint              # oxlint (0 errors; 54 pre-existing warnings)
+npm run lint              # oxlint (0 errors; 58 pre-existing warnings)
 npm run build             # tsc -b + production build
 ```
 
@@ -173,6 +193,8 @@ prod) → optimize → queue worker → scheduler → build frontend → verify 
 - Similarity scores and AI findings are indicators requiring human validation.
 - `.env.testing` must not be introduced (it shadows `.env` key when
   `APP_ENV=testing`); keep test config in `phpunit.xml`.
+- Vestigial `PLACEHOLDER_IGNORED.php` at the repository root is inert
+  (`App\Jobs\Reports\Ai\AnalyzeData`) and referenced nowhere; leave it untouched.
 
 ## 14. Maintenance recommendations
 

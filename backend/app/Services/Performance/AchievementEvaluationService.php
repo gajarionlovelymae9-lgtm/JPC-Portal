@@ -7,9 +7,9 @@ use App\Models\Badge;
 use App\Models\Employee;
 use App\Models\EmployeeBadge;
 use App\Models\EmployeePerformanceRecord;
+use App\Models\EmployeeTarget;
 use App\Models\MonthlyAchievement;
 use App\Models\PerformancePeriod;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -64,23 +64,26 @@ class AchievementEvaluationService
                 $isEOM = ($rank === 1 && (float) $record->productivity_score > 0);
 
                 if ($academicYear) {
-                    $monthlyAchievement = MonthlyAchievement::updateOrCreate(
-                        [
-                            'employee_id' => $record->employee_id,
-                            'academic_year_id' => $academicYear->id,
-                            'month' => $month,
-                            'year' => $year,
-                        ],
-                        [
-                            'completion_rate' => $record->completion_rate,
-                            'on_time_rate' => $record->on_time_rate,
-                            'approved_reports' => $record->metadata['approved_reports'] ?? 0,
-                            'completed_tasks' => $record->metadata['completed_tasks'] ?? 0,
-                            'overall_score' => $record->productivity_score ?? $record->overall_score,
-                            'rank' => $rank,
-                            'is_employee_of_month' => $isEOM,
-                        ]
-                    );
+                    // MonthlyAchievement deliberately guards its verdict fields
+                    // so HTTP clients cannot mass-assign scores; this internal
+                    // engine is the only writer, so it force-fills them. The
+                    // plain updateOrCreate used before silently discarded every
+                    // verdict field and left overall_score NULL.
+                    $monthlyAchievement = MonthlyAchievement::query()->firstOrNew([
+                        'employee_id' => $record->employee_id,
+                        'academic_year_id' => $academicYear->id,
+                        'month' => $month,
+                        'year' => $year,
+                    ]);
+                    $monthlyAchievement->forceFill([
+                        'completion_rate' => $record->completion_rate,
+                        'on_time_rate' => $record->on_time_rate,
+                        'approved_reports' => $record->metadata['approved_reports'] ?? 0,
+                        'completed_tasks' => $record->metadata['completed_tasks'] ?? 0,
+                        'overall_score' => $record->productivity_score ?? $record->overall_score,
+                        'rank' => $rank,
+                        'is_employee_of_month' => $isEOM,
+                    ])->save();
                 }
 
                 // Award badges for this employee based on performance
@@ -89,7 +92,7 @@ class AchievementEvaluationService
                 $rankItem = [
                     'rank' => $rank,
                     'employee_id' => $record->employee_id,
-                    'employee_name' => $record->employee?->full_name ?? 'Employee #' . $record->employee_id,
+                    'employee_name' => $record->employee?->full_name ?? 'Employee #'.$record->employee_id,
                     'department_id' => $record->employee?->department_id,
                     'department_name' => $record->employee?->department?->name ?? '—',
                     'productivity_score' => (float) $record->productivity_score,
@@ -185,7 +188,81 @@ class AchievementEvaluationService
             $awarded[] = 'MOST_IMPROVED';
         }
 
+        // Badge 9: GOAL_ACHIEVER (every KPI target overlapping the period is completed)
+        $targetVerdict = $this->evaluateGoalAchiever($record->employee_id, $period);
+        if ($targetVerdict['eligible']) {
+            $this->grantBadge($record->employee_id, 'GOAL_ACHIEVER', $period, $academicYear, [
+                'targets_total' => $targetVerdict['total'],
+                'targets_completed' => $targetVerdict['completed'],
+            ]);
+            $awarded[] = 'GOAL_ACHIEVER';
+        }
+
+        // Badge 10: CONSISTENT_PROGRESS (>= 3 consecutive scored months at or above 85)
+        $streak = $this->evaluateConsistentProgress($record->employee_id, $period, 85.00);
+        if ($streak['eligible']) {
+            $this->grantBadge($record->employee_id, 'CONSISTENT_PROGRESS', $period, $academicYear, [
+                'consecutive_months' => $streak['months'],
+                'min_score' => 85.00,
+            ]);
+            $awarded[] = 'CONSISTENT_PROGRESS';
+        }
+
         return $awarded;
+    }
+
+    /**
+     * Goal Achiever: the employee has at least one KPI target overlapping the
+     * period and every one of them is recorded as completed. Only real
+     * employee_targets rows are consulted; an employee with no targets is
+     * never eligible (absence of evidence is not evidence of achievement).
+     *
+     * @return array{eligible: bool, total: int, completed: int}
+     */
+    public function evaluateGoalAchiever(int $employeeId, PerformancePeriod $period): array
+    {
+        $targets = EmployeeTarget::query()
+            ->where('employee_id', $employeeId)
+            ->where('start_date', '<=', $period->end_date)
+            ->where('end_date', '>=', $period->start_date)
+            ->get(['id', 'status']);
+
+        $total = $targets->count();
+        $completed = $targets->filter(fn (EmployeeTarget $t) => $t->status === 'completed')->count();
+
+        return [
+            'eligible' => $total > 0 && $completed === $total,
+            'total' => $total,
+            'completed' => $completed,
+        ];
+    }
+
+    /**
+     * Consistent Progress: the current period plus the immediately preceding
+     * months all carry a monthly_achievements row whose overall_score is at
+     * least $minScore. Only recorded rollup rows count — missing months break
+     * the streak instead of being interpolated.
+     *
+     * @return array{eligible: bool, months: int}
+     */
+    public function evaluateConsistentProgress(int $employeeId, PerformancePeriod $period, float $minScore, int $required = 3): array
+    {
+        $rows = MonthlyAchievement::query()
+            ->where('employee_id', $employeeId)
+            ->whereRaw('(year * 100 + month) <= ?', [$period->year * 100 + (int) ($period->month ?? 0)])
+            ->orderByDesc('year')
+            ->orderByDesc('month')
+            ->get(['year', 'month', 'overall_score']);
+
+        $months = 0;
+        foreach ($rows as $row) {
+            if ((float) $row->overall_score < $minScore) {
+                break;
+            }
+            $months++;
+        }
+
+        return ['eligible' => $months >= $required, 'months' => $months];
     }
 
     /**
@@ -230,6 +307,12 @@ class AchievementEvaluationService
 
     /**
      * Idempotently grant a badge to an employee without duplicate creation.
+     *
+     * The unique index on (employee, badge, academic_year, period) is the
+     * authoritative duplicate guard; firstOrCreate honours it. Awards whose
+     * criteria snapshot carries complete numeric evidence are auto-verified;
+     * anything with a null / incomplete evidence value is parked as 'pending'
+     * so an admin reviews it instead of it silently becoming official.
      */
     public function grantBadge(
         int $employeeId,
@@ -242,12 +325,12 @@ class AchievementEvaluationService
             ['code' => $badgeCode],
             [
                 'name' => ucwords(str_replace('_', ' ', strtolower($badgeCode))),
-                'description' => 'Awarded for performance excellence in ' . $period->name,
+                'description' => 'Awarded for performance excellence in '.$period->name,
                 'is_active' => true,
             ]
         );
 
-        return EmployeeBadge::firstOrCreate(
+        $award = EmployeeBadge::firstOrCreate(
             [
                 'employee_id' => $employeeId,
                 'badge_id' => $badge->id,
@@ -256,9 +339,20 @@ class AchievementEvaluationService
                 'period_end' => $period->end_date,
             ],
             [
-                'awarded_at' => now(),
                 'criteria_snapshot' => $criteriaSnapshot,
             ]
         );
+
+        if ($award->wasRecentlyCreated) {
+            $complete = $criteriaSnapshot !== []
+                && ! in_array(null, array_values($criteriaSnapshot), true);
+
+            $award->forceFill([
+                'awarded_at' => now(),
+                'verification_status' => $complete ? 'verified' : 'pending',
+            ])->save();
+        }
+
+        return $award;
     }
 }

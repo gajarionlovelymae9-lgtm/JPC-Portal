@@ -23,7 +23,9 @@ class DataQualityIssueController extends Controller
     {
         $this->authorize('viewAny', DataQualityIssue::class);
 
-        $perPage = (int)$request->input('per_page', 15);
+        // Clamp server-side (shared 100-row ceiling) so an oversized
+        // `per_page` cannot turn the issue ledger into an unbounded query.
+        $perPage = min(max((int) $request->input('per_page', 15), 1), 100);
         $issues = $this->service->getIssues($request->user(), $request->all(), $perPage);
 
         return ApiResponse::collection(

@@ -2,6 +2,10 @@
 
 How the **Employee** role uses the system, from login to report approval.
 
+> **Consolidated guide:** the full employee workflow is now covered in
+> [`user-guides/employee-guide.md`](user-guides/employee-guide.md). This page
+> keeps the quick reference below and is maintained alongside it.
+
 > Demo account: `employee@jpc.local` / `P@ssw0rd2026` (dev only).
 
 ## 1. Login

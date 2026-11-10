@@ -93,6 +93,8 @@ export interface EmployeePerformanceData {
   }
   badges: BadgeItem[]
   history: PerformanceHistoryPoint[]
+  /** False when the period has no tasks, reports, or targets to evaluate. */
+  has_activity?: boolean
 }
 
 export interface MonthlyRankItem {

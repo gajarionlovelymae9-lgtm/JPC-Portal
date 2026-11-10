@@ -42,7 +42,9 @@
 ## 4. File security
 
 - Uploaded report documents are stored on the **private** `local` disk
-  (`storage/app/private/reports`) — **no public symlink, no public URL**.
+  (`storage/app/private/private/reports` — the double `private` nesting is
+  expected: uploads write under `private/reports/...` on the `local` disk
+  rooted at `storage/app/private`) — **no public symlink, no public URL**.
 - Download only through authenticated, authorized controllers (ownership + permission
   checked per request).
 - Upload validation: mime type/extension allow-list, size limit

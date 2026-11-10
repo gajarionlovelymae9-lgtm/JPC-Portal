@@ -35,17 +35,17 @@ export default function EmployeeProfilePage() {
       <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
         <div className="flex items-center gap-4 pb-4 border-b border-gray-100">
           <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center text-2xl font-bold text-blue-600">{profile.name.charAt(0).toUpperCase()}</div>
-          <div><h2 className="text-xl font-bold text-gray-900">{profile.name}</h2><p className="text-gray-500 text-sm">{profile.employee_number}</p></div>
+          <div><h2 className="text-xl font-bold text-gray-900">{profile.name}</h2><p className="text-gray-500 text-sm">{profile.employee_no ?? '—'}</p></div>
         </div>
         {[
-          { label: 'Department', value: profile.department_name },
-          { label: 'Position', value: profile.position_name },
+          { label: 'Department', value: profile.department },
+          { label: 'Position', value: profile.position },
           { label: 'Employee Type', value: profile.employee_type },
           { label: 'Status', value: profile.status },
         ].map(f => (
           <div key={f.label} className="flex items-center justify-between py-2 border-b border-gray-50">
             <span className="text-sm font-medium text-gray-500">{f.label}</span>
-            <span className="text-sm text-gray-900">{f.value}</span>
+            <span className="text-sm text-gray-900">{f.value ?? '—'}</span>
           </div>
         ))}
         <div>

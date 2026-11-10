@@ -28,6 +28,13 @@ class DepartmentPerformanceRowResource extends JsonResource
             'late' => $row['late'] ?? 0,
             'completion_rate' => $row['completion_rate'] ?? 0.0,
             'on_time_rate' => $row['on_time_rate'] ?? 0.0,
+            'reports_submitted' => $row['reports_submitted'] ?? 0,
+            'late_reports' => $row['late_reports'] ?? 0,
+            'approval_rate' => $row['approval_rate'] ?? null,
+            'on_time_submission_rate' => $row['on_time_submission_rate'] ?? null,
+            'target_achievement' => $row['target_achievement'] ?? null,
+            'total_targets' => $row['total_targets'] ?? 0,
+            'achieved_targets' => $row['achieved_targets'] ?? 0,
             'next_due_date' => $row['next_due_date'] ?? null,
             'recent_tasks' => $row['recent_tasks'] ?? null,
         ];

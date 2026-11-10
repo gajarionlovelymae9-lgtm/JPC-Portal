@@ -86,6 +86,16 @@ export interface DataQualityTrendItem {
   issues_resolved: number
 }
 
+export interface DataQualityScanSummary {
+  evaluated: boolean
+  records_checked: number
+  issues_found: number
+  latest_scan_at: string | null
+  total_records: number
+  records_with_issues: number
+  complete_records: number
+}
+
 export interface DataQualityDashboardData {
   score: number
   total_issues: number
@@ -96,6 +106,7 @@ export interface DataQualityDashboardData {
   low: number
   resolved: number
   dismissed: number
+  scan_summary: DataQualityScanSummary | null
   by_category: Record<string, number>
   by_department: Array<{
     department_id: number

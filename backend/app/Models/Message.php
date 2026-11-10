@@ -14,9 +14,11 @@ class Message extends Model
         'conversation_id',
         'sender_id',
         'body',
+        'reply_to_message_id',
         'attachment_path',
         'attachment_name',
         'attachment_type',
+        'client_token',
     ];
 
     public function conversation(): BelongsTo
@@ -27,5 +29,13 @@ class Message extends Model
     public function sender(): BelongsTo
     {
         return $this->belongsTo(User::class, 'sender_id');
+    }
+
+    /**
+     * The message this message replies to, when it is a quoted reply.
+     */
+    public function replyTo(): BelongsTo
+    {
+        return $this->belongsTo(Message::class, 'reply_to_message_id');
     }
 }

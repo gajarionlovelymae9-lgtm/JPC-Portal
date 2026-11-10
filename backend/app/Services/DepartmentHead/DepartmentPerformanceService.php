@@ -2,8 +2,6 @@
 
 namespace App\Services\DepartmentHead;
 
-use App\Models\Badge;
-use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Report;
 use App\Models\TaskAssignment;
@@ -24,7 +22,7 @@ class DepartmentPerformanceService
             ->get();
         $employeeIds = $employees->pluck('id');
 
-$assignments = TaskAssignment::whereIn('employee_id', $employeeIds)
+        $assignments = TaskAssignment::whereIn('employee_id', $employeeIds)
             ->with('task:id,due_date')
             ->get();
 
@@ -34,10 +32,13 @@ $assignments = TaskAssignment::whereIn('employee_id', $employeeIds)
         $completedAssignments = $assignments->whereIn('status', ['completed', 'approved'])->count();
         $completionRate = $totalAssignments > 0 ? round(($completedAssignments / $totalAssignments) * 100, 1) : 0;
 
-$onTimeCount = $assignments->filter(function ($a) {
-            if (!$a->completed_at) return false;
+        $onTimeCount = $assignments->filter(function ($a) {
+            if (! $a->completed_at) {
+                return false;
+            }
             $deadline = $a->due_date ?? $a->task?->due_date;
-            return !$deadline || Carbon::parse($a->completed_at)->lte(Carbon::parse($deadline));
+
+            return ! $deadline || Carbon::parse($a->completed_at)->lte(Carbon::parse($deadline));
         })->count();
         $onTimeRate = $completedAssignments > 0 ? round(($onTimeCount / $completedAssignments) * 100, 1) : 100;
 
@@ -50,10 +51,13 @@ $onTimeCount = $assignments->filter(function ($a) {
             $empAssignments = $assignments->where('employee_id', $emp->id);
             $total = $empAssignments->count();
             $completed = $empAssignments->whereIn('status', ['completed', 'approved'])->count();
-$onTime = $empAssignments->filter(function ($a) {
-                if (!$a->completed_at) return false;
+            $onTime = $empAssignments->filter(function ($a) {
+                if (! $a->completed_at) {
+                    return false;
+                }
                 $deadline = $a->due_date ?? $a->task?->due_date;
-                return !$deadline || Carbon::parse($a->completed_at)->lte(Carbon::parse($deadline));
+
+                return ! $deadline || Carbon::parse($a->completed_at)->lte(Carbon::parse($deadline));
             })->count();
 
             $rate = $total > 0 ? round(($completed / $total) * 100, 1) : 0;
@@ -61,7 +65,7 @@ $onTime = $empAssignments->filter(function ($a) {
 
             return [
                 'id' => $emp->id,
-                'name' => $emp->first_name . ' ' . $emp->last_name,
+                'name' => $emp->first_name.' '.$emp->last_name,
                 'employee_number' => $emp->employee_number,
                 'position' => $emp->position?->name ?? 'Faculty',
                 'tasks_count' => $total,
@@ -90,7 +94,7 @@ $onTime = $empAssignments->filter(function ($a) {
             'employee_comparison' => $employeeComparison,
             'monthly_trends' => $monthlyTrends,
             'ai_summary' => [
-                'text' => "Department completion rate is {$completionRate}% with an on-time delivery rate of {$onTimeRate}%. Top performer in completion is " . ($employeeComparison[0]['name'] ?? 'Faculty') . ".",
+                'text' => "Department completion rate is {$completionRate}% with an on-time delivery rate of {$onTimeRate}%. Top performer in completion is ".($employeeComparison[0]['name'] ?? 'Faculty').'.',
                 'disclaimer' => 'AI-generated summary based on recorded system data.',
             ],
         ];
@@ -114,7 +118,7 @@ $onTime = $empAssignments->filter(function ($a) {
 
             return [
                 'employee_id' => $emp->id,
-                'name' => $emp->first_name . ' ' . $emp->last_name,
+                'name' => $emp->first_name.' '.$emp->last_name,
                 'position' => $emp->position?->name ?? 'Faculty',
                 'completed_tasks' => $completed,
                 'completion_rate' => $rate,

@@ -2,6 +2,7 @@
 
 namespace App\Services\Reports;
 
+use App\Enums\ReportStatus;
 use App\Models\Report;
 use App\Models\ReportVersion;
 use App\Models\User;
@@ -42,7 +43,7 @@ class ReportVersionService
                     'title' => $report->title,
                     'content' => $report->content,
                     'references' => $report->references,
-                    'status' => $report->status instanceof \App\Enums\ReportStatus ? $report->status->value : (string) $report->status,
+                    'status' => $report->status instanceof ReportStatus ? $report->status->value : (string) $report->status,
                     'file_path' => $filePath ?? $existing->file_path,
                     'notes' => $notes ?? $existing->notes,
                     'change_summary' => $changeSummary ?? $existing->change_summary,
@@ -59,7 +60,7 @@ class ReportVersionService
                 'title' => $report->title,
                 'content' => $report->content,
                 'references' => $report->references,
-                'status' => $report->status instanceof \App\Enums\ReportStatus ? $report->status->value : (string) $report->status,
+                'status' => $report->status instanceof ReportStatus ? $report->status->value : (string) $report->status,
                 'submitted_by' => $user->id,
                 'file_path' => $filePath,
                 'notes' => $notes,
@@ -91,7 +92,7 @@ class ReportVersionService
             ->with(['submitter:id,name,email', 'files', 'comments.reviewer:id,name', 'timeline.actor:id,name'])
             ->first();
 
-        if (!$version) {
+        if (! $version) {
             throw new NotFoundHttpException("Report version v{$versionNumber} not found.");
         }
 

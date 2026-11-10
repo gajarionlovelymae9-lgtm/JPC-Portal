@@ -35,7 +35,7 @@ class TargetConsistencyRule implements DataQualityRuleInterface
 
     public function check(mixed $entity): ?array
     {
-        if (!($entity instanceof EmployeeTarget)) {
+        if (! ($entity instanceof EmployeeTarget)) {
             return null;
         }
 
@@ -44,7 +44,7 @@ class TargetConsistencyRule implements DataQualityRuleInterface
                 'issue_type' => DataQualityIssueType::TARGET_WITHOUT_EMPLOYEE,
                 'severity' => DataQualityIssueSeverity::HIGH,
                 'title' => "Target '{$entity->title}' (ID: {$entity->id}) is not linked to any employee",
-                'description' => "The target record has an empty employee_id foreign key.",
+                'description' => 'The target record has an empty employee_id foreign key.',
                 'detected_value' => ['employee_id' => null],
                 'expected_value' => ['employee_id' => 'valid_employee_id'],
                 'department_id' => null,
@@ -52,12 +52,12 @@ class TargetConsistencyRule implements DataQualityRuleInterface
             ];
         }
 
-        if ($entity->target_value !== null && (float)$entity->target_value < 0) {
+        if ($entity->target_value !== null && (float) $entity->target_value < 0) {
             return [
                 'issue_type' => DataQualityIssueType::INVALID_TARGET_VALUE,
                 'severity' => DataQualityIssueSeverity::MEDIUM,
                 'title' => "Target '{$entity->title}' has negative target value ({$entity->target_value})",
-                'description' => "Target quota value cannot be negative.",
+                'description' => 'Target quota value cannot be negative.',
                 'detected_value' => ['target_value' => $entity->target_value],
                 'expected_value' => ['min_target_value' => 0.0],
                 'department_id' => null,

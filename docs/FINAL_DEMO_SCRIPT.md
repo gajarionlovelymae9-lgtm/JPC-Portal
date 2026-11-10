@@ -1,4 +1,4 @@
-﻿# JPC Portal â€” Final Demonstration Script
+﻿# JPC Portal — Final Demonstration Script
 
 A scripted walkthrough of the completed system for an academic/capstone
 presentation. Uses the seeded fictional demo dataset (dev seeders).
@@ -6,7 +6,7 @@ presentation. Uses the seeded fictional demo dataset (dev seeders).
 > Prerequisites: backend + frontend running (`XAMPP_SETUP.md`), demo data seeded
 > (`php artisan db:seed`), queue worker started (`php artisan queue:work`).
 
-## PART 1 â€” LOGIN
+## PART 1 — LOGIN
 
 | Role | Email | Password |
 | --- | --- | --- |
@@ -17,51 +17,51 @@ presentation. Uses the seeded fictional demo dataset (dev seeders).
 
 1. Show the login screen (SPA, Sanctum cookie auth).
 2. Log in as **Employee** (start with the producer side).
-3. Log out; log in as **Admin** â†’ show RBAC-driven sidebar (different menu per role).
+3. Log out; log in as **Admin** → show RBAC-driven sidebar (different menu per role).
    Repeat quickly for HR and Department Head to contrast menus.
 4. Emphasize every role sees a different dashboard/navigation.
 
-## PART 2 â€” EMPLOYEE
+## PART 2 — EMPLOYEE
 
 Log in as `employee@jpc.local`.
 
-1. **Assigned task** â€” open My Tasks; show priority, due date, progress.
-2. **Target** â€” open Targets; show target value/unit/status.
-3. **Report creation** â€” New report, enter title + content, attach a document.
-4. **Document upload + OCR** â€” upload a file; show the OCR job processing
+1. **Assigned task** — open My Tasks; show priority, due date, progress.
+2. **Target** — open Targets; show target value/unit/status.
+3. **Report creation** — New report, enter title + content, attach a document.
+4. **Document upload + OCR** — upload a file; show the OCR job processing
    (status change) and the extracted text appearing.
-5. **AI summary** â€” after processing, show the generated summary and findings
+5. **AI summary** — after processing, show the generated summary and findings
    (fake provider completes offline).
-6. **Report submission** â€” click Submit; status changes `draft` â†’ `submitted`;
+6. **Report submission** — click Submit; status changes `draft` → `submitted`;
    a new immutable version is recorded; timeline shows the event.
 
-## PART 3 â€” DEPARTMENT HEAD
+## PART 3 — DEPARTMENT HEAD
 
 Log in as `departmenthead@jpc.local`.
 
-1. **Pending reports** â€” open the report list filtered to `submitted`.
-2. **AI findings** â€” open the submitted report; show summary, validation score,
+1. **Pending reports** — open the report list filtered to `submitted`.
+2. **AI findings** — open the submitted report; show summary, validation score,
    similarity indicator.
-3. **Manual review** â€” read the actual content; enter reviewer comments.
-4. **Revision** â€” request revision with notes â†’ employee notified, status
+3. **Manual review** — read the actual content; enter reviewer comments.
+4. **Revision** — request revision with notes → employee notified, status
    `revision_required`.
-5. (Optional) show the employee resubmit, then **approve** â†’ `approved` recorded in
+5. (Optional) show the employee resubmit, then **approve** → `approved` recorded in
    report approvals.
 6. **Emphasize:** AI assists; the head makes the decision.
 
-## PART 4 â€” ADMIN
+## PART 4 — ADMIN
 
 Log in as `admin@jpc.local`.
 
-1. **Institution dashboard** â€” summary KPIs.
-2. **Employee monitoring** â€” employee list + progress table; drill into one employee.
-3. **Completion rate / late reports** â€” dashboards/lists showing completion rate,
+1. **Institution dashboard** — summary KPIs.
+2. **Employee monitoring** — employee list + progress table; drill into one employee.
+3. **Completion rate / late reports** — dashboards/lists showing completion rate,
    `is_late` reports, deadlines.
-4. **KPI / productivity** â€” performance section: records, score breakdowns, progress
+4. **KPI / productivity** — performance section: records, score breakdowns, progress
    snapshots, completion rate.
-5. **Monthly achievements** â€” rankings, badges, employee of the month.
+5. **Monthly achievements** — rankings, badges, employee of the month.
 
-## PART 5 â€” AI CHAT
+## PART 5 — AI CHAT
 
 In AI Chat (as admin), ask in order:
 
@@ -72,28 +72,28 @@ In AI Chat (as admin), ask in order:
 Show each tool-backed answer (tool registry, scoped/authorized). If a question is
 outside the authorized tools, the assistant should say so gracefully.
 
-## PART 6 â€” REPORTING
+## PART 6 — REPORTING
 
-1. **Analytics** â€” trends (performance/completion/submission), comparisons
+1. **Analytics** — trends (performance/completion/submission), comparisons
    (departments/employees/periods), rankings, distribution.
-2. **Monthly report** â€” generate the monthly management report.
-3. **Export** â€” queue a CSV/XLSX/PDF export; wait for `ready`; download and open the
+2. **Monthly report** — generate the monthly management report.
+3. **Export** — queue a CSV/XLSX/PDF export; wait for `ready`; download and open the
    file. (Owner-only; expires by TTL.)
 
-## PART 7 â€” DATA QUALITY
+## PART 7 — DATA QUALITY
 
-1. **Data-quality** â€” run a scan (shows pending â†’ completed).
+1. **Data-quality** — run a scan (shows pending → completed).
 2. Show a sample issue (entity, type, severity).
-3. **Resolve** â€” mark it resolved/dismissed; show the history entry.
+3. **Resolve** — mark it resolved/dismissed; show the history entry.
 
-## PART 8 â€” AUDIT
+## PART 8 — AUDIT
 
-1. **Audit log** â€” show recent sensitive actions (who/what/oldâ†’new).
-2. **Activity log** â€” show the action history generated during this demo.
+1. **Audit log** — show recent sensitive actions (who/what/old→new).
+2. **Activity log** — show the action history generated during this demo.
 
 ## Closing
 
-Summarize: React SPA â†’ Laravel API â†’ MySQL; OCR + AI assist (offline fake provider by
+Summarize: React SPA → Laravel API → MySQL; OCR + AI assist (offline fake provider by
 default); every approval/decision made by a human; security (RBAC, IDOR, private
 storage); test suite (406 backend + 87 frontend) executed before demo.
 
@@ -110,6 +110,6 @@ storage); test suite (406 backend + 87 frontend) executed before demo.
 | Performance | Admin/performance | scores + breakdowns |
 | Achievements | Achievements | badges + rank |
 | AI chat | AI Chat | tool answer + tool call log |
-| Exports | Reporting/exports | queued â†’ ready â†’ downloaded file |
+| Exports | Reporting/exports | queued → ready → downloaded file |
 | Data quality | Data Quality | scan + issue + resolution |
 | Audit | Audit logs | mutations + activity |

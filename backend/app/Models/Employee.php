@@ -129,6 +129,22 @@ class Employee extends Model
     }
 
     /**
+     * Target adjustment requests raised by this employee.
+     */
+    public function targetAdjustmentRequests(): HasMany
+    {
+        return $this->hasMany(EmployeeTargetAdjustmentRequest::class);
+    }
+
+    /**
+     * Achievement notes this employee recorded against their targets.
+     */
+    public function targetNotes(): HasMany
+    {
+        return $this->hasMany(EmployeeTargetNote::class);
+    }
+
+    /**
      * Report submissions by this employee.
      */
     public function reports(): HasMany

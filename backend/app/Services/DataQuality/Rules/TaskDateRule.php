@@ -36,7 +36,7 @@ class TaskDateRule implements DataQualityRuleInterface
 
     public function check(mixed $entity): ?array
     {
-        if (!($entity instanceof Task)) {
+        if (! ($entity instanceof Task)) {
             return null;
         }
 
@@ -49,7 +49,7 @@ class TaskDateRule implements DataQualityRuleInterface
                     'issue_type' => DataQualityIssueType::DUE_DATE_BEFORE_START_DATE,
                     'severity' => $this->getSeverity(),
                     'title' => "Task '{$entity->title}' due date ({$due->toDateString()}) is before start date ({$start->toDateString()})",
-                    'description' => "Chronological sequence contradiction: deadline is scheduled prior to work start date.",
+                    'description' => 'Chronological sequence contradiction: deadline is scheduled prior to work start date.',
                     'detected_value' => [
                         'start_date' => $start->toDateString(),
                         'due_date' => $due->toDateString(),

@@ -2,8 +2,10 @@
 
 namespace App\Services\Reporting\Concerns;
 
+use App\Models\Employee;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Role-aware query scoping shared by the Phase 9 Reporting and Analytics
@@ -25,7 +27,7 @@ trait ResolvesReportingScope
      * Resolve the effective department scope for the caller.
      *
      * @throws AuthorizationException when a department head requests another
-     *                                 department or has no linked department.
+     *                                department or has no linked department.
      */
     protected function effectiveDepartmentId(User $user, ?int $requestedDepartmentId): ?int
     {
@@ -64,7 +66,7 @@ trait ResolvesReportingScope
         }
 
         if ($user->roleName() === 'department_head') {
-            $requested = \App\Models\Employee::query()->find($employeeId);
+            $requested = Employee::query()->find($employeeId);
 
             if ($requested === null) {
                 throw new AuthorizationException('Forbidden');
@@ -81,8 +83,8 @@ trait ResolvesReportingScope
      * column (reports, task assignments, performance records, targets,
      * achievements …).
      *
-     * @param  \Illuminate\Database\Eloquent\Builder  $query
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @param  Builder  $query
+     * @return Builder
      */
     protected function scopeByEmployeeRelation(object $query, User $user, ?int $departmentId = null): object
     {
@@ -124,8 +126,8 @@ trait ResolvesReportingScope
      * Scope an `employees` query itself (admin/hr: requested department or
      * all; department head: own department; employee: own record only).
      *
-     * @param  \Illuminate\Database\Eloquent\Builder  $query
-     * @return \Illuminate\Database\Eloquent\Builder
+     * @param  Builder  $query
+     * @return Builder
      */
     protected function scopeEmployeeQuery(object $query, User $user, ?int $departmentId = null): object
     {

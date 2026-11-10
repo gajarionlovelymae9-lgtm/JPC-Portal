@@ -36,24 +36,12 @@ class ReportFactory extends Factory
         return $this->state(fn (): array => ['status' => 'draft', 'submitted_at' => null]);
     }
 
-    public function uploaded(): static
-    {
-        return $this->state(fn (): array => ['status' => 'uploaded', 'submitted_at' => null]);
-    }
-
-    public function ocrProcessing(): static
-    {
-        return $this->state(fn (): array => ['status' => 'ocr_processing', 'submitted_at' => null]);
-    }
-
-    public function aiProcessing(): static
-    {
-        return $this->state(fn (): array => ['status' => 'ai_processing', 'submitted_at' => null]);
-    }
-
+    /**
+     * Submitted and waiting for a human reviewer.
+     */
     public function readyForReview(): static
     {
-        return $this->state(fn (): array => ['status' => 'ready_for_review', 'submitted_at' => now()->subDay()]);
+        return $this->state(fn (): array => ['status' => 'under_review', 'submitted_at' => now()->subDay()]);
     }
 
     public function revisionRequired(): static
@@ -77,11 +65,6 @@ class ReportFactory extends Factory
             'rejected_at' => now()->subHour(),
             'submitted_at' => now()->subDay(),
         ]);
-    }
-
-    public function ocrFailed(): static
-    {
-        return $this->state(fn (): array => ['status' => 'ocr_failed', 'submitted_at' => null]);
     }
 
     public function late(): static

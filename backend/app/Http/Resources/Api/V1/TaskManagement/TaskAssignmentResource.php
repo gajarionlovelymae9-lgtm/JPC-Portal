@@ -14,6 +14,10 @@ class TaskAssignmentResource extends JsonResource
             'employee_id' => $this->employee_id,
             'employee' => new EmployeeResource($this->whenLoaded('employee')),
             'status' => $this->status,
+            'latest_review_decision' => $this->whenLoaded(
+                'reviews',
+                fn () => $this->reviews->sortByDesc('reviewed_at')->first()?->decision,
+            ),
             'assigned_at' => $this->assigned_at?->toIso8601String(),
             'accepted_at' => $this->accepted_at?->toIso8601String(),
             'due_date' => $this->due_date?->toIso8601String(),
@@ -21,6 +25,7 @@ class TaskAssignmentResource extends JsonResource
             'completion_percentage' => $this->progress_percentage,
             'remarks' => $this->remarks,
             'is_overdue' => $this->due_date !== null && $this->due_date->isPast() && $this->status !== 'completed' && $this->status !== 'cancelled',
+            'submissions' => TaskSubmissionResource::collection($this->whenLoaded('submissions')),
         ];
     }
 }

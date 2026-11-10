@@ -1,11 +1,12 @@
 import { useAiInsights } from '../../hooks/ai/useAiInsights'
 import { AiInsightCard } from '../../components/ai/AiInsightCard'
+import { JpcAideLogo, JPC_AIDE_NAME } from '../../components/ai/JpcAideLogo'
 
 export default function AiInsightsPage() {
   const { insights, performanceInsights, reportInsights, loading, error } = useAiInsights()
 
   if (loading && !insights) {
-    return <div className="p-8 text-center text-gray-500">Loading AI Insights...</div>
+    return <div className="p-8 text-center text-gray-500">Loading {JPC_AIDE_NAME} insights...</div>
   }
 
   if (error) {
@@ -14,7 +15,13 @@ export default function AiInsightsPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">AI Insights & Analytics</h1>
+      <div className="mb-6 flex items-start gap-3">
+        <JpcAideLogo size={34} />
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">{JPC_AIDE_NAME} - AI Insights</h1>
+          <p className="text-sm font-medium text-indigo-700">Intelligent Performance Analysis and Productivity Recommendations</p>
+        </div>
+      </div>
       
       {/* General Insights */}
       {insights && insights.summary && (

@@ -1,0 +1,116 @@
+<?php
+
+namespace App\Http\Requests\Admin;
+
+use App\Enums\Permissions;
+use App\Enums\Role as RoleEnum;
+use App\Enums\UserStatus;
+use App\Models\Employee;
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
+
+/**
+ * Validation for editing a user account from the People Management module.
+ *
+ * The linked-employee rule permits keeping the account's current employee but
+ * rejects stealing an employee that belongs to a different account.
+ */
+class UpdateUserRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return $this->user()?->hasPermission(Permissions::USERS_UPDATE) ?? false;
+    }
+
+    /**
+     * Normalise the identity fields before validating uniqueness.
+     */
+    protected function prepareForValidation(): void
+    {
+        $merge = [];
+
+        if (is_string($this->input('name'))) {
+            $merge['name'] = Str::squish($this->input('name'));
+        }
+
+        foreach (['email', 'username'] as $field) {
+            if (is_string($this->input($field))) {
+                $merge[$field] = Str::lower(trim($this->input($field)));
+            }
+        }
+
+        $this->merge($merge);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function rules(): array
+    {
+        $id = $this->route('id');
+
+        return [
+            'name' => ['sometimes', 'required', 'string', 'max:120'],
+            'email' => ['sometimes', 'required', 'email', 'max:191', Rule::unique('users', 'email')->ignore($id)],
+            'username' => [
+                'sometimes', 'required', 'string', 'max:80', 'regex:/^[a-z0-9._-]+$/',
+                Rule::unique('users', 'username')->ignore($id),
+            ],
+            'password' => ['sometimes', 'nullable', 'string', 'min:8', 'max:191'],
+            'role' => ['sometimes', 'required', 'string', Rule::in(array_column(RoleEnum::cases(), 'value'))],
+            'status' => ['sometimes', Rule::enum(UserStatus::class)],
+            'employee_id' => [
+                'sometimes',
+                'nullable',
+                'integer',
+                Rule::exists('employees', 'id')->whereNull('deleted_at'),
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'email.unique' => 'That email address already belongs to an account.',
+            'username.regex' => 'The username may only contain letters, numbers, dots, dashes and underscores.',
+            'username.unique' => 'That username is already taken.',
+            'password.min' => 'Password must contain at least 8 characters.',
+        ];
+    }
+
+    /**
+     * The target employee may already be linked — to THIS account. Anything
+     * else is a duplicate link and is rejected here rather than leaking an
+     * obscure database error.
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            $employeeId = $this->input('employee_id');
+
+            if (! filled($employeeId)) {
+                return;
+            }
+
+            $employee = Employee::query()->find((int) $employeeId);
+
+            if ($employee === null) {
+                return;
+            }
+
+            $currentUserId = (int) $this->route('id');
+
+            if ($employee->user_id !== null && (int) $employee->user_id !== $currentUserId) {
+                $validator->errors()->add(
+                    'employee_id',
+                    'That employee is already linked to another account.',
+                );
+            }
+        });
+    }
+}

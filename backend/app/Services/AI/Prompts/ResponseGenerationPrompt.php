@@ -1,1 +1,11 @@
-<?php namespace App\Services\AI\Prompts; class ResponseGenerationPrompt { public function build(string $msg, string $context, string $intent): string { return 'response prompt'; } }
+<?php
+
+namespace App\Services\AI\Prompts;
+
+class ResponseGenerationPrompt
+{
+    public function build(string $msg, string $context, string $intent): string
+    {
+        return 'response prompt';
+    }
+}

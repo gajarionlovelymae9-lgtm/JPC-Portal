@@ -49,6 +49,7 @@ enum NotificationEvent: string
 
     // System & Announcements
     case AnnouncementPublished = 'announcement_published';
+    case MessageReceived = 'message_received';
     case System = 'system';
     case DataIssue = 'data_issue';
     case ReviewAssigned = 'review_assigned';
@@ -87,7 +88,7 @@ enum NotificationEvent: string
             self::AchievementEarned, self::BadgeEarned, self::MonthlyAchievement => 'achievement',
             self::HrEmployeeReview, self::HrMissingInfo, self::HrDuplicateDetected => 'hr',
             self::EscalationCreated, self::EscalationUpdated, self::EscalationResolved => 'escalation',
-            self::AnnouncementPublished, self::System, self::DataIssue => 'system',
+            self::AnnouncementPublished, self::System, self::DataIssue, self::MessageReceived => 'system',
         };
     }
 }

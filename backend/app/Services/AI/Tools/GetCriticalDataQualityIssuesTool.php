@@ -37,7 +37,7 @@ class GetCriticalDataQualityIssuesTool implements AiToolInterface
 
     public function execute(array $params, User $user): array
     {
-        $limit = min((int)($params['limit'] ?? 10), 20);
+        $limit = min((int) ($params['limit'] ?? 10), 20);
         $filters = [
             'severity' => DataQualityIssueSeverity::CRITICAL->value,
             'status' => DataQualityIssueStatus::OPEN->value,

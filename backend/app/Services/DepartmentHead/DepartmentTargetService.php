@@ -2,10 +2,8 @@
 
 namespace App\Services\DepartmentHead;
 
-use App\Models\Department;
 use App\Models\DepartmentTarget;
 use App\Models\Employee;
-use App\Models\Task;
 use App\Models\TaskAssignment;
 use App\Models\User;
 use Carbon\Carbon;
@@ -29,18 +27,18 @@ class DepartmentTargetService
 
         if ($targets->isEmpty()) {
             // Provide a default annual target if table is empty
-$targets = collect([
-                (object)[
+            $targets = collect([
+                (object) [
                     'id' => 1,
                     'target_name' => 'Annual Academic & Operational Deliverables',
                     'target_description' => 'Complete all scheduled departmental deliverables, student reports, and curriculum updates for the academic year.',
                     'target_value' => max(10, $totalCount),
                     'end_date' => '2027-05-31',
-                ]
+                ],
             ]);
         }
 
-return $targets->map(function ($t) use ($completedCount, $totalCount) {
+        return $targets->map(function ($t) use ($completedCount) {
             $val = max(1, (int) ($t->target_value ?? 10));
             $completed = min($val, $completedCount);
             $progress = round(($completed / $val) * 100, 1);

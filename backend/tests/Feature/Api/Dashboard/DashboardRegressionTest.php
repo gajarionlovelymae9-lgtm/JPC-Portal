@@ -80,11 +80,20 @@ class DashboardRegressionTest extends TestCase
     {
         $this->login($this->hrUser());
 
+        // The old payload was a flat bag of keys whose `overdue_tasks` was
+        // really just "open work in assigned/in_progress/submitted", so the
+        // number could not be compared with the other dashboards. It is now
+        // grouped like the Admin KPI block and counts genuinely overdue
+        // assignments by effective deadline.
         $this->getJson('/api/v1/hr/dashboard')
             ->assertOk()
             ->assertJsonPath('success', true)
             ->assertJsonStructure(['data' => [
-                'total_employees', 'active_employees', 'departments',
+                'employees' => ['total', 'active', 'inactive', 'departments'],
+                'tasks' => ['total', 'completed', 'pending', 'overdue'],
+                'reports' => ['total', 'submitted', 'pending', 'late', 'approved', 'revision_required', 'rejected'],
+                'kpi' => ['completion_rate', 'on_time_rate', 'approval_rate'],
+                'trends' => ['reports', 'tasks'],
             ]]);
     }
 

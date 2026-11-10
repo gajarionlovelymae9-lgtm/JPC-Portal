@@ -119,7 +119,7 @@ export default function ReportAiReviewPage() {
             <span>⚖️</span> Side-by-Side Review Workspace
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Evaluate AI-generated observations against submission requirements and make the final validation decision.
+            Evaluate JPC AIDE-generated observations against submission requirements and make the final validation decision.
           </p>
         </div>
 
@@ -127,7 +127,7 @@ export default function ReportAiReviewPage() {
           onClick={() => navigate(`/reports/${reportId}/analysis`)}
           className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold text-xs rounded-xl transition-colors"
         >
-          View Full AI Hub →
+          View Full JPC AIDE Analysis →
         </button>
       </div>
 

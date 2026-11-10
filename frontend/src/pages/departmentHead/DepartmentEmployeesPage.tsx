@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getDepartmentEmployees } from '../../services/departmentHeadService'
+import { getDepartmentDashboard, getDepartmentEmployees } from '../../services/departmentHeadService'
 import type { DepartmentEmployee } from '../../services/departmentHeadService'
+import { getAdminDepartments } from '../../services/adminPortalService'
+import { SearchableSelect, type SearchableOption } from '../../components/common/SearchableSelect'
+import { useAuth } from '../../auth/useAuth'
 
 export default function DepartmentEmployeesPage() {
   const [employees, setEmployees] = useState<DepartmentEmployee[]>([])
@@ -9,15 +12,33 @@ export default function DepartmentEmployeesPage() {
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [departmentFilter, setDepartmentFilter] = useState('')
+  const [departmentOptions, setDepartmentOptions] = useState<SearchableOption[]>([])
   const navigate = useNavigate()
+  const { user } = useAuth()
+
+  // Administrators cover every department, so they get the full list to choose
+  // from. A department head only ever sees their own, which the API returns.
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      getAdminDepartments()
+        .then(res => setDepartmentOptions(res.data.map(d => ({ value: d.id, label: d.name, hint: d.code }))))
+        .catch(() => setDepartmentOptions([]))
+      return
+    }
+
+    getDepartmentDashboard()
+      .then(res => setDepartmentOptions([{ value: res.data.department.id, label: res.data.department.name, hint: res.data.department.code }]))
+      .catch(() => setDepartmentOptions([]))
+  }, [user?.role])
 
   useEffect(() => {
     setLoading(true)
-    getDepartmentEmployees({ search, status: statusFilter })
+    getDepartmentEmployees({ search, status: statusFilter, department_id: departmentFilter || undefined })
       .then(res => setEmployees(res.data))
       .catch(() => setError('Failed to load department employees.'))
       .finally(() => setLoading(false))
-  }, [search, statusFilter])
+  }, [search, statusFilter, departmentFilter])
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -47,6 +68,15 @@ export default function DepartmentEmployeesPage() {
           <option value="on_leave">On Leave</option>
           <option value="inactive">Inactive</option>
         </select>
+        <div className="sm:w-72">
+          <SearchableSelect
+            value={departmentFilter}
+            onChange={setDepartmentFilter}
+            options={departmentOptions}
+            placeholder="All departments"
+            emptyMessage="No department matches that search."
+          />
+        </div>
       </div>
 
       {error && <div className="bg-red-50 text-red-700 p-4 rounded-xl border border-red-200">{error}</div>}

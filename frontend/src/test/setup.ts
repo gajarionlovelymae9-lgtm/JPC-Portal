@@ -19,3 +19,9 @@ Object.defineProperty(window, 'matchMedia', {
     dispatchEvent: vi.fn(),
   })),
 })
+
+// jsdom does not implement Element.scrollIntoView; components that auto-scroll
+// (chat threads, AI assistants) call it on mount.
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = vi.fn()
+}

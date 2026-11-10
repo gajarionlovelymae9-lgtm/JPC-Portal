@@ -2,7 +2,6 @@
 
 namespace App\Services\DepartmentHead;
 
-use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Report;
 use App\Models\TaskAssignment;
@@ -22,16 +21,16 @@ class DepartmentEmployeeService
         $query = Employee::where('department_id', $department->id)
             ->with(['position:id,name', 'user:id,email,status']);
 
-        if (!empty($filters['status']) && $filters['status'] !== 'all') {
+        if (! empty($filters['status']) && $filters['status'] !== 'all') {
             $query->where('employment_status', $filters['status']);
         }
 
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%")
-                  ->orWhere('employee_number', 'like', "%{$search}%");
+                    ->orWhere('last_name', 'like', "%{$search}%")
+                    ->orWhere('employee_number', 'like', "%{$search}%");
             });
         }
 
@@ -52,7 +51,7 @@ class DepartmentEmployeeService
                 'employee_number' => $emp->employee_number,
                 'first_name' => $emp->first_name,
                 'last_name' => $emp->last_name,
-                'full_name' => $emp->first_name . ' ' . $emp->last_name,
+                'full_name' => $emp->first_name.' '.$emp->last_name,
                 'position' => $emp->position?->name ?? 'Faculty',
                 'employment_status' => $emp->employment_status,
                 'email' => $emp->user?->email,
@@ -76,7 +75,7 @@ class DepartmentEmployeeService
             'department:id,name',
         ]);
 
-$assignments = TaskAssignment::where('employee_id', $employee->id)
+        $assignments = TaskAssignment::where('employee_id', $employee->id)
             ->with('task:id,title,due_date,priority')
             ->orderBy('created_at', 'desc')
             ->get();
@@ -90,10 +89,11 @@ $assignments = TaskAssignment::where('employee_id', $employee->id)
         $completedTasks = $assignments->whereIn('status', ['completed', 'approved'])->count();
         $pendingTasks = $assignments->whereIn('status', ['assigned', 'in_progress'])->count();
 
-$now = Carbon::now();
-        $overdueTasks = $assignments->filter(function ($a) use ($now) {
+        $now = Carbon::now();
+        $overdueTasks = $assignments->filter(function ($a) {
             $deadline = $a->due_date ?? $a->task?->due_date;
-            return $deadline && Carbon::parse($deadline)->isPast() && !in_array($a->status, ['completed', 'approved']);
+
+            return $deadline && Carbon::parse($deadline)->isPast() && ! in_array($a->status, ['completed', 'approved']);
         })->count();
 
         $completionRate = $totalTasks > 0 ? round(($completedTasks / $totalTasks) * 100, 1) : 0;
@@ -103,7 +103,7 @@ $now = Carbon::now();
             'employee_number' => $employee->employee_number,
             'first_name' => $employee->first_name,
             'last_name' => $employee->last_name,
-            'full_name' => $employee->first_name . ' ' . $employee->last_name,
+            'full_name' => $employee->first_name.' '.$employee->last_name,
             'department_name' => $employee->department?->name,
             'position_name' => $employee->position?->name ?? 'Faculty',
             'employment_status' => $employee->employment_status,
@@ -120,7 +120,7 @@ $now = Carbon::now();
                 'reports_submitted' => $reports->count(),
                 'completion_rate' => $completionRate,
             ],
-'assignments' => $assignments->map(fn ($a) => [
+            'assignments' => $assignments->map(fn ($a) => [
                 'id' => $a->id,
                 'task_id' => $a->task_id,
                 'task_title' => $a->task?->title ?? '—',

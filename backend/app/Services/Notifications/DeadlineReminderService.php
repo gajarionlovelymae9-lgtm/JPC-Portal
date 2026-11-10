@@ -5,7 +5,6 @@ namespace App\Services\Notifications;
 use App\Enums\NotificationEvent;
 use App\Models\Notification;
 use App\Models\TaskAssignment;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -122,7 +121,7 @@ class DeadlineReminderService
                     'user_id' => $target->user_id,
                     'type' => NotificationEvent::TargetAtRisk->value,
                     'title' => 'Target Milestone Approaching',
-                    'message' => "Target \"{$target->title}\" is due on " . ($target->end_date ?? 'approaching period') . ".",
+                    'message' => "Target \"{$target->title}\" is due on ".($target->end_date ?? 'approaching period').'.',
                     'priority' => 'high',
                     'task_id' => $target->id,
                     'reminder_days' => -2,

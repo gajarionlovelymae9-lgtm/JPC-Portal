@@ -9,6 +9,9 @@
 .env
 .env.backup
 .env.production
+# Timestamped env backups (created when troubleshooting) contain APP_KEY/DB creds.
+.env.bak-*
+.env.example.bak-*
 .phpactor.json
 .phpunit.result.cache
 Homestead.json

@@ -6,6 +6,7 @@ import {
   downloadReportExportFile,
   listReportExports,
   queueReportExport,
+  retryReportExport,
 } from '../../services/reportingService'
 import type { ReportExportTypeValue } from '../../types/reporting'
 import { getApiErrorMessage } from '../../utils/apiError'
@@ -44,6 +45,7 @@ export function ReportExportsPage() {
   const [queueing, setQueueing] = useState(false)
   const [downloadError, setDownloadError] = useState<string | null>(null)
   const [downloadId, setDownloadId] = useState<number | null>(null)
+  const [retryId, setRetryId] = useState<number | null>(null)
 
   const exports = useReportingResource(
     useCallback(() => listReportExports(), []),
@@ -51,18 +53,29 @@ export function ReportExportsPage() {
     'Unable to load your exports.',
   )
 
+  const exportsData = exports.data
+  const refreshExports = exports.refresh
+
   useEffect(() => {
-    const hasPending = (exports.data ?? []).some((item) =>
-      ['queued', 'processing'].includes(item.status),
+    const hasPending = (exportsData ?? []).some((item) =>
+      ['QUEUED', 'PROCESSING'].includes(item.status),
     )
     if (!hasPending) {
       return undefined
     }
+    // Depending on the whole state object re-ran this effect on every render
+    // (the hook returns a fresh object literal each time), tearing down and
+    // rebuilding the interval twice per poll. Depend on the stable `refresh`
+    // callback plus the data we actually read, and skip background polls
+    // while the tab is hidden so a parked tab cannot burn the rate limiter.
     const timer = window.setInterval(() => {
-      exports.refresh()
+      if (document.hidden) {
+        return
+      }
+      refreshExports()
     }, 4000)
     return () => window.clearInterval(timer)
-  }, [exports])
+  }, [exportsData, refreshExports])
 
   async function handleQueue() {
     setQueueing(true)
@@ -90,12 +103,25 @@ export function ReportExportsPage() {
     }
   }
 
+  async function handleRetry(id: number) {
+    setDownloadError(null)
+    setRetryId(id)
+    try {
+      await retryReportExport(id)
+      exports.refresh()
+    } catch (cause: unknown) {
+      setDownloadError(getApiErrorMessage(cause, 'The retry failed.'))
+    } finally {
+      setRetryId(null)
+    }
+  }
+
   const rowCount = (exports.data ?? []).length
 
   return (
     <div className="page">
       <ReportingIntro title="Report exports">
-        Queue nine Phase 9 report types as CSV, XLSX or PDF, then download the completed files.
+        Generate and download institutional reports in CSV, Excel, or PDF format for performance monitoring and management review.
       </ReportingIntro>
 
       <ReportSection title="Request a new export">
@@ -167,7 +193,7 @@ export function ReportExportsPage() {
                     <td data-label="Size">{formatBytes(item.file_size)}</td>
                     <td data-label="Requested">{item.requested_at ?? '—'}</td>
                     <td data-label="Action">
-                      {item.status === 'completed' ? (
+                      {item.status === 'COMPLETED' ? (
                         <button
                           type="button"
                           className="button button--small"
@@ -176,8 +202,17 @@ export function ReportExportsPage() {
                         >
                           {downloadId === item.id ? 'Downloading…' : 'Download'}
                         </button>
+                      ) : item.status === 'FAILED' ? (
+                        <button
+                          type="button"
+                          className="button button--small"
+                          disabled={retryId === item.id}
+                          onClick={() => void handleRetry(item.id)}
+                        >
+                          {retryId === item.id ? 'Re-queuing…' : 'Retry'}
+                        </button>
                       ) : (
-                        <span className="task-badge">{item.status.replaceAll('_', ' ')}</span>
+                        <span className="task-badge">{item.status.toLowerCase().replaceAll('_', ' ')}</span>
                       )}
                     </td>
                   </tr>

@@ -3,6 +3,12 @@
 How the **Department Head** role manages their department's tasks, reports and
 performance.
 
+> **Consolidated guide:** the management workflows for Admin, HR and Department
+> Heads are now covered together in
+> [`user-guides/management-guide.md`](user-guides/management-guide.md). This
+> page keeps the department-head quick reference below and is maintained
+> alongside it.
+
 > Demo account: `departmenthead@jpc.local` / `P@ssw0rd2026` (dev only).
 
 > **Key principle:** AI **assists** the reviewer — it summarizes, flags possible

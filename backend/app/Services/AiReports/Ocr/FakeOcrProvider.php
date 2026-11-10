@@ -101,7 +101,7 @@ TEXT,
         }
 
         if (Str::contains(strtolower((string) $file->original_filename), ['ref', 'reference'], false)) {
-            $body .= " References: John Doe (2025), Jane Smith (2024) and https://jpc.edu.ph/reporting-guidelines are cited. [REFERENCE_CITED]";
+            $body .= ' References: John Doe (2025), Jane Smith (2024) and https://jpc.edu.ph/reporting-guidelines are cited. [REFERENCE_CITED]';
         }
 
         return trim($body);

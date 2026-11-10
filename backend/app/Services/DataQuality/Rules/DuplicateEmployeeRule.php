@@ -35,7 +35,7 @@ class DuplicateEmployeeRule implements DataQualityRuleInterface
 
     public function check(mixed $entity): ?array
     {
-        if (!($entity instanceof Employee)) {
+        if (! ($entity instanceof Employee)) {
             return null;
         }
 

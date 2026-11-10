@@ -5,6 +5,7 @@ import type { DataQualityIssue } from '../../types/dataQuality'
 import { DataQualityIssueTable } from '../../components/DataQuality/DataQualityIssueTable'
 import { DataQualityIssueFilters } from '../../components/DataQuality/DataQualityIssueFilters'
 import { dataQualityService } from '../../services/dataQuality/dataQualityService'
+import { getApiErrorMessage } from '../../utils/apiError'
 
 export const DataQualityIssuesPage: React.FC = () => {
   const {
@@ -15,13 +16,20 @@ export const DataQualityIssuesPage: React.FC = () => {
     error,
   } = useDataQualityIssues()
   const navigate = useNavigate()
+  const [exporting, setExporting] = React.useState(false)
+  const [exportError, setExportError] = React.useState<string | null>(null)
 
   const handleSelect = (issue: DataQualityIssue) => {
     navigate(`/data-quality/issues/${issue.id}`)
   }
 
   const handleExport = () => {
-    window.location.href = dataQualityService.getExportUrl(filters)
+    setExporting(true)
+    setExportError(null)
+    dataQualityService
+      .downloadExport({ ...filters })
+      .catch((cause: unknown) => setExportError(getApiErrorMessage(cause, 'The CSV export could not be generated.')))
+      .finally(() => setExporting(false))
   }
 
   return (
@@ -43,11 +51,15 @@ export const DataQualityIssuesPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
+          {exportError ? (
+            <span className="text-xs font-semibold text-red-600" role="alert">{exportError}</span>
+          ) : null}
           <button
             onClick={handleExport}
-            className="px-4 py-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-semibold rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm transition-colors"
+            disabled={exporting}
+            className="px-4 py-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-semibold rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm transition-colors disabled:opacity-60"
           >
-            Export CSV
+            {exporting ? 'Exporting…' : 'Export CSV'}
           </button>
         </div>
       </div>

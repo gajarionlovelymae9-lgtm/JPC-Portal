@@ -54,11 +54,19 @@ return new class extends Migration
                 ->cascadeOnUpdate();
         });
 
-        DB::statement(
-            "UPDATE tasks
-             SET task_code = CONCAT('TASK-', YEAR(COALESCE(created_at, NOW())), '-', LPAD(id, 4, '0'))
-             WHERE task_code IS NULL",
-        );
+        if (DB::getDriverName() === 'sqlite') {
+            DB::statement(
+                "UPDATE tasks
+                 SET task_code = 'TASK-' || strftime('%Y', COALESCE(created_at, 'now')) || '-' || printf('%04d', id)
+                 WHERE task_code IS NULL",
+            );
+        } else {
+            DB::statement(
+                "UPDATE tasks
+                 SET task_code = CONCAT('TASK-', YEAR(COALESCE(created_at, NOW())), '-', LPAD(id, 4, '0'))
+                 WHERE task_code IS NULL",
+            );
+        }
 
         Schema::table('tasks', function (Blueprint $table) {
             $table->unique('task_code');

@@ -6,6 +6,7 @@ import { TaskSummaryCards } from '../../components/tasks/TaskSummaryCards'
 import { useReportingPeriod, useReportingResource } from '../../hooks/useReporting'
 import { getDataQualityReport } from '../../services/reportingService'
 import { toNumber } from '../../utils/task'
+import { toCategoryRows } from './hub/hubShared'
 
 /** Phase 9 — Data quality report (spec items 19, 55, endpoint #14). */
 export function DataQualityReportPage() {
@@ -87,7 +88,7 @@ export function DataQualityReportPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.by_category.map((row) => (
+                    {toCategoryRows(data.by_category).map((row) => (
                       <tr key={row.label}>
                         <td data-label="Category">{row.label}</td>
                         <td data-label="Count">{row.count}</td>
@@ -107,7 +108,7 @@ export function DataQualityReportPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.by_department.map((row) => (
+                    {toCategoryRows(data.by_department).map((row) => (
                       <tr key={row.label}>
                         <td data-label="Department">{row.label}</td>
                         <td data-label="Count">{row.count}</td>

@@ -79,6 +79,7 @@ export interface TaskAssignment {
   employee_id: number
   employee?: TaskEmployee
   status: AssignmentStatus
+  latest_review_decision?: string | null
   assigned_at: string | null
   accepted_at: string | null
   due_date: string | null
@@ -87,6 +88,35 @@ export interface TaskAssignment {
   completion_percentage: number | string | null
   remarks: string | null
   is_overdue: boolean
+  /** Versioned submission history, newest first when returned by the list endpoint. */
+  submissions?: TaskSubmission[]
+}
+
+/** The four ways an employee can hand in work. */
+export type SubmissionMethod = 'upload' | 'link' | 'folder' | 'written'
+
+export interface TaskAttachment {
+  id: number
+  file_name: string
+  mime_type: string | null
+  file_size: number | null
+  download_url: string
+  uploaded_at: string | null
+}
+
+export interface TaskSubmission {
+  id: number
+  task_id: number
+  task_assignment_id: number
+  submitted_by: number
+  submitted_by_name?: string | null
+  method: SubmissionMethod | string
+  url: string | null
+  written_response: string | null
+  notes: string | null
+  version: number
+  submitted_at: string | null
+  attachments: TaskAttachment[]
 }
 
 export interface Task {
@@ -220,6 +250,11 @@ export interface CreateTaskPayload {
   start_date?: string | null
   estimated_hours?: number | null
   annual_plan_id?: number | null
+  required_output?: string | null
+  target_value?: number | null
+  target_unit?: string | null
+  /** Employees to assign in the same transaction as the task creation. */
+  assigned_employee_ids?: number[]
 }
 
 export interface UpdateTaskPayload {
@@ -231,6 +266,9 @@ export interface UpdateTaskPayload {
   due_date?: string
   estimated_hours?: number | null
   annual_plan_id?: number | null
+  required_output?: string | null
+  target_value?: number | null
+  target_unit?: string | null
 }
 
 export interface AssignTaskPayload {
@@ -247,6 +285,18 @@ export interface UpdateTaskProgressPayload {
 export interface ReviewTaskPayload {
   decision: ReviewDecision
   remarks: string
+}
+
+/**
+ * Content for a Submit Task action. The service converts this into multipart
+ * FormData so files travel with the selected method and optional notes.
+ */
+export interface SubmitTaskPayload {
+  method: SubmissionMethod
+  notes?: string | null
+  url?: string | null
+  writtenResponse?: string | null
+  files?: File[]
 }
 
 /** Presentation model consumed by `TaskTimeline`. */

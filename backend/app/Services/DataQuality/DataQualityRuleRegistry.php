@@ -31,20 +31,20 @@ class DataQualityRuleRegistry
     private function registerDefaultRules(): void
     {
         $rules = [
-            new EmployeeRequiredFieldsRule(),
-            new DuplicateEmployeeRule(),
-            new InvalidDepartmentRule(),
-            new TaskAssignmentRule(),
-            new TaskDateRule(),
-            new TargetConsistencyRule(),
-            new ReportAssignmentRule(),
-            new ReportDateRule(),
-            new ReportStatusRule(),
-            new DuplicateReportRule(),
-            new PerformanceConsistencyRule(),
-            new AchievementConsistencyRule(),
-            new OcrQualityRule(),
-            new OrphanRecordRule(),
+            new EmployeeRequiredFieldsRule,
+            new DuplicateEmployeeRule,
+            new InvalidDepartmentRule,
+            new TaskAssignmentRule,
+            new TaskDateRule,
+            new TargetConsistencyRule,
+            new ReportAssignmentRule,
+            new ReportDateRule,
+            new ReportStatusRule,
+            new DuplicateReportRule,
+            new PerformanceConsistencyRule,
+            new AchievementConsistencyRule,
+            new OcrQualityRule,
+            new OrphanRecordRule,
         ];
 
         foreach ($rules as $rule) {

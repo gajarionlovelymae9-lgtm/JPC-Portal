@@ -35,7 +35,7 @@ class OcrQualityRule implements DataQualityRuleInterface
 
     public function check(mixed $entity): ?array
     {
-        if (!($entity instanceof Report)) {
+        if (! ($entity instanceof Report)) {
             return null;
         }
 
@@ -46,7 +46,7 @@ class OcrQualityRule implements DataQualityRuleInterface
                 'issue_type' => DataQualityIssueType::OCR_FAILED,
                 'severity' => $this->getSeverity(),
                 'title' => "Report #{$entity->id} encountered OCR extraction failure",
-                'description' => "Automated document text extraction failed. File may require re-scanning or manual review.",
+                'description' => 'Automated document text extraction failed. File may require re-scanning or manual review.',
                 'detected_value' => ['ocr_status' => 'failed'],
                 'expected_value' => ['ocr_status' => 'completed'],
                 'department_id' => $entity->department_id,

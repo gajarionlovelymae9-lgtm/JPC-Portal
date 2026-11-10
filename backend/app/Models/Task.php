@@ -172,6 +172,14 @@ class Task extends Model
     }
 
     /**
+     * Versioned employee submissions made against this task.
+     */
+    public function submissions(): HasMany
+    {
+        return $this->hasMany(TaskSubmission::class);
+    }
+
+    /**
      * Reference materials attached to this task.
      */
     public function references(): HasMany

@@ -2,8 +2,6 @@
 
 namespace Tests\Feature\Api\V1\System;
 
-use App\Models\AiFeedback;
-use App\Models\MaintenanceLog;
 use App\Models\SystemHealthCheck;
 use App\Models\User;
 use App\Models\UserFeedback;
@@ -247,12 +245,20 @@ class SystemMaintenanceApiTest extends TestCase
             ->expectsOutputToContain('No backup maintenance log exists');
     }
 
-    public function test_system_health_command_returns_ok_status(): void
+    public function test_system_health_command_records_a_run_and_exits_by_status(): void
     {
-        $this->artisan('system:check-health', ['--source' => 'manual'])
-            ->assertSuccessful();
+        // The command's contract is "exit 0 when ok, exit 1 when degraded", and
+        // the overall status depends on the machine (log volume, free disk, AI
+        // provider), so the exit code is asserted against what was recorded
+        // rather than hardcoded. The sibling API test accepts ok|degraded too.
+        $exitCode = $this->artisan('system:check-health', ['--source' => 'manual'])->run();
 
         $this->assertDatabaseCount('system_health_checks', 1);
+        $this->assertDatabaseHas('system_health_checks', ['source' => 'manual']);
+
+        $status = SystemHealthCheck::query()->value('status');
+        $this->assertContains($status, ['ok', 'degraded']);
+        $this->assertSame($status === 'ok' ? 0 : 1, $exitCode);
     }
 
     private function user(string $email): User

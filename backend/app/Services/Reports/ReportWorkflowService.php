@@ -12,16 +12,10 @@ use App\Models\ReportTimeline;
 use App\Models\Task;
 use App\Models\TaskAssignment;
 use App\Models\User;
-use App\Notifications\Reports\ReportApprovedNotification;
-use App\Notifications\Reports\ReportReadyForReviewNotification;
-use App\Notifications\Reports\ReportRejectedNotification;
-use App\Notifications\Reports\ReportRevisionRequiredNotification;
-use App\Notifications\Reports\ReportSubmittedNotification;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
@@ -33,17 +27,54 @@ class ReportWorkflowService
     ) {}
 
     /**
+     * The deadline a report is measured against.
+     *
+     * The report's own `deadline` wins; otherwise the parent task's `due_date`.
+     * This is the single definition of an "effective deadline" for reports and
+     * it matches the rule the dashboards use for overdue task assignments
+     * (`task_assignments.due_date` falling back to `tasks.due_date`).
+     */
+    public function effectiveDeadline(?Report $report, ?Task $task = null): ?Carbon
+    {
+        $deadline = $report?->deadline ?? $task?->due_date;
+
+        if ($deadline === null) {
+            return null;
+        }
+
+        return $deadline instanceof Carbon ? $deadline->copy() : Carbon::parse($deadline);
+    }
+
+    /**
+     * Whether a submission arrived after its effective deadline.
+     *
+     * Judged against the actual submission timestamp rather than `now()`, so a
+     * report that was handed in on time is not retroactively marked late just
+     * because it sat in the review queue.
+     */
+    private function submittedLate(?Carbon $submittedAt, ?Report $report, ?Task $task = null): bool
+    {
+        if ($submittedAt === null) {
+            return false;
+        }
+
+        $deadline = $this->effectiveDeadline($report, $task);
+
+        return $deadline !== null && $submittedAt->gt($deadline);
+    }
+
+    /**
      * Create a new Report Draft for an employee.
      */
     public function createDraft(User $user, array $data, ?UploadedFile $file = null): Report
     {
         $employee = $user->employee;
-        if (!$employee && $user->roleName() === 'employee') {
+        if (! $employee && $user->roleName() === 'employee') {
             throw new AccessDeniedHttpException('No employee record associated with this account.');
         }
 
         $employeeId = $data['employee_id'] ?? $employee?->id;
-        if (!$employeeId) {
+        if (! $employeeId) {
             throw new UnprocessableEntityHttpException('Employee ID is required.');
         }
 
@@ -51,10 +82,9 @@ class ReportWorkflowService
         $task = Task::findOrFail($data['task_id']);
 
         return DB::transaction(function () use ($user, $data, $employeeId, $task, $file) {
+            // A draft is not a submission, so there is no submission timestamp
+            // to judge lateness against yet — `submit()` decides this.
             $isLate = false;
-            if ($task->deadline && Carbon::now()->gt(Carbon::parse($task->deadline))) {
-                $isLate = true;
-            }
 
             $report = Report::create([
                 'task_id' => $task->id,
@@ -118,10 +148,9 @@ class ReportWorkflowService
 
         return DB::transaction(function () use ($user, $report, $data, $file) {
             $task = $report->task;
-            $isLate = $report->is_late;
-            if ($task && $task->deadline && Carbon::now()->gt(Carbon::parse($task->deadline))) {
-                $isLate = true;
-            }
+            // Lateness is a property of the submission, so an edit to the draft
+            // must not flip the flag — only `submit()`/`submitRevision()` do.
+            $isLate = (bool) $report->is_late;
 
             $report->update([
                 'title' => $data['title'] ?? $report->title,
@@ -177,10 +206,8 @@ class ReportWorkflowService
 
         return DB::transaction(function () use ($user, $report, $notes, $file) {
             $task = $report->task;
-            $isLate = false;
-            if ($task && $task->deadline && Carbon::now()->gt(Carbon::parse($task->deadline))) {
-                $isLate = true;
-            }
+            $submittedAt = Carbon::now();
+            $isLate = $this->submittedLate($submittedAt, $report, $task);
 
             $filePath = null;
             if ($file) {
@@ -197,7 +224,7 @@ class ReportWorkflowService
 
             $report->update([
                 'status' => ReportStatus::Submitted,
-                'submitted_at' => Carbon::now(),
+                'submitted_at' => $submittedAt,
                 'is_late' => $isLate,
                 'ai_status' => 'processing',
             ]);
@@ -217,7 +244,7 @@ class ReportWorkflowService
                 'actor_id' => $user->id,
                 'event_type' => 'submitted',
                 'title' => 'Report Submitted',
-                'description' => "{$user->name} submitted report (v{$report->version}) for review." . ($isLate ? ' [LATE SUBMISSION]' : ''),
+                'description' => "{$user->name} submitted report (v{$report->version}) for review.".($isLate ? ' [LATE SUBMISSION]' : ''),
                 'metadata' => [
                     'version' => $report->version ?? 1,
                     'is_late' => $isLate,
@@ -267,7 +294,7 @@ class ReportWorkflowService
             ]);
 
             // Create review comments if provided
-            if (!empty($comments)) {
+            if (! empty($comments)) {
                 foreach ($comments as $c) {
                     $this->reviewService->addComment($reviewer, $report, [
                         'section_key' => $c['section_key'] ?? 'general',
@@ -327,10 +354,11 @@ class ReportWorkflowService
             $newVersionNumber = ($report->version ?? 1) + 1;
 
             $task = $report->task;
-            $isLate = false;
-            if ($task && $task->deadline && Carbon::now()->gt(Carbon::parse($task->deadline))) {
-                $isLate = true;
-            }
+            $submittedAt = Carbon::now();
+            // Lateness is sticky: once a submission missed its deadline, a later
+            // revision cannot un-late the report.
+            $isLate = (bool) $report->is_late
+                || $this->submittedLate($submittedAt, $report, $task);
 
             $filePath = null;
             if ($file) {
@@ -352,7 +380,7 @@ class ReportWorkflowService
                 'remarks' => array_key_exists('remarks', $data) ? $data['remarks'] : $report->remarks,
                 'version' => $newVersionNumber,
                 'status' => ReportStatus::Resubmitted,
-                'submitted_at' => Carbon::now(),
+                'submitted_at' => $submittedAt,
                 'is_late' => $isLate,
                 'ai_status' => 'processing',
             ]);
@@ -466,7 +494,7 @@ class ReportWorkflowService
                     'user_id' => $report->employee->user->id,
                     'type' => 'approval',
                     'title' => "Report Approved: {$report->title}",
-                    'message' => $comments ?: "Congratulations! Your report has been approved.",
+                    'message' => $comments ?: 'Congratulations! Your report has been approved.',
                 ]);
             }
 
@@ -548,7 +576,7 @@ class ReportWorkflowService
                 'actor_id' => $user->id,
                 'event_type' => 'cancelled',
                 'title' => 'Report Cancelled',
-                'description' => "{$user->name} cancelled the report." . ($reason ? " Reason: {$reason}" : ''),
+                'description' => "{$user->name} cancelled the report.".($reason ? " Reason: {$reason}" : ''),
                 'metadata' => ['reason' => $reason],
             ]);
 
@@ -592,14 +620,14 @@ class ReportWorkflowService
     /**
      * Validate report status helper.
      *
-     * @param list<ReportStatus> $allowedStatuses
+     * @param  list<ReportStatus>  $allowedStatuses
      */
     protected function assertStatus(Report $report, array $allowedStatuses, string $message): void
     {
         $current = $report->status instanceof ReportStatus ? $report->status : ReportStatus::tryFrom((string) $report->status);
 
-        if (!in_array($current, $allowedStatuses, true)) {
-            throw new UnprocessableEntityHttpException($message . " Current status is: " . ($current?->value ?? (string)$report->status));
+        if (! in_array($current, $allowedStatuses, true)) {
+            throw new UnprocessableEntityHttpException($message.' Current status is: '.($current?->value ?? (string) $report->status));
         }
     }
 }

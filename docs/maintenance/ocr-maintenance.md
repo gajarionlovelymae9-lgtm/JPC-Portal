@@ -11,7 +11,9 @@ Operational guidance for OCR document processing (report file uploads →
 2. **System must stay usable when OCR is unavailable.** `OCR_PROVIDER=fake`
    (offline engine) is the default; provider outages degrade health status but
    never block report submission.
-3. Files are stored on the private disk (`storage/app/private/reports/`) and
+3. Files are stored on the private disk
+   (`storage/app/private/private/reports/` — double `private` nesting, see the
+   storage note in [`../BACKUP_AND_RESTORE.md`](../BACKUP_AND_RESTORE.md) §1) and
    never exposed outside authorized download routes.
 
 ## Monitoring

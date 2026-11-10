@@ -7,8 +7,8 @@ use App\Models\Employee;
 use App\Models\Report;
 use App\Models\Task;
 use App\Models\User;
-use Illuminate\Http\Exceptions\HttpResponseException;
 use App\Support\ApiResponse;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Symfony\Component\HttpFoundation\Response;
 
 class DepartmentHeadContextService
@@ -22,13 +22,14 @@ class DepartmentHeadContextService
             if ($explicitDepartmentId) {
                 return Department::findOrFail($explicitDepartmentId);
             }
+
             return Department::firstOrFail();
         }
 
         $employee = $user->employee;
         if (! $employee || ! $employee->department_id) {
             throw new HttpResponseException(
-                ApiResponse::error('You are not assigned to any department.', Response::HTTP_FORBIDDEN)
+                ApiResponse::error('You are not assigned to any department.', status: Response::HTTP_FORBIDDEN)
             );
         }
 
@@ -42,7 +43,7 @@ class DepartmentHeadContextService
     {
         if ($employee->department_id !== $department->id) {
             throw new HttpResponseException(
-                ApiResponse::error('Employee does not belong to your department.', Response::HTTP_FORBIDDEN)
+                ApiResponse::error('Employee does not belong to your department.', status: Response::HTTP_FORBIDDEN)
             );
         }
     }
@@ -54,7 +55,7 @@ class DepartmentHeadContextService
     {
         if ($task->department_id && $task->department_id !== $department->id) {
             throw new HttpResponseException(
-                ApiResponse::error('Task does not belong to your department.', Response::HTTP_FORBIDDEN)
+                ApiResponse::error('Task does not belong to your department.', status: Response::HTTP_FORBIDDEN)
             );
         }
     }
@@ -67,7 +68,7 @@ class DepartmentHeadContextService
         $reportEmployee = $report->employee ?? Employee::find($report->employee_id);
         if (! $reportEmployee || $reportEmployee->department_id !== $department->id) {
             throw new HttpResponseException(
-                ApiResponse::error('Report does not belong to your department.', Response::HTTP_FORBIDDEN)
+                ApiResponse::error('Report does not belong to your department.', status: Response::HTTP_FORBIDDEN)
             );
         }
     }

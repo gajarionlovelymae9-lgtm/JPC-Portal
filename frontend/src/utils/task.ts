@@ -8,12 +8,15 @@
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Draft',
   assigned: 'Assigned',
+  not_started: 'Not Started',
   accepted: 'Accepted',
   in_progress: 'In Progress',
   submitted: 'Submitted',
   under_review: 'Under Review',
   completed: 'Completed',
+  approved: 'Approved',
   rejected: 'Rejected',
+  revision_requested: 'Revision Requested',
   cancelled: 'Cancelled',
 }
 

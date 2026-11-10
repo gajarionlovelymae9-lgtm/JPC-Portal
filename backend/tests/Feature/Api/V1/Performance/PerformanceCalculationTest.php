@@ -17,6 +17,8 @@ use App\Models\Task;
 use App\Models\TaskAssignment;
 use App\Models\User;
 use App\Services\Performance\PerformanceSnapshotService;
+use Database\Seeders\BadgeSeeder;
+use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Laravel\Sanctum\Sanctum;
@@ -27,22 +29,31 @@ class PerformanceCalculationTest extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
+
     protected User $deptHead;
+
     protected User $employeeUser;
+
     protected User $otherEmployeeUser;
+
     protected Employee $employee;
+
     protected Employee $otherEmployee;
+
     protected Department $department;
+
     protected AcademicYear $academicYear;
+
     protected AnnualPlan $annualPlan;
+
     protected PerformancePeriod $period;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->seed(\Database\Seeders\RolePermissionSeeder::class);
-        $this->seed(\Database\Seeders\BadgeSeeder::class);
+        $this->seed(RolePermissionSeeder::class);
+        $this->seed(BadgeSeeder::class);
 
         $adminRole = Role::where('name', 'admin')->firstOrFail();
         $deptHeadRole = Role::where('name', 'department_head')->firstOrFail();
@@ -305,5 +316,141 @@ class PerformanceCalculationTest extends TestCase
         $badgesAfter = EmployeeBadge::where('employee_id', $this->employee->id)->count();
 
         $this->assertEquals($badgesBefore, $badgesAfter);
+    }
+
+    /**
+     * Test Case 6: the personal dashboard contract, period filtering and
+     * honest trend/history semantics.
+     */
+    public function test_my_performance_endpoint_returns_contract_and_filters_the_selected_period(): void
+    {
+        $august = PerformancePeriod::findOrCreateMonthly(2026, 8);
+        $september = PerformancePeriod::findOrCreateMonthly(2026, 9);
+
+        $this->seedPerformanceRecord($this->employee, $august, 70.00, [
+            'total_tasks' => 4,
+            'completed_tasks' => 3,
+            'expected_reports' => 2,
+            'submitted_reports' => 1,
+            'total_target_val' => 10,
+        ]);
+        $this->seedPerformanceRecord($this->employee, $september, 90.00, [
+            'total_tasks' => 5,
+            'completed_tasks' => 5,
+            'expected_reports' => 2,
+            'submitted_reports' => 2,
+            'total_target_val' => 10,
+        ]);
+
+        Sanctum::actingAs($this->employeeUser);
+        $response = $this->getJson('/api/v1/performance/me?year=2026&month=9');
+
+        $response->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.employee.id', $this->employee->id)
+            ->assertJsonPath('data.period.year', 2026)
+            ->assertJsonPath('data.period.month', 9)
+            ->assertJsonPath('data.productivity_score', 90)
+            ->assertJsonPath('data.has_activity', true)
+            ->assertJsonStructure([
+                'data' => [
+                    'period' => ['id', 'name', 'year', 'month', 'start_date', 'end_date'],
+                    'employee' => ['id', 'name', 'department', 'position'],
+                    'kpis' => [
+                        'task_completion_rate',
+                        'report_completion_rate',
+                        'on_time_submission_rate',
+                        'approval_rate',
+                        'target_achievement_rate',
+                    ],
+                    'productivity_score',
+                    'rating',
+                    'rating_color',
+                    'calculation_version',
+                    'breakdowns',
+                    'metadata',
+                    'has_activity',
+                    'badges',
+                    'history',
+                ],
+            ]);
+
+        // The trend only contains evaluated months (Aug & Sep), never a
+        // fabricated zero for the unevaluated months before them.
+        $response->assertJsonCount(2, 'data.history')
+            ->assertJsonPath('data.history.0.month', 8)
+            ->assertJsonPath('data.history.1.month', 9);
+    }
+
+    /**
+     * Test Case 7: /performance/me is scoped to the authenticated employee and
+     * reports an empty period without inventing activity.
+     */
+    public function test_my_performance_is_isolated_per_employee_and_reports_empty_activity(): void
+    {
+        $september = PerformancePeriod::findOrCreateMonthly(2026, 9);
+
+        $this->seedPerformanceRecord($this->employee, $september, 90.00, [
+            'total_tasks' => 5,
+            'completed_tasks' => 5,
+        ]);
+        $this->seedPerformanceRecord($this->otherEmployee, $september, 0.00, [
+            'total_tasks' => 0,
+            'completed_tasks' => 0,
+            'expected_reports' => 0,
+            'submitted_reports' => 0,
+            'total_target_val' => 0,
+        ]);
+
+        Sanctum::actingAs($this->employeeUser);
+        $this->getJson('/api/v1/performance/me?year=2026&month=9')
+            ->assertOk()
+            ->assertJsonPath('data.employee.id', $this->employee->id)
+            ->assertJsonPath('data.productivity_score', 90)
+            ->assertJsonPath('data.has_activity', true);
+
+        Sanctum::actingAs($this->otherEmployeeUser);
+        $this->getJson('/api/v1/performance/me?year=2026&month=9')
+            ->assertOk()
+            ->assertJsonPath('data.employee.id', $this->otherEmployee->id)
+            ->assertJsonPath('data.productivity_score', 0)
+            ->assertJsonPath('data.has_activity', false)
+            ->assertJsonCount(0, 'data.badges');
+    }
+
+    private function seedPerformanceRecord(
+        Employee $employee,
+        PerformancePeriod $period,
+        float $score,
+        array $metadata = [],
+    ): EmployeePerformanceRecord {
+        return EmployeePerformanceRecord::forceCreate([
+            'employee_id' => $employee->id,
+            'academic_year_id' => $this->academicYear->id,
+            'performance_period_id' => $period->id,
+            'period_type' => 'monthly',
+            'period_start' => $period->start_date,
+            'period_end' => $period->end_date,
+            'completion_rate' => 90.00,
+            'report_completion_rate' => 80.00,
+            'on_time_rate' => 70.00,
+            'approval_rate' => 60.00,
+            'target_achievement_rate' => 50.00,
+            'overall_score' => $score,
+            'productivity_score' => $score,
+            'rating' => $score >= 80 ? 'Very Good' : ($score >= 70 ? 'Good' : 'Unsatisfactory'),
+            'calculation_version' => 'v1.0',
+            'breakdown_data' => [
+                [
+                    'metric_key' => 'task_completion',
+                    'metric_label' => 'Task Completion',
+                    'raw_value' => 90.00,
+                    'weight' => 30,
+                    'weighted_value' => 27.00,
+                ],
+            ],
+            'metadata' => $metadata,
+            'calculated_at' => now(),
+        ]);
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Services\AiReports\Ai;
 
+use App\Models\Report;
 use App\Services\AiReports\Ai\Contracts\AiCompletion;
 use App\Services\AiReports\Ai\Contracts\AiProvider;
 use App\Services\AiReports\Ai\Contracts\AiRequest;
@@ -90,9 +91,13 @@ final class FakeAiProvider implements AiProvider
      */
     private function validate(string $text, string $task, string $user): array
     {
-        $ocrConfidence = $this->numberFrom($user, 'OCR confidence for this document');
+        // Report-validation prompts always embed an OCR confidence score, but
+        // the same provider also serves the JPC AIDE chat path whose prompt has
+        // none. Fall back to 0.0 so the float-typed downstream helpers
+        // (evidence(), issues()) never receive null.
+        $ocrConfidence = $this->numberFrom($user, 'OCR confidence for this document') ?? 0.0;
         $anchorPrompted = $this->numberFrom($user, 'Reference anchor score from the local analyzer');
-        $scan = (new ReferenceAnalyzer())->scan($text);
+        $scan = (new ReferenceAnalyzer)->scan($text);
 
         $tokenDoc = $this->tokens($text);
         $tokenTask = $this->tokens($task);
@@ -106,7 +111,7 @@ final class FakeAiProvider implements AiProvider
         $clarity = $this->clarity($text);
         $taskAlignment = round(min(1.0, $requirementDice), 4);
         $relevance = round(min(0.95, $requirementDice + 0.35), 4);
-        $anchor = $anchorPrompted ?? (new ReferenceAnalyzer())->analyze($text, new \App\Models\Report())['anchor_score'];
+        $anchor = $anchorPrompted ?? (new ReferenceAnalyzer)->analyze($text, new Report)['anchor_score'];
         $overall = round(
             0.25 * $completeness + 0.20 * $evidence + 0.20 * $taskAlignment + 0.20 * $relevance + 0.15 * $clarity,
             4,
@@ -130,7 +135,7 @@ final class FakeAiProvider implements AiProvider
             'Detected '.$scan['count'].' reference format(s) in the document.',
         ];
 
-        if ((new PromptInjectionGuard())->containsInstructionOverride($text)) {
+        if ((new PromptInjectionGuard)->containsInstructionOverride($text)) {
             $explanation[] = PromptInjectionGuard::containmentLabel();
         }
 
@@ -189,7 +194,7 @@ final class FakeAiProvider implements AiProvider
             ];
         }
 
-        $scan = (new ReferenceAnalyzer())->scan($text);
+        $scan = (new ReferenceAnalyzer)->scan($text);
         if ($scan['count'] === 0 && ! $scan['has_heading']) {
             $issues[] = [
                 'category' => 'MISSING_REFERENCE',
@@ -240,7 +245,7 @@ final class FakeAiProvider implements AiProvider
             ];
         }
 
-        foreach ((new ConsistencyChecker())->issues($text) as $consistencyIssue) {
+        foreach ((new ConsistencyChecker)->issues($text) as $consistencyIssue) {
             $issues[] = $consistencyIssue;
         }
 
@@ -390,7 +395,7 @@ final class FakeAiProvider implements AiProvider
 
     private function numberFrom(string $text, string $label): ?float
     {
-        if (preg_match('/' . preg_quote($label, '/') . ': ([\d.]+)/', $text, $matches) === 1) {
+        if (preg_match('/'.preg_quote($label, '/').': ([\d.]+)/', $text, $matches) === 1) {
             return (float) $matches[1];
         }
 

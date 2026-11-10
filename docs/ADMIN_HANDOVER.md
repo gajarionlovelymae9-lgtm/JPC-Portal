@@ -22,7 +22,22 @@ php artisan queue:work        # persistent worker (systemd/supervisor)
 php artisan schedule:run      # via cron every minute
 ```
 
+Seven scheduled tasks run through `schedule:run`:
+`tasks:send-deadline-reminders` (07:00), `tasks:send-overdue-notifications`
+(07:30), `reports:generate-monthly` (1st, 06:00), `reports:cleanup-exports`
+(03:15), `system:check-health` (05:00), `system:verify-backups` (05:30), and a
+weekly full data-quality scan (Mondays 06:30). Verify with
+`php artisan schedule:list`.
+
 Verify: `GET http://localhost:8000/api/v1/health` → `{ "success": true, ... }`.
+
+## 1a. Sample-data policy (important)
+
+Development seeders are gated by `SEED_DEVELOPMENT_DATA`, which **defaults to
+`true`**. On any non-development installation set `SEED_DEVELOPMENT_DATA=false`
+explicitly in `backend/.env` so `db:seed` creates only structural data (roles,
+permissions, departments, positions, academic year) and **no** demo users or
+fictional data. See [`INSTALLATION.md`](INSTALLATION.md) §4.4.
 
 ## 2. Manage users
 
@@ -30,6 +45,9 @@ Verify: `GET http://localhost:8000/api/v1/health` → `{ "success": true, ... }`
 - Reset a password (employee self-service password change, or admin reset).
 - Suspend an account immediately for offboarding (login blocked; history retained).
 - Review `login_activities` for suspicious logins.
+- **First administrator on a fresh install** (no demo accounts): create via
+  `php artisan tinker` — assign the `admin` role to a user and set
+  `status = 'active'` (see [`INSTALLATION.md`](INSTALLATION.md) §9).
 
 ## 3. Manage departments
 
@@ -111,3 +129,10 @@ Verify: `GET http://localhost:8000/api/v1/health` → `{ "success": true, ... }`
 
 See [`MAINTENANCE.md`](MAINTENANCE.md) for the daily/weekly/monthly checklist and
 [`BACKUP_AND_RESTORE.md`](BACKUP_AND_RESTORE.md) for backup/restore.
+
+- Record every maintenance/backup/restore action in the **maintenance log**
+  (Admin UI `/admin/maintenance`, or `php artisan system:record-maintenance`
+  with `--performed-by=`); see [`maintenance-log.md`](maintenance-log.md).
+- Run `php artisan system:verify-backups` daily (scheduled 05:30) and
+  `php artisan system:check-health` (05:00) to confirm backups and health;
+  re-run manually as needed.

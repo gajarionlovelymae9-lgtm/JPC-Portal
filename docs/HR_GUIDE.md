@@ -2,6 +2,12 @@
 
 How the **HR** role manages employee data and oversees reporting/quality.
 
+> **Consolidated guide:** the management workflows for Admin, HR and Department
+> Heads are now covered together in
+> [`user-guides/management-guide.md`](user-guides/management-guide.md). This
+> page keeps the HR-specific quick reference below and is maintained alongside
+> it.
+
 > Demo account: `hr@jpc.local` / `P@ssw0rd2026` (dev only).
 
 ## 1. Employee management

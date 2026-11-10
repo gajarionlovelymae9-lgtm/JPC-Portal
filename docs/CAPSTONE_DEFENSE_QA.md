@@ -1,8 +1,8 @@
-﻿# JPC Portal â€” Capstone Defense Question & Answer Guide
+﻿# JPC Portal — Capstone Defense Question & Answer Guide
 
 | | |
 | --- | --- |
-| **Project** | JPC Portal â€” AI-Driven Employee Progress Monitoring Dashboard Using NLP-Based Algorithm for John Paul College |
+| **Project** | JPC Portal — AI-Driven Employee Progress Monitoring Dashboard Using NLP-Based Algorithm for John Paul College |
 | **Version** | v1.0.0 |
 | **Purpose** | Prepare the presenters with technically accurate, honest answers for the defense. Every claim below is verifiable in the codebase or tests. |
 
@@ -25,7 +25,7 @@ Department Head (department tasks/targets/reports and manual decisions), and Emp
 (self-service on own records). Access is enforced by permissions + scope.
 
 **Q3. What are the major modules?**
-Identity & RBAC, planning (academic year â†’ annual plan â†’ targets), tasks, reports
+Identity & RBAC, planning (academic year → annual plan → targets), tasks, reports
 with workflow, OCR, AI (summary/validation/similarity insights), performance/KPIs,
 achievements/badges, data quality scans, reporting/analytics/exports, AI Chat,
 notifications, audit + activity logs.
@@ -62,12 +62,12 @@ in `backend/app/Services/AI`:
   engine (default deterministic `fake` engine; optional OpenAI-compatible provider
   `AI_PROVIDER=openai`, `AI_ENDPOINT`), trimming and structuring it.
 - **Validation:** matches the text against configured requirements/expectations and
-  produces structured findings (present/absent/partial) â€” natural-language
+  produces structured findings (present/absent/partial) — natural-language
   comparison, not keyword-only.
 - **Similarity indicators:** compares the report against reference documents and
   computes an indicator score (an *indicator*, not proof of plagiarism).
 - **AI Chat:** natural-language questions are matched to an authorized tool registry
-  (categorized questions â†’ tool calls) and answered from the database.
+  (categorized questions → tool calls) and answered from the database.
 - **Data-quality:** natural-language fields (titles, descriptions, comments) are
   scanned for consistency issues.
 
@@ -79,7 +79,7 @@ training loop, model persistence, or learned bias; outcomes are explainable.
 **Q10. Why not a trained ML model?**
 A trained model is a dependency (data, quota, fees, internet) and is harder to audit
 in an academic setting. The rule/NLP-driven approach is deterministic, free, works
-offline, and is fully explainable â€” the capstone requirement is a working algorithm,
+offline, and is fully explainable — the capstone requirement is a working algorithm,
 which this satisfies. Provider-based enhancement is already pluggable.
 
 ## D. OCR
@@ -91,7 +91,7 @@ offline default engine that returns deterministic extracted text. Results are st
 with the report and surfaced in the UI with confidence/status.
 
 **Q12. What if OCR fails?**
-The job records failure and the report still works â€” analysis simply shows the upload
+The job records failure and the report still works — analysis simply shows the upload
 status; failures are logged and re-runnable, never crashing the flow.
 
 ## E. AI governance & human control
@@ -104,7 +104,7 @@ See `docs/AI_GOVERNANCE.md`.
 
 **Q14. How do you prevent AI from leaking or misbehaving?**
 AI Chat only calls an **authorized tool registry**, each tool checks the caller's
-permissions and scope, and replies are assembled server-side from database results â€”
+permissions and scope, and replies are assembled server-side from database results —
 never raw model output with credentials. Answers are scoped to what the role may see,
 and out-of-scope questions are refused. See `docs/SECURITY.md`.
 
@@ -120,7 +120,7 @@ Two layers: (1) route policies/`can:` middleware using the permission catalog in
 `App\Enums\Permissions` (Admin all; HR view-level employee/report/task + analytics;
 Department Head department-scoped workflow; Employee own records); (2) **service-level
 scoping** so a user with permission still cannot reach another employee's or another
-department's records (IDOR protection) â€” e.g. `ResolvesReportingScope`.
+department's records (IDOR protection) — e.g. `ResolvesReportingScope`.
 
 **Q17. How did you prevent IDOR (guessing IDs)?**
 Every query that loads by model is scope-filtered in the service layer (team/department
@@ -142,7 +142,7 @@ endpoints only.
 ## G. Performance, reporting, achievements
 
 **Q20. How is performance computed?**
-Deterministically from report statuses and target/task data â€” completion rate, on-time
+Deterministically from report statuses and target/task data — completion rate, on-time
 vs late, score breakdowns and progress snapshots are computed from the database for
 the selected period, then presented in the performance section and analytics.
 Indicators are stable/recomputable, not random.
@@ -154,7 +154,7 @@ or per configured rules, tracked in the audit trail.
 
 **Q22. What does the management dashboard show?**
 Summary KPIs, completion rate, late/pending reports, department comparisons, trends,
-rankings, distribution, data-quality status, and top achievers â€” see the 10 prepared
+rankings, distribution, data-quality status, and top achievers — see the 10 prepared
 management questions in the presentation flow Part 7.
 
 **Q23. How does reporting/export work?**
@@ -180,15 +180,15 @@ build. A full regression ran at the end of the project and again during UAT.
 
 **Q26. What were the hardest bugs/lessons?**
 (Truthful examples from the project, choose the ones that actually occurred.)
-- Laravel picks `.env.testing` when `APP_ENV=testing` even if `.env` has the real key â€”
+- Laravel picks `.env.testing` when `APP_ENV=testing` even if `.env` has the real key —
   stripped `APP_KEY` broke login in a test run; resolved by removing `.env.testing`
   and isolating the test DB entirely via `phpunit.xml`.
-- `ReportingService` caching closures silently dropped captured variables â€” fixed by
+- `ReportingService` caching closures silently dropped captured variables — fixed by
   explicitly capturing `$period`/`$filters` inside the closure.
 - Generalizing the AI-generation workflow left unusable `$name` stubs (e.g.
-  `app/Models/$name`) â€” cleaned up; verified nothing referenced them.
+  `app/Models/$name`) — cleaned up; verified nothing referenced them.
 - XAMPP ships `mysql.exe` broken on this machine (missing
-  `caching_sha2_password.dll`) â€” DB maintenance/validation is performed through
+  `caching_sha2_password.dll`) — DB maintenance/validation is performed through
   PHP/PDO instead.
 
 **Q27. What is the state of known limitations?**
@@ -199,8 +199,8 @@ similarity is an indicator, not proof; the frontend ships as one ~846 kB chunk
 
 ## J. Closing statement template
 
-"JPC Portal automates the employee progress loop â€” plan, target, task, report,
-review, achievement â€” with OCR and an NLP-based, explainable AI that assists but
+"JPC Portal automates the employee progress loop — plan, target, task, report,
+review, achievement — with OCR and an NLP-based, explainable AI that assists but
 never decides. It is role-secure, audited, fully tested (406 backend + 87 frontend),
 and delivered as documentation plus working code with fictional demo data. We
 present it as a tested, ready-to-demonstrate academic system with clearly disclosed

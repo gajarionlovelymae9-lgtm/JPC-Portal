@@ -5,12 +5,15 @@ const API_BASE_URL: string = (import.meta.env.VITE_API_BASE_URL as string | unde
 export class ApiError extends Error {
   readonly status: number
   readonly details: unknown
+  /** Seconds the server asked us to wait before retrying (429 only). */
+  readonly retryAfterSeconds: number | null
 
-  constructor(message: string, status: number, details?: unknown) {
+  constructor(message: string, status: number, details?: unknown, retryAfterSeconds: number | null = null) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.details = details
+    this.retryAfterSeconds = retryAfterSeconds
   }
 }
 
@@ -18,6 +21,8 @@ interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   body?: unknown
   headers?: Record<string, string>
+  /** Forwarded to fetch so dashboards can force a fresh read. */
+  cache?: RequestCache
 }
 
 /** Reads the Laravel XSRF-TOKEN cookie sent by the backend. */
@@ -54,7 +59,7 @@ export async function apiRequest<T = unknown>(
   path: string,
   options: RequestOptions = {},
 ): Promise<ApiResponse<T>> {
-  const { method = 'GET', body, headers: extraHeaders = {} } = options
+  const { method = 'GET', body, headers: extraHeaders = {}, cache } = options
 
   const isFormData = typeof FormData !== 'undefined' && body instanceof FormData
 
@@ -77,6 +82,7 @@ export async function apiRequest<T = unknown>(
     method,
     headers,
     credentials: 'include',
+    ...(cache ? { cache } : {}),
   }
 
   if (body !== undefined) {
@@ -98,7 +104,10 @@ export async function apiRequest<T = unknown>(
         ? payload.message
         : `Request failed with status ${response.status}`
 
-    throw new ApiError(message, response.status, payload?.errors)
+    const retryAfterRaw = response.headers?.get?.('Retry-After') ?? null
+    const retryAfter = retryAfterRaw !== null && /^\d+$/.test(retryAfterRaw) ? Number(retryAfterRaw) : null
+
+    throw new ApiError(message, response.status, payload?.errors, retryAfter)
   }
 
   return payload as ApiResponse<T>
@@ -125,6 +134,58 @@ export function toQueryString(params: Record<string, unknown>): string {
 
   const query = search.toString()
   return query ? `?${query}` : ''
+}
+
+/**
+ * Download a streamed file response (CSV/XLSX/PDF exports) to the browser.
+ *
+ * The export endpoints stream a file rather than returning the JSON envelope,
+ * so they cannot go through `apiRequest`. CSRF is not needed for GET, but the
+ * session cookie is — hence `credentials: 'include'`.
+ */
+export async function downloadFile(
+  path: string,
+  fallbackFilename: string,
+): Promise<void> {
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method: 'GET',
+      credentials: 'include',
+    })
+  } catch {
+    throw new ApiError('Unable to reach the JPC Portal API', 0)
+  }
+
+  if (!response.ok) {
+    // Failures still come back as the standard JSON envelope.
+    const payload = await response.json().catch(() => null)
+    const message =
+      payload && typeof payload.message === 'string'
+        ? payload.message
+        : `Export failed with status ${response.status}`
+
+    throw new ApiError(message, response.status, payload?.errors)
+  }
+
+  const blob = await response.blob()
+
+  // Honour the server's filename when the disposition header exposes it.
+  const disposition = response.headers.get('Content-Disposition') ?? ''
+  const match = disposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i)
+  const filename = match ? decodeURIComponent(match[1]) : fallbackFilename
+
+  const href = URL.createObjectURL(blob)
+  try {
+    const anchor = document.createElement('a')
+    anchor.href = href
+    anchor.download = filename
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+  } finally {
+    URL.revokeObjectURL(href)
+  }
 }
 
 export { API_BASE_URL }

@@ -3,27 +3,28 @@
 namespace App\Providers;
 
 use App\Models\AiAnalysis;
+use App\Models\Conversation;
+use App\Models\DepartmentEscalation;
 use App\Models\Employee;
 use App\Models\Notification;
 use App\Models\Report;
 use App\Models\Task;
 use App\Models\TaskAssignment;
 use App\Models\TaskReview;
+use App\Models\User;
 use App\Notifications\Channels\JpcDatabaseChannel;
 use App\Policies\AiAnalysisPolicy;
+use App\Policies\AiReportPolicy;
+use App\Policies\ConversationPolicy;
 use App\Policies\EmployeePolicy;
+use App\Policies\EscalationPolicy;
 use App\Policies\NotificationPolicy;
 use App\Policies\ReportPolicy;
 use App\Policies\TaskAssignmentPolicy;
 use App\Policies\TaskPolicy;
 use App\Policies\TaskReviewPolicy;
-use App\Services\AiReports\Ai\Contracts\AiProvider;
-use App\Services\AiReports\Ai\FakeAiProvider;
-use App\Services\AiReports\Ai\HttpAiProvider;
-use App\Services\AiReports\Ocr\Contracts\OcrProvider;
-use App\Services\AiReports\Ocr\FakeOcrProvider;
-use App\Services\AiReports\Ocr\GoogleVisionOcrService;
 use App\Services\AI\AiToolRegistry;
+use App\Services\AI\Tools\ExplainMyTaskTool;
 use App\Services\AI\Tools\GetCriticalDataQualityIssuesTool;
 use App\Services\AI\Tools\GetDataQualityIssuesTool;
 use App\Services\AI\Tools\GetDataQualityStatisticsTool;
@@ -33,9 +34,21 @@ use App\Services\AI\Tools\GetEmployeeProgressReportTool;
 use App\Services\AI\Tools\GetLateReportAnalyticsTool;
 use App\Services\AI\Tools\GetManagementSummaryTool;
 use App\Services\AI\Tools\GetMonthlyPerformanceReportTool;
+use App\Services\AI\Tools\GetMyOverdueTasksTool;
+use App\Services\AI\Tools\GetMyTaskPrioritiesTool;
+use App\Services\AI\Tools\GetMyTaskSummaryTool;
+use App\Services\AI\Tools\GetMyUpcomingDeadlinesTool;
+use App\Services\AI\Tools\GetOverdueTasksTool;
 use App\Services\AI\Tools\GetPerformanceTrendTool;
 use App\Services\AI\Tools\GetRankingTool;
 use App\Services\AI\Tools\GetTargetAnalyticsTool;
+use App\Services\AI\Tools\GetTaskMonitoringSummaryTool;
+use App\Services\AiReports\Ai\Contracts\AiProvider;
+use App\Services\AiReports\Ai\FakeAiProvider;
+use App\Services\AiReports\Ai\HttpAiProvider;
+use App\Services\AiReports\Ocr\Contracts\OcrProvider;
+use App\Services\AiReports\Ocr\FakeOcrProvider;
+use App\Services\AiReports\Ocr\GoogleVisionOcrService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -82,16 +95,35 @@ class AppServiceProvider extends ServiceProvider
 
         // Custom "jpc_database" notification channel writing into the JPC
         // notifications inbox instead of Laravel's morph/UUID database schema.
-        NotificationFacade::extend('jpc_database', fn (): JpcDatabaseChannel => new JpcDatabaseChannel);
+        NotificationFacade::extend('jpc_database', fn ($app): JpcDatabaseChannel => $app->make(JpcDatabaseChannel::class));
 
         Gate::policy(Task::class, TaskPolicy::class);
         Gate::policy(TaskAssignment::class, TaskAssignmentPolicy::class);
         Gate::policy(TaskReview::class, TaskReviewPolicy::class);
         Gate::policy(Employee::class, EmployeePolicy::class);
         Gate::policy(Notification::class, NotificationPolicy::class);
+        Gate::policy(Conversation::class, ConversationPolicy::class);
         Gate::policy(Report::class, ReportPolicy::class);
         Gate::policy(AiAnalysis::class, AiAnalysisPolicy::class);
-        app()->bind(AiProvider::class, FakeAiProvider::class);
+        Gate::policy(DepartmentEscalation::class, EscalationPolicy::class);
+
+        // The AI summary endpoint is guarded by AiReportPolicy, which is not
+        // bound at the model level because Report already maps to ReportPolicy.
+        Gate::define('summarize', fn (User $user, Report $report): bool => app(AiReportPolicy::class)->summarize($user, $report));
+
+        // AI engine selection mirrors config/ai_reports.php: the deterministic
+        // offline provider keeps local development and the test suite fully
+        // self-contained, while a real OpenAI-compatible endpoint
+        // (AI_PROVIDER/AI_ENDPOINT + AI_API_KEY) is used as soon as it is
+        // configured. Without this the configured provider was ignored and the
+        // assistant could never reach a real model.
+        app()->bind(AiProvider::class, function (): AiProvider {
+            $provider = strtolower(trim((string) config('ai_reports.ai.provider', 'fake')));
+
+            return $provider === '' || $provider === 'fake'
+                ? app(FakeAiProvider::class)
+                : app(HttpAiProvider::class);
+        });
 
         // OCR provider is chosen from configuration (fake by default so the
         // whole pipeline runs offline; google_vision once credentials exist).
@@ -129,6 +161,13 @@ class AppServiceProvider extends ServiceProvider
             GetDataQualityTrendsTool::class,
             GetCriticalDataQualityIssuesTool::class,
             GetDataQualityIssuesTool::class,
+            GetTaskMonitoringSummaryTool::class,
+            GetOverdueTasksTool::class,
+            GetMyTaskSummaryTool::class,
+            GetMyOverdueTasksTool::class,
+            GetMyUpcomingDeadlinesTool::class,
+            GetMyTaskPrioritiesTool::class,
+            ExplainMyTaskTool::class,
         ];
 
         $this->app->resolving(AiToolRegistry::class, function (AiToolRegistry $registry) use ($tools) {

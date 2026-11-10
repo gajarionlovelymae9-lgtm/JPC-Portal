@@ -19,7 +19,6 @@ interface DataQualityRuleInterface
     /**
      * Executes the validation rule on the entity.
      *
-     * @param mixed $entity
      * @return array|null Returns array of issue details if violation found, null if clean.
      */
     public function check(mixed $entity): ?array;

@@ -10,7 +10,7 @@ describe('getApiErrorMessage', () => {
   })
 
   it('maps not-found errors', () => {
-    expect(getApiErrorMessage(new ApiError('No query results', 404))).toBe('Task not found.')
+    expect(getApiErrorMessage(new ApiError('No query results', 404))).toBe('The requested record could not be found.')
   })
 
   it('maps network failures (status 0)', () => {

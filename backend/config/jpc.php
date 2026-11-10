@@ -4,6 +4,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Institution Identity
+    |--------------------------------------------------------------------------
+    |
+    | Display identity shown on the admin dashboard and executive reports.
+    | Configurable so the college name is never hardcoded inside a service
+    | or a controller.
+    |
+    */
+
+    'institution' => [
+        'name' => env('JPC_INSTITUTION_NAME', 'John Paul College'),
+        'system_name' => env('JPC_SYSTEM_NAME', 'JPC Portal'),
+        'api_version' => 'v1',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Development Seeder Data
     |--------------------------------------------------------------------------
     |

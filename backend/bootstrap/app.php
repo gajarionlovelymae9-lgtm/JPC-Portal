@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\CheckPermission;
 use App\Http\Middleware\CheckRole;
+use App\Http\Middleware\EnsureAiAssistantAccess;
 use App\Support\ApiResponse;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
@@ -34,10 +35,20 @@ return Application::configure(basePath: dirname(__DIR__))
         // Sanctum SPA/cookie authentication frontend requests.
         $middleware->statefulApi();
 
+        // There is no server-rendered login route in this application: the SPA
+        // posts to /api/v1/auth/login and there are no auth-protected web
+        // routes. Without this, the `auth` middleware tries to redirect guests
+        // to a non-existent `login` route, which raises a RouteNotFoundException
+        // and turns an unauthenticated request into a 500. Returning null makes
+        // the middleware throw AuthenticationException instead, which the
+        // exception handler renders as the standard 401 envelope.
+        $middleware->redirectGuestsTo(fn () => null);
+
         // Custom authorization middleware aliases.
         $middleware->alias([
             'role' => CheckRole::class,
             'permission' => CheckPermission::class,
+            'ai.access' => EnsureAiAssistantAccess::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
@@ -108,10 +119,13 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         });
 
-        // Rate limited -> 429
+        // Rate limited -> 429 (Retry-After preserved so clients — and the
+        // React reporting hub — can wait exactly as long as the limiter
+        // demands instead of hammering the endpoint again).
         $exceptions->render(function (ThrottleRequestsException $e, Request $request) {
             if ($request->is('api/*') || $request->expectsJson()) {
-                return ApiResponse::error('Too many requests', status: 429);
+                return ApiResponse::error('Too many requests', status: 429)
+                    ->withHeaders($e->getHeaders());
             }
         });
 

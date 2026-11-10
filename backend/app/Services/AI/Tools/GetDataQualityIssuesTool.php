@@ -37,7 +37,7 @@ class GetDataQualityIssuesTool implements AiToolInterface
 
     public function execute(array $params, User $user): array
     {
-        $limit = min((int)($params['limit'] ?? 10), 50);
+        $limit = min((int) ($params['limit'] ?? 10), 50);
         $paginator = $this->issueService->getFilteredIssues($user, $params, $limit);
 
         $items = collect($paginator->items())->map(fn ($i) => [

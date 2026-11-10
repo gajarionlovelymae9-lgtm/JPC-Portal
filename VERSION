@@ -17,6 +17,12 @@ exercised by the four demo personas returns 200 in a live end-to-end run (93/93)
 all surfaces covered by new PortalSurfaceRegressionTest (backend suite 406 passed /
 1880 assertions; frontend 87 passed; oxlint 0 errors; production build PASS).
 
+Phase 15 (release packaging): documentation-only — INSTALLATION, RELEASE_NOTES,
+VERSION_MANAGEMENT, maintenance-log, user-guides (employee + management) added;
+README/DEPLOYMENT/BACKUP_AND_RESTORE/TROUBLESHOOTING/MAINTENANCE/GO_LIVE_CHECKLIST/
+handovers and maintenance runbooks aligned to actual storage paths, the 7 scheduled
+tasks, and the SEED_DEVELOPMENT_DATA default; encoding repaired in 6 capstone docs.
+
 Known limitations: AI/OCR depend on provider availability when real providers are
 enabled (offline fake engines are the default); similarity detection is an indicator
 requiring human validation; frontend bundle is a single ~869 kB chunk; email

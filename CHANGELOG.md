@@ -114,6 +114,61 @@ exercised by the four demo personas now returns 200 in a live end-to-end run.
 - Report-detail endpoints retain strict department/ownership scoping
   (403 guards verified in regression + live E2E).
 
+## [v1.0.0] — 2026-09-25 (Phase 15 release packaging)
+
+Phase 15: final release packaging, deployment handover & maintenance baseline —
+documentation-only release. No application code changed.
+
+### Added
+
+- **Documentation (new files):**
+  - `docs/INSTALLATION.md` — fresh-machine installation (Laravel + React + DB
+    init + env + queue + first login).
+  - `docs/RELEASE_NOTES.md` — v1.0.0 release notes (§26).
+  - `docs/VERSION_MANAGEMENT.md` — versioning scheme + change-request process
+    (§23–§24).
+  - `docs/maintenance-log.md` — maintenance-log template and CLI/UI procedure
+    (§25; no fabricated history).
+  - `docs/user-guides/employee-guide.md` and
+    `docs/user-guides/management-guide.md` — consolidated user guides (§29–§30).
+
+### Changed
+
+- **Documentation (updates):**
+  - `README.md` — corrected the `SEED_DEVELOPMENT_DATA` default (it defaults to
+    `true`; production must set it `false` explicitly), added the new docs to
+    the table, added the test database to the install snippet.
+  - `docs/DEPLOYMENT.md` — documented all **7** scheduled tasks, the sample-data
+    policy warning, the real on-disk storage path
+    (`storage/app/private/private/reports`), plus new deployment checklist and
+    smoke-test sections.
+  - `docs/BACKUP_AND_RESTORE.md` — corrected storage paths and documented
+    `system:verify-backups` behavior accurately.
+  - `docs/TROUBLESHOOTING.md` — added `optimize:clear`, deploy 500s, React build,
+    seeders-on-production and test-database entries.
+  - `docs/MAINTENANCE.md` — security-maintenance checklist, scheduled health/
+    backup checks, weekly data-quality scan.
+  - `docs/GO_LIVE_CHECKLIST.md` — SEED flag gate + new doc references +
+    scheduled-task list.
+  - `docs/DEVELOPER_HANDOVER.md` — 7 scheduled tasks, queue failed-driver
+    `database-uuids`, storage paths, test counts, 78 migrations, warning count 58.
+  - `docs/ADMIN_HANDOVER.md` — sample-data policy, first-admin creation, 7
+    scheduled tasks, maintenance-log procedure.
+  - `docs/ADMIN_GUIDE.md`, `docs/HR_GUIDE.md`, `docs/DEPARTMENT_HEAD_GUIDE.md`,
+    `docs/EMPLOYEE_GUIDE.md` — pointer notes to the consolidated user guides
+    (existing guides preserved).
+  - `docs/maintenance/backup-restore.md`, `docs/maintenance/ocr-maintenance.md`,
+    `docs/DATA_PRIVACY.md`, `docs/SECURITY.md` — corrected private storage path.
+  - Encoding repair (double-encoded CP1252 mojibake) for 6 final/capstone docs:
+    `GO_LIVE_CHECKLIST.md`, `FINAL_DEMO_SCRIPT.md`, `CAPSTONE_SYSTEM_OVERVIEW.md`,
+    `CAPSTONE_DEFENSE_QA.md`, `CAPSTONE_PRESENTATION_FLOW.md`,
+    `SYSTEM_ACCEPTANCE.md`.
+
+### Security
+
+- Documented that `SEED_DEVELOPMENT_DATA` defaults to `true` — production must
+  set `SEED_DEVELOPMENT_DATA=false` explicitly (previously ambiguous in docs).
+
 ## Known limitations (v1.0.0)
 
 - AI/OCR rely on provider availability when real providers are enabled;

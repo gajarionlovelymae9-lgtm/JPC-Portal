@@ -3,6 +3,10 @@
 A practical runbook for production issues. Every incident ends with a logged
 maintenance record so the trail is auditable.
 
+> v1.0.0 operational view: see the consolidated
+> [`../operations/incident-response.md`](../operations/incident-response.md)
+> (P0–P3 classification, security/data/AI/OCR incident procedures).
+
 ## Lifecycle
 
 1. **Detect** — health dashboard (`/admin/system-health`), scheduled

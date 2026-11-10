@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getUnreadCount, getNotifications, markAsRead, markAllAsRead, type NotificationItem } from '../services/notificationCenterService'
+import { useAuth } from '../auth/useAuth'
+import { PATHS } from '../routes/paths'
 
 const TYPE_ICONS: Record<string, string> = {
   task_assigned: '📋', task_updated: '✏️', task_deadline: '⏰', task_due_today: '📅',
@@ -8,7 +10,7 @@ const TYPE_ICONS: Record<string, string> = {
   revision_required: '🔄', report_rejected: '❌', ocr_completed: '📸', ocr_failed: '⚠️',
   ai_validation_completed: '🤖', ai_processing_failed: '🤖', target_at_risk: '🎯',
   achievement_earned: '🏆', badge_earned: '🏅', escalation_created: '🚨',
-  announcement_published: '📢', system: '⚙️',
+  announcement_published: '📢', message_received: '💬', system: '⚙️',
 }
 
 function timeAgo(dateStr: string): string {
@@ -29,6 +31,10 @@ export function NotificationBell() {
   const [loading, setLoading] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
+  const { user } = useAuth()
+
+  // Employees have their own notification centre; management keeps the shared one.
+  const notificationsPath = user?.role === 'employee' ? PATHS.employeeNotifications : PATHS.notifications
 
   const fetchCount = async () => {
     try {
@@ -77,7 +83,10 @@ export function NotificationBell() {
     const data = item.data as Record<string, unknown> | null
     if (data?.action === 'view_task' && data.record_id) navigate(`/employee/tasks/${data.record_id}`)
     else if (data?.action === 'view_report' && data.record_id) navigate(`/employee/reports/${data.record_id}`)
-    else navigate('/notifications')
+    else if (data?.action === 'open_conversation' && data.conversation_id)
+      navigate(`${PATHS.messages}?conversation=${data.conversation_id}`)
+    else if (data?.action === 'open_conversation') navigate(PATHS.messages)
+    else navigate(notificationsPath)
   }
 
   const handleMarkAll = async () => {
@@ -135,7 +144,7 @@ export function NotificationBell() {
             )}
           </div>
 
-          <button onClick={() => { navigate('/notifications'); setOpen(false) }}
+          <button onClick={() => { navigate(notificationsPath); setOpen(false) }}
             className="w-full py-2.5 text-sm font-semibold text-blue-600 hover:bg-blue-50 border-t border-gray-100 transition-colors">
             View All Notifications
           </button>

@@ -4,7 +4,7 @@ namespace App\Services\Reporting;
 
 use App\Enums\PerformanceRating;
 use App\Enums\ReportStatus;
-use App\Models\Badge;
+use App\Models\AcademicYear;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeeBadge;
@@ -16,10 +16,10 @@ use App\Models\Task;
 use App\Models\TaskAssignment;
 use App\Models\User;
 use App\Services\DataQuality\DataQualityStatisticsService;
+use App\Services\Hr\HrDashboardService;
 use App\Services\Reporting\Concerns\ResolvesReportingScope;
 use Carbon\Carbon;
 use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Support\Collection;
 
 /**
  * Phase 9 — Report Generation Service (spec item 25).
@@ -67,6 +67,7 @@ class ReportingService
     public function __construct(
         private readonly ReportCacheService $cache,
         private readonly DataQualityStatisticsService $dataQualityStatistics,
+        private readonly HrDashboardService $hrDashboard,
     ) {}
 
     /* ---------------------------------------------------------------------
@@ -358,88 +359,74 @@ class ReportingService
         }
 
         $period = $this->periodBounds($filters);
-        $cacheKey = sprintf('institution_report:%d:%s', $user->id, hash('sha256', json_encode($period['key'])));
+        $departmentId = $this->nullableInt($filters['department_id'] ?? null);
+        $cacheKey = sprintf(
+            'institution_report:%d:%s',
+            $user->id,
+            hash('sha256', json_encode([$period['key'], $departmentId])),
+        );
 
-        return $this->cache->remember($cacheKey, function () use ($user, $period) {
+        return $this->cache->remember($cacheKey, function () use ($user, $period, $departmentId) {
+            // Every headline number comes from the same canonical aggregation
+            // the HR dashboard uses, so the Reporting Hub and the HR cards can
+            // never disagree about employees, tasks or late reports.
+            $metrics = $this->hrDashboard->institutionMetrics($period['start'], $period['end'], $departmentId);
             [$start, $end] = $period['start'] ? [$period['start'], $period['end']] : [null, null];
-
-            $totalEmployees = Employee::query()->active()->count();
-            $totalDepartments = Department::query()->count();
-
-            $assignmentQuery = TaskAssignment::query();
-            if ($start) {
-                $assignmentQuery->whereBetween('assigned_at', [$start, $end]);
-            }
-            $tasksAssigned = (clone $assignmentQuery)->count();
-            $tasksCompleted = (clone $assignmentQuery)->where('status', 'completed')->count();
-
-            $reportQuery = Report::query();
-            if ($start) {
-                $reportQuery->where(function ($q) use ($start, $end) {
-                    $q->whereBetween('submitted_at', [$start, $end])
-                        ->orWhere(function ($q2) use ($start, $end) {
-                            $q2->whereNull('submitted_at')->whereBetween('created_at', [$start, $end]);
-                        });
-                });
-            }
-            $reports = $reportQuery->get(['id', 'status', 'is_late'])->map(function ($report) {
-                $report->status_key = $report->status instanceof ReportStatus
-                    ? $report->status->value
-                    : (string) $report->status;
-
-                return $report;
-            });
-            $reportsSubmitted = $reports
-                ->filter(fn ($r) => in_array($r->status_key, array_map(fn ($s) => $s->value, self::SUBMITTED_STATUSES), true))
-                ->count();
-            $lateReports = $reports->where('is_late', true)->count();
-            $pendingReports = $reports
-                ->filter(fn ($r) => in_array($r->status_key, array_map(fn ($s) => $s->value, self::PENDING_STATUSES), true))
-                ->count();
-            $reportsApproved = $reports->filter(
-                fn ($r) => $r->status_key === ReportStatus::Approved->value
-            )->count();
-            $reportsReviewed = $reportsApproved + $reports->filter(
-                fn ($r) => $r->status_key === ReportStatus::Rejected->value
-            )->count();
 
             $recordQuery = EmployeePerformanceRecord::query();
             if ($start) {
                 $recordQuery->whereBetween('period_start', [$start, $end]);
             }
+            if ($departmentId !== null) {
+                $recordQuery->whereIn(
+                    'employee_id',
+                    Employee::query()->where('department_id', $departmentId)->select('id'),
+                );
+            }
             $records = $recordQuery->get();
+            $snapshotAvailable = $records->isNotEmpty();
 
             $dqStats = $this->dataQualityStatistics->getDashboardStatistics($user);
-
-            $snapshotAvailable = $records->isNotEmpty();
+            $dqScans = $this->dataQualityStatistics->getScanSummary();
 
             return [
                 'report_type' => 'institution_performance',
                 'period' => $period['label'],
                 'period_key' => $period['key'],
+                'scope' => $departmentId === null ? 'institution' : 'department',
+                'department_id' => $departmentId,
                 'source' => $snapshotAvailable ? 'performance_snapshot' : 'computed',
                 'summary' => [
-                    'total_employees' => $totalEmployees,
-                    'total_departments' => $totalDepartments,
-                    'tasks_assigned' => $tasksAssigned,
-                    'tasks_completed' => $tasksCompleted,
-                    'task_completion_rate' => $this->rate($tasksCompleted, $tasksAssigned),
-                    'reports_expected' => $tasksAssigned,
-                    'reports_submitted' => $reportsSubmitted,
-                    'late_reports' => $lateReports,
-                    'pending_reports' => $pendingReports,
-                    'approval_rate' => $this->rate($reportsApproved, $reportsReviewed),
+                    'total_employees' => $metrics['employees']['total'],
+                    'active_employees' => $metrics['employees']['active'],
+                    'total_departments' => $metrics['employees']['departments'],
+                    'tasks_assigned' => $metrics['tasks']['total'],
+                    'tasks_completed' => $metrics['tasks']['completed'],
+                    'task_completion_rate' => $metrics['kpi']['completion_rate'],
+                    'reports_expected' => $metrics['tasks']['total'],
+                    'reports_submitted' => $metrics['reports']['submitted'],
+                    'late_reports' => $metrics['reports']['late'],
+                    'late_submitted' => $metrics['reports']['late_submitted'],
+                    'late_outstanding' => $metrics['reports']['late_outstanding'],
+                    'pending_reports' => $metrics['reports']['awaiting_action'],
+                    'awaiting_action' => $metrics['reports']['awaiting_action'],
+                    'awaiting_submission' => $metrics['reports']['awaiting_submission'],
+                    'approval_rate' => $metrics['kpi']['approval_rate'],
+                    'on_time_rate' => $metrics['kpi']['on_time_rate'],
                     'target_achievement_rate' => $snapshotAvailable
                         ? $this->round($records->avg('target_achievement_rate'))
                         : null,
                     'average_productivity' => $snapshotAvailable
                         ? $this->round($records->avg(fn ($r) => $r->productivity_score ?? $r->overall_score))
                         : null,
-                    'data_quality_score' => $this->round($dqStats['score'] ?? null),
+                    // Unevaluated data quality is N/A, never a synthetic 100%.
+                    'data_quality_score' => $dqScans['evaluated'] ? $this->round($dqStats['score'] ?? null) : null,
+                    'data_quality_records_checked' => $dqScans['records_checked'],
+                    'data_quality_issues_found' => $dqScans['issues_found'],
                 ],
                 'calculation_version' => config('performance.calculation_version', 'v1.0'),
                 'data_sources' => ['tasks', 'reports', 'targets', 'performance_snapshots', 'data_quality_issues'],
-                'has_data' => $tasksAssigned > 0 || $reportsSubmitted > 0 || $snapshotAvailable || $totalEmployees > 0,
+                'has_data' => $metrics['has_data'] || $snapshotAvailable,
                 'generated_at' => Carbon::now()->toIso8601String(),
             ];
         }, $this->ttl());
@@ -450,7 +437,7 @@ class ReportingService
      *
      * @throws AuthorizationException
      */
-    public function generateMonthlyReport(int $year, int $month, User $user): array
+    public function generateMonthlyReport(int $year, int $month, User $user, ?int $departmentId = null): array
     {
         if (! in_array($user->roleName(), ['admin', 'hr', 'department_head'], true)) {
             throw new AuthorizationException('Forbidden');
@@ -458,7 +445,7 @@ class ReportingService
 
         $departmentId = $user->roleName() === 'department_head'
             ? (int) ($user->employee?->department_id ?? 0)
-            : null;
+            : $departmentId;
 
         $period = $this->periodBounds(['year' => $year, 'month' => $month]);
         $cacheKey = sprintf('monthly_report:%d:%s', $user->id, hash('sha256', $year.'-'.$month.'-'.($departmentId ?? 'all')));
@@ -709,17 +696,30 @@ class ReportingService
 
             $allQuery = clone $baseQuery;
             if ($start) {
+                // Same period window as the institution report: a report belongs
+                // to the window it was submitted in (submitted_at, or the older
+                // submission_date), or - when it was never submitted - the
+                // window it was created in. Using only submitted_at/created_at
+                // here made the Late Submissions list and the Reporting Hub's
+                // late counter disagree about the same rows.
                 $allQuery->where(function ($q) use ($start, $end) {
-                    $q->whereBetween('submitted_at', [$start, $end])
-                        ->orWhere(function ($q2) use ($start, $end) {
-                            $q2->whereNull('submitted_at')->whereBetween('created_at', [$start, $end]);
-                        });
+                    $q->whereRaw(
+                        'coalesce(reports.submitted_at, reports.submission_date) between ? and ?',
+                        [$start, $end],
+                    )->orWhere(function ($q2) use ($start, $end) {
+                        $q2->whereNull('reports.submitted_at')
+                            ->whereNull('reports.submission_date')
+                            ->whereBetween('reports.created_at', [$start, $end]);
+                    });
                 });
             }
             $totalReports = (clone $allQuery)->count();
 
             $lateQuery = clone $allQuery;
-            $lateQuery->where('is_late', true);
+            // Canonical lateness rule (is_late flag OR submitted after the
+            // effective deadline OR still outstanding past the deadline) - the
+            // same rule the Reporting Hub KPI and the HR Late Reports card use.
+            $lateQuery->whereIn('reports.id', HrDashboardService::lateReportIdsQuery());
             $lateRows = $lateQuery->get();
 
             $lateByEmployee = $lateRows
@@ -797,18 +797,36 @@ class ReportingService
                 'comparison' => $previousChange,
                 'by_employee' => $lateByEmployee->all(),
                 'by_department' => $lateByDepartment->all(),
-                'reports' => $lateRows->map(fn ($r) => [
-                    'id' => $r->id,
-                    'title' => $r->title,
-                    'employee' => $r->employee
-                        ? trim($r->employee->first_name.' '.$r->employee->last_name)
-                        : 'N/A',
-                    'department' => $r->employee?->department?->name,
-                    'task' => $r->task?->title,
-                    'status' => $r->status instanceof ReportStatus ? $r->status->value : (string) $r->status,
-                    'submitted_at' => $r->submitted_at?->toDateTimeString(),
-                    'deadline' => $r->deadline?->toDateTimeString(),
-                ])->values()->all(),
+                'reports' => $lateRows->map(function ($r) {
+                    $effectiveDeadline = $r->deadline ?? $r->task?->due_date;
+                    $submittedAt = $r->submitted_at;
+                    $daysLate = 0;
+                    if ($effectiveDeadline !== null) {
+                        $deadlineDay = $effectiveDeadline->copy()->startOfDay();
+                        $referenceDay = ($submittedAt ?? Carbon::now())->copy()->startOfDay();
+                        $daysLate = $referenceDay->timestamp > $deadlineDay->timestamp
+                            ? (int) floor(($referenceDay->timestamp - $deadlineDay->timestamp) / 86400)
+                            : 0;
+                    }
+
+                    $status = $r->status instanceof ReportStatus ? $r->status : ReportStatus::tryFrom((string) $r->status);
+
+                    return [
+                        'id' => $r->id,
+                        'title' => $r->title,
+                        'employee' => $r->employee
+                            ? trim($r->employee->first_name.' '.$r->employee->last_name)
+                            : 'N/A',
+                        'department' => $r->employee?->department?->name,
+                        'task' => $r->task?->title,
+                        'status' => $status?->value ?? (string) $r->status,
+                        'status_label' => $status?->label() ?? ucfirst((string) $r->status),
+                        'submitted_at' => $submittedAt?->toDateTimeString(),
+                        'deadline' => $effectiveDeadline?->toDateTimeString(),
+                        'days_late' => $daysLate,
+                        'is_outstanding' => $submittedAt === null,
+                    ];
+                })->values()->all(),
                 'data_sources' => ['reports'],
                 'has_data' => $totalReports > 0,
                 'generated_at' => Carbon::now()->toIso8601String(),
@@ -849,17 +867,29 @@ class ReportingService
                 });
             }
 
+            // Actual accomplishment is the number of completed tasks the target
+            // operationalizes (EmployeeTarget -> Task). Counted in SQL so the
+            // target table never runs a query per row.
+            $query->withCount([
+                'tasks as total_tasks_count',
+                'tasks as completed_tasks_count' => fn ($taskQuery) => $taskQuery->where('status', 'completed'),
+            ]);
+
             $targets = $query->get(['id', 'employee_id', 'title', 'status', 'target_value', 'target_unit', 'start_date', 'end_date']);
 
             $total = $targets->count();
             $achieved = $targets->filter(fn ($t) => in_array($t->status, self::TARGET_ACHIEVED_STATUSES, true))->count();
             $partial = $targets->filter(fn ($t) => in_array($t->status, ['in_progress', 'active', 'submitted'], true))->count();
             $unachieved = max(0, $total - $achieved - $partial);
+            $totalTargetValue = round((float) $targets->sum(fn ($t) => (float) $t->target_value), 2);
+            $totalActual = (int) $targets->sum(fn ($t) => (int) ($t->completed_tasks_count ?? 0));
 
             $byDepartment = $targets
                 ->groupBy(fn ($t) => $t->employee?->department_id)
                 ->map(function ($group) {
                     $deptAchieved = $group->filter(fn ($t) => in_array($t->status, self::TARGET_ACHIEVED_STATUSES, true))->count();
+                    $deptTargetValue = (float) $group->sum(fn ($t) => (float) $t->target_value);
+                    $deptActual = (int) $group->sum(fn ($t) => (int) ($t->completed_tasks_count ?? 0));
 
                     return [
                         'department_id' => $group->first()?->employee?->department_id,
@@ -867,6 +897,11 @@ class ReportingService
                         'total_targets' => $group->count(),
                         'achieved' => $deptAchieved,
                         'achievement_rate' => $this->rate($deptAchieved, $group->count()),
+                        'total_target_value' => round($deptTargetValue, 2),
+                        'total_actual' => $deptActual,
+                        'achievement_percentage' => $deptTargetValue > 0
+                            ? round(($deptActual / $deptTargetValue) * 100, 1)
+                            : null,
                     ];
                 })
                 ->filter(fn ($row) => $row['department_id'] !== null)
@@ -883,21 +918,38 @@ class ReportingService
                 'unachieved' => $unachieved,
                 'in_progress' => $partial,
                 'achievement_rate' => $this->rate($achieved, $total),
+                'total_target_value' => $totalTargetValue,
+                'total_actual' => $totalActual,
+                'achievement_percentage' => $totalTargetValue > 0
+                    ? round(($totalActual / $totalTargetValue) * 100, 1)
+                    : null,
                 'by_department' => $byDepartment->all(),
-                'targets' => $targets->map(fn ($t) => [
-                    'id' => $t->id,
-                    'title' => $t->title,
-                    'status' => $t->status,
-                    'target_value' => (float) $t->target_value,
-                    'target_unit' => $t->target_unit,
-                    'employee' => $t->employee
-                        ? trim($t->employee->first_name.' '.$t->employee->last_name)
-                        : 'N/A',
-                    'department' => $t->employee?->department?->name,
-                    'start_date' => $t->start_date?->toDateString(),
-                    'end_date' => $t->end_date?->toDateString(),
-                ])->values()->all(),
-                'data_sources' => ['employee_targets'],
+                'targets' => $targets->map(function ($t) {
+                    $targetValue = (float) $t->target_value;
+                    $actual = (int) ($t->completed_tasks_count ?? 0);
+
+                    return [
+                        'id' => $t->id,
+                        'title' => $t->title,
+                        'status' => $t->status,
+                        'status_label' => ucfirst(str_replace('_', ' ', (string) $t->status)),
+                        'target_value' => $targetValue,
+                        'target_unit' => $t->target_unit,
+                        'actual_value' => $actual,
+                        'achievement_percentage' => $targetValue > 0
+                            ? round(($actual / $targetValue) * 100, 1)
+                            : null,
+                        'remaining_target' => max(0, $targetValue - $actual),
+                        'period_type' => $this->targetPeriodType($t->start_date, $t->end_date),
+                        'employee' => $t->employee
+                            ? trim($t->employee->first_name.' '.$t->employee->last_name)
+                            : 'N/A',
+                        'department' => $t->employee?->department?->name,
+                        'start_date' => $t->start_date?->toDateString(),
+                        'end_date' => $t->end_date?->toDateString(),
+                    ];
+                })->values()->all(),
+                'data_sources' => ['employee_targets', 'tasks'],
                 'has_data' => $total > 0,
                 'generated_at' => Carbon::now()->toIso8601String(),
             ];
@@ -958,6 +1010,13 @@ class ReportingService
                 ->map(fn ($count, $status) => ['status' => $status, 'count' => $count])
                 ->values();
 
+            $awaitingReview = $pending->filter(fn ($r) => in_array(
+                $r->status instanceof ReportStatus ? $r->status : ReportStatus::tryFrom((string) $r->status),
+                [ReportStatus::Submitted, ReportStatus::Processing, ReportStatus::UnderReview, ReportStatus::Resubmitted],
+                true,
+            ))->count();
+            $revisionRequired = $pending->filter(fn ($r) => ($r->status instanceof ReportStatus ? $r->status : ReportStatus::tryFrom((string) $r->status)) === ReportStatus::RevisionRequired)->count();
+
             $byMonth = $pending
                 ->groupBy(fn ($r) => ($r->submitted_at ?? $r->created_at)?->format('M Y') ?? 'Unknown')
                 ->map(fn ($group, $label) => ['period' => $label, 'pending_reports' => $group->count()])
@@ -972,21 +1031,66 @@ class ReportingService
                     'pending_reports' => $pending->count(),
                     'pending_employees' => $byEmployee->count(),
                     'pending_departments' => $byDepartment->filter(fn ($r) => $r['department_id'] !== null)->count(),
+                    'awaiting_review' => $awaitingReview,
+                    'revision_required' => $revisionRequired,
                 ],
                 'by_employee' => $byEmployee->all(),
                 'by_department' => $byDepartment->all(),
                 'by_status' => $byStatus->all(),
                 'by_month' => $byMonth->all(),
-                'reports' => $pending->map(fn ($r) => [
-                    'id' => $r->id,
-                    'title' => $r->title,
-                    'employee' => $r->employee
-                        ? trim($r->employee->first_name.' '.$r->employee->last_name)
-                        : 'N/A',
-                    'department' => $r->employee?->department?->name,
-                    'status' => $r->status instanceof ReportStatus ? $r->status->value : (string) $r->status,
-                    'submitted_at' => $r->submitted_at?->toDateTimeString(),
-                ])->values()->all(),
+                'reports' => $pending->map(function ($r) {
+                    $status = $r->status instanceof ReportStatus ? $r->status : ReportStatus::tryFrom((string) $r->status);
+                    $effectiveDeadline = $r->deadline ?? $r->task?->due_date;
+                    $deadlineDay = $effectiveDeadline?->copy()->startOfDay();
+                    $today = Carbon::now()->startOfDay();
+                    $daysRemaining = null;
+                    $daysOverdue = null;
+                    if ($deadlineDay !== null) {
+                        $delta = (int) floor(($deadlineDay->timestamp - $today->timestamp) / 86400);
+                        $daysRemaining = max(0, $delta);
+                        $daysOverdue = max(0, -$delta);
+                    }
+
+                    $category = match ($status) {
+                        ReportStatus::Draft => 'not_submitted',
+                        ReportStatus::RevisionRequired => 'revision_required',
+                        ReportStatus::Submitted,
+                        ReportStatus::Processing,
+                        ReportStatus::UnderReview,
+                        ReportStatus::Resubmitted => 'pending_review',
+                        ReportStatus::Approved => 'approved',
+                        default => 'closed',
+                    };
+
+                    $requiredAction = match ($status) {
+                        ReportStatus::Draft => 'Submit the required report',
+                        ReportStatus::RevisionRequired => 'Revise and resubmit the report',
+                        ReportStatus::Submitted,
+                        ReportStatus::Processing,
+                        ReportStatus::UnderReview,
+                        ReportStatus::Resubmitted => 'Awaiting reviewer approval',
+                        ReportStatus::Approved => 'No action required',
+                        default => 'Review workflow status',
+                    };
+
+                    return [
+                        'id' => $r->id,
+                        'title' => $r->title,
+                        'employee' => $r->employee
+                            ? trim($r->employee->first_name.' '.$r->employee->last_name)
+                            : 'N/A',
+                        'department' => $r->employee?->department?->name,
+                        'status' => $status?->value ?? (string) $r->status,
+                        'status_label' => $status?->label() ?? ucfirst((string) $r->status),
+                        'category' => $category,
+                        'submitted_at' => $r->submitted_at?->toDateTimeString(),
+                        'deadline' => $effectiveDeadline?->toDateTimeString(),
+                        'days_remaining' => $daysRemaining,
+                        'days_overdue' => $daysOverdue,
+                        'is_overdue' => $daysOverdue !== null && $daysOverdue > 0,
+                        'required_action' => $requiredAction,
+                    ];
+                })->values()->all(),
                 'data_sources' => ['reports'],
                 'has_data' => $pending->isNotEmpty(),
                 'generated_at' => Carbon::now()->toIso8601String(),
@@ -1006,13 +1110,20 @@ class ReportingService
         return $this->cache->remember($cacheKey, function () use ($user, $period) {
             $stats = $this->dataQualityStatistics->getDashboardStatistics($user);
             $trends = $this->dataQualityStatistics->getMonthlyTrends($user);
+            $scans = $this->dataQualityStatistics->getScanSummary();
 
             return [
                 'report_type' => 'data_quality',
                 'period' => $period['label'],
                 'period_key' => $period['key'],
                 'summary' => [
-                    'data_quality_score' => $this->round($stats['score'] ?? null),
+                    // No completed scan means the institution has not been
+                    // evaluated yet: N/A, not a synthetic 100%.
+                    'data_quality_score' => $scans['evaluated'] ? $this->round($stats['score'] ?? null) : null,
+                    'evaluated' => $scans['evaluated'],
+                    'records_checked' => $scans['records_checked'],
+                    'issues_found' => $scans['issues_found'],
+                    'latest_scan_at' => $scans['latest_scan_at'],
                     'total_issues' => (int) ($stats['total_issues'] ?? 0),
                     'open_issues' => (int) ($stats['open_issues'] ?? 0),
                     'critical' => (int) ($stats['critical'] ?? 0),
@@ -1022,16 +1133,18 @@ class ReportingService
                     'resolved' => (int) ($stats['resolved'] ?? 0),
                     'dismissed' => (int) ($stats['dismissed'] ?? 0),
                 ],
-                'by_category' => $stats['by_category'] ?? [],
-                'by_department' => $stats['by_department'] ?? [],
+                'by_category' => $this->normalizeCategoryBreakdown($stats['by_category'] ?? []),
+                'by_department' => $this->normalizeDepartmentBreakdown($stats['by_department'] ?? []),
                 'trends' => $trends,
                 'recent_scans' => collect($stats['recent_scans'] ?? [])->map(fn ($scan) => [
                     'id' => $scan->id,
-                    'status' => (string) $scan->status,
+                    'status' => $scan->status instanceof \BackedEnum ? $scan->status->value : (string) $scan->status,
+                    'records_checked' => (int) ($scan->records_checked ?? 0),
+                    'issues_found' => (int) ($scan->issues_found ?? 0),
                     'created_at' => $scan->created_at?->toIso8601String(),
                 ])->values()->all(),
                 'data_sources' => ['data_quality_issues', 'data_quality_scans'],
-                'has_data' => (int) ($stats['total_issues'] ?? 0) > 0,
+                'has_data' => $scans['evaluated'] || (int) ($stats['total_issues'] ?? 0) > 0,
                 'generated_at' => Carbon::now()->toIso8601String(),
             ];
         }, $this->ttl());
@@ -1068,6 +1181,25 @@ class ReportingService
         $year = $this->nullableInt($filters['year'] ?? null) ?? (int) Carbon::now()->year;
         $quarter = $this->nullableInt($filters['quarter'] ?? null);
         $month = $this->nullableInt($filters['month'] ?? null);
+
+        // An academic year is a real date range, so it is used as one instead
+        // of pretending tasks/reports carry an academic_year_id they don't.
+        $academicYearId = $this->nullableInt($filters['academic_year_id'] ?? null);
+        if ($academicYearId !== null) {
+            $academicYear = AcademicYear::query()->find($academicYearId);
+
+            if ($academicYear !== null) {
+                $start = $academicYear->start_date->copy()->startOfDay();
+                $end = $academicYear->end_date->copy()->endOfDay();
+
+                return [
+                    'start' => $start,
+                    'end' => $end,
+                    'label' => $academicYear->name,
+                    'key' => ['type' => 'academic_year', 'academic_year_id' => $academicYearId],
+                ];
+            }
+        }
 
         if ($quarter !== null) {
             $startMonth = (($quarter - 1) * 3) + 1;
@@ -1125,6 +1257,25 @@ class ReportingService
      * Safe rate: null (N/A) instead of a misleading 0% when the denominator
      * is zero (spec item 51).
      */
+    /**
+     * Classify a target's lifecycle from its own date span, so the Target tab
+     * can group monthly / quarterly / annual targets without guessing.
+     */
+    private function targetPeriodType(mixed $start, mixed $end): string
+    {
+        if ($start === null || $end === null) {
+            return 'annual';
+        }
+
+        $days = $start->copy()->startOfDay()->diffInDays($end->copy()->startOfDay());
+
+        return match (true) {
+            $days <= 31 => 'monthly',
+            $days <= 92 => 'quarterly',
+            default => 'annual',
+        };
+    }
+
     private function rate(?int $numerator, ?int $denominator): ?float
     {
         if ($denominator === null || $denominator <= 0) {
@@ -1137,6 +1288,75 @@ class ReportingService
     private function round(mixed $value): ?float
     {
         return $value === null ? null : round((float) $value, 1);
+    }
+
+    /**
+     * The Data Quality statistics service returns `by_category` as a keyed
+     * map (`entity_type => count`). The reporting contract — and therefore
+     * the React tabs — expects a list of {label, count} rows. Normalising
+     * here keeps keyed-array input (which would crash `Array.prototype.map`
+     * on the client) out of the reporting payload.
+     *
+     * @return list<array{label: string, count: int}>
+     */
+    private function normalizeCategoryBreakdown(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $rows = [];
+        foreach ($value as $key => $item) {
+            if (is_array($item)) {
+                $rows[] = [
+                    'label' => (string) ($item['label'] ?? $key),
+                    'count' => (int) ($item['count'] ?? 0),
+                ];
+
+                continue;
+            }
+
+            $rows[] = [
+                // Keyed-map input: the key is the entity type, the value the count.
+                'label' => is_string($key) ? $key : (string) $item,
+                'count' => is_numeric($item) ? (int) $item : 0,
+            ];
+        }
+
+        usort($rows, fn (array $a, array $b) => $b['count'] <=> $a['count']);
+
+        return $rows;
+    }
+
+    /**
+     * `by_department` rows arrive as {department_id, department_name, count};
+     * the reporting contract expects {label, count}. Already-list inputs of
+     * matching rows pass through with the extra department id preserved.
+     *
+     * @return list<array{label: string, count: int, department_id?: int}>
+     */
+    private function normalizeDepartmentBreakdown(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $rows = [];
+        foreach ($value as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $rows[] = [
+                'label' => (string) ($item['label'] ?? $item['department_name'] ?? 'Departments'),
+                'count' => (int) ($item['count'] ?? 0),
+                'department_id' => isset($item['department_id']) ? (int) $item['department_id'] : null,
+            ];
+        }
+
+        usort($rows, fn (array $a, array $b) => $b['count'] <=> $a['count']);
+
+        return $rows;
     }
 
     /**

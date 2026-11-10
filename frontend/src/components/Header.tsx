@@ -61,6 +61,13 @@ export function Header({ onMenuClick }: HeaderProps) {
         <span aria-hidden="true">☰</span>
       </button>
 
+      <div className="header__brand">
+        <span className="header__brand-mark" aria-hidden="true">
+          JPC
+        </span>
+        <span className="header__brand-name">JPC Portal</span>
+      </div>
+
       <h1 className="header__title">{pageTitleFor(pathname)}</h1>
 
       <div className="header__actions">

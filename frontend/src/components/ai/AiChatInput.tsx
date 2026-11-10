@@ -30,7 +30,7 @@ export function AiChatInput({ onSend, disabled = false }: AiChatInputProps) {
       <textarea
         className="w-full border rounded-lg p-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
         rows={3}
-        placeholder="Ask the AI Assistant..."
+        placeholder="Ask JPC AIDE..."
         value={text}
         onChange={(e) => setText(e.target.value.slice(0, MAX_CHARS))}
         onKeyDown={handleKeyDown}

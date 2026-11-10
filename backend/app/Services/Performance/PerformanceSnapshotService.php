@@ -78,8 +78,8 @@ class PerformanceSnapshotService
             $kpis,
             $scoreResult,
             $metadata,
-            $actor,
-            $recalculationReason
+            $actor
+
         ) {
             $record = EmployeePerformanceRecord::firstOrNew([
                 'employee_id' => $employee->id,

@@ -3,12 +3,8 @@
 namespace App\Services\Admin;
 
 use App\Models\AuditLog;
-use App\Models\Department;
-use App\Models\Employee;
-use App\Models\Notification;
 use App\Models\Report;
 use App\Models\ReportReview;
-use App\Models\TaskAssignment;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -23,23 +19,23 @@ class AdminReportCenterService
             'task:id,title,due_date',
         ]);
 
-        if (!empty($filters['department_id']) && $filters['department_id'] !== 'all') {
+        if (! empty($filters['department_id']) && $filters['department_id'] !== 'all') {
             $deptId = (int) $filters['department_id'];
             $query->whereHas('employee', fn ($q) => $q->where('department_id', $deptId));
         }
 
-        if (!empty($filters['status']) && $filters['status'] !== 'all') {
+        if (! empty($filters['status']) && $filters['status'] !== 'all') {
             $query->where('status', $filters['status']);
         }
 
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $search = $filters['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
-                  ->orWhereHas('employee', function ($eq) use ($search) {
-                      $eq->where('first_name', 'like', "%{$search}%")
-                         ->orWhere('last_name', 'like', "%{$search}%");
-                  });
+                    ->orWhereHas('employee', function ($eq) use ($search) {
+                        $eq->where('first_name', 'like', "%{$search}%")
+                            ->orWhere('last_name', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -53,7 +49,7 @@ class AdminReportCenterService
                 'status' => $r->status,
                 'ai_status' => $r->ai_status ?? 'completed',
                 'task_title' => $r->task?->title ?? '—',
-                'employee_name' => $r->employee ? $r->employee->first_name . ' ' . $r->employee->last_name : '—',
+                'employee_name' => $r->employee ? $r->employee->first_name.' '.$r->employee->last_name : '—',
                 'employee_number' => $r->employee?->employee_number,
                 'department_name' => $r->employee?->department?->name ?? 'Academic',
                 'submitted_at' => $r->submitted_at ? Carbon::parse($r->submitted_at)->toIso8601String() : null,
@@ -73,10 +69,10 @@ class AdminReportCenterService
             'files',
         ]);
 
-        $latestAnalysis   = $report->aiAnalyses()->latest('id')->first();
-        $latestSummary    = $report->aiSummaries()->latest('id')->first();
+        $latestAnalysis = $report->aiAnalyses()->latest('id')->first();
+        $latestSummary = $report->aiSummaries()->latest('id')->first();
         $latestValidation = $report->aiValidationResults()->latest('id')->first();
-        $latestOcr        = $report->ocrProcessings()->latest('id')->first();
+        $latestOcr = $report->ocrProcessings()->latest('id')->first();
 
         $ocr = $latestOcr;
         $aiSummary = $latestSummary;
@@ -111,7 +107,7 @@ class AdminReportCenterService
             'submitted_at' => $report->submitted_at ? Carbon::parse($report->submitted_at)->toIso8601String() : null,
             'employee' => [
                 'id' => $report->employee?->id,
-                'name' => $report->employee ? $report->employee->first_name . ' ' . $report->employee->last_name : '—',
+                'name' => $report->employee ? $report->employee->first_name.' '.$report->employee->last_name : '—',
                 'employee_number' => $report->employee?->employee_number,
                 'department' => $report->employee?->department?->name ?? 'Academic',
                 'position' => $report->employee?->position?->name ?? 'Faculty',

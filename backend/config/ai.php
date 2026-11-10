@@ -31,4 +31,26 @@ return [
         'output_schema_validation' => env('AI_OUTPUT_SCHEMA_VALIDATION', true),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | JPC AIDE Assistant Limits & Access
+    |--------------------------------------------------------------------------
+    |
+    | Role-based AI access and daily usage limits for JPC Portal AI assistant
+    | features. Limits are enforced server-side and cannot be bypassed by
+    | frontend requests. Blocked/invalid requests must not consume usage.
+    |
+    */
+    'assistant' => [
+        'allowed_roles' => ['admin', 'employee'],
+
+        'daily_limits' => [
+            'employee' => (int) env('AI_DAILY_LIMIT_EMPLOYEE', 20),
+            'admin' => (int) env('AI_DAILY_LIMIT_ADMIN', 30),
+        ],
+
+        // Timezone used to calculate the daily usage window/reset.
+        'reset_timezone' => env('AI_USAGE_RESET_TIMEZONE', config('app.timezone', 'UTC')),
+    ],
+
 ];

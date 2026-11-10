@@ -11,10 +11,16 @@ class Announcement extends Model
 {
     use HasFactory;
 
+    /** Allowed values for the category column (validated on the API). */
+    public const CATEGORIES = [
+        'general', 'academic', 'event', 'deadline', 'policy', 'reminder', 'other', 'holiday',
+    ];
+
     protected $fillable = [
         'title',
         'message',
         'priority',
+        'category',
         'audience_type',
         'audience_id',
         'status',
@@ -62,8 +68,13 @@ class Announcement extends Model
                     });
             })
             ->where(function (Builder $q) {
+                // Visibility is gated on the publication time, not on the
+                // event's start date: start_date/end_date describe the event
+                // window for the calendar, while published_at controls when
+                // the announcement becomes visible. A scheduled announcement
+                // must never appear before its publication time.
                 $now = now();
-                $q->whereNull('start_date')->orWhere('start_date', '<=', $now);
+                $q->whereNull('published_at')->orWhere('published_at', '<=', $now);
             })
             ->where(function (Builder $q) {
                 $now = now();

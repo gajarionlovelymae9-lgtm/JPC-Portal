@@ -16,7 +16,9 @@ class DepartmentFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => $this->faker->company().' Department',
+            // Department names are unique in the schema, so the factory must
+            // not reuse a random company name within the same test.
+            'name' => $this->faker->unique()->company().' Department',
             'code' => 'DEPT-'.$this->faker->unique()->numberBetween(1000, 9999),
             'description' => $this->faker->sentence(),
             'status' => 'active',

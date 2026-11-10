@@ -70,7 +70,41 @@ class DataQualityScanTest extends TestCase
                     'by_department',
                     'recent_scans',
                     'trends',
-                ]
+                ],
             ]);
+    }
+
+    public function test_scan_index_clamps_an_oversized_per_page_to_the_shared_ceiling(): void
+    {
+        // The scan ledger has no FormRequest, so `per_page` is not validated:
+        // the controller must clamp it itself, or `?per_page=5000` would pull
+        // the whole table in one page (the same class of bug as the report
+        // endpoints' "per page field must not be greater than 100").
+        $admin = User::factory()->create();
+        $admin->assignRole('admin');
+
+        DataQualityScan::create([
+            'scan_type' => 'full',
+            'status' => DataQualityScanStatus::COMPLETED,
+            'started_at' => now()->subMinutes(5),
+            'completed_at' => now(),
+            'records_checked' => 10,
+            'issues_found' => 0,
+            'critical_count' => 0,
+            'high_count' => 0,
+            'medium_count' => 0,
+            'low_count' => 0,
+            'initiated_by' => $admin->id,
+        ]);
+
+        Sanctum::actingAs($admin);
+
+        $this->getJson('/api/v1/data-quality/scans?per_page=5000')
+            ->assertOk()
+            ->assertJsonPath('meta.per_page', 100);
+
+        $this->getJson('/api/v1/data-quality/scans?per_page=0')
+            ->assertOk()
+            ->assertJsonPath('meta.per_page', 1);
     }
 }

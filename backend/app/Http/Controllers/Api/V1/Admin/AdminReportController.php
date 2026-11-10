@@ -18,12 +18,14 @@ class AdminReportController extends Controller
     public function index(Request $request): JsonResponse
     {
         $data = $this->reportService->listReports($request->all());
+
         return ApiResponse::success('Reports loaded successfully.', $data);
     }
 
     public function show(Report $report): JsonResponse
     {
         $data = $this->reportService->showReport($report);
+
         return ApiResponse::success('Report details loaded successfully.', $data);
     }
 
@@ -35,6 +37,7 @@ class AdminReportController extends Controller
         ]);
 
         $res = $this->reportService->humanOverride($request->user(), $report, $validated);
+
         return ApiResponse::success('Report override recorded successfully.', $res);
     }
 }

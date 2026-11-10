@@ -12,6 +12,7 @@ use App\Models\Task;
 use App\Models\TaskAssignment;
 use App\Models\User;
 use App\Services\ActivityLogs\ActivityLogService;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -59,6 +60,8 @@ class TaskAssignmentService
 
             $this->recordActivity($task, 'task.assigned', $assignedBy);
 
+            app(TaskService::class)->syncAggregateStatus($task);
+
             TaskAssigned::dispatch($assignment);
 
             return $assignment;
@@ -88,6 +91,8 @@ class TaskAssignmentService
 
             $this->recordActivity($assignment->task, 'task.accepted', $employee->user);
 
+            app(TaskService::class)->syncAggregateStatus($assignment->task);
+
             return $assignment->fresh();
         });
     }
@@ -109,14 +114,19 @@ class TaskAssignmentService
 
             $this->recordActivity($assignment->task, 'task.started', $employee->user);
 
+            app(TaskService::class)->syncAggregateStatus($assignment->task);
+
             return $assignment->fresh();
         });
     }
 
     /**
      * Submit an assignment (in_progress/accepted → submitted).
+     *
+     * @param  array<string, mixed>  $submission
+     * @param  array<int, UploadedFile>  $files
      */
-    public function submitAssignment(TaskAssignment $assignment, Employee $employee, ?string $remarks = null): TaskAssignment
+    public function submitAssignment(TaskAssignment $assignment, Employee $employee, ?string $remarks = null, array $submission = [], array $files = []): TaskAssignment
     {
         $this->guardEmployeeOwnsAssignment($assignment, $employee);
 
@@ -129,13 +139,28 @@ class TaskAssignmentService
             throw new \RuntimeException('Cannot submit assignments for cancelled tasks.');
         }
 
-        return DB::transaction(function () use ($assignment, $employee, $remarks) {
+        return DB::transaction(function () use ($assignment, $employee, $remarks, $submission, $files) {
             $assignment->update([
                 'status' => 'submitted',
+                // A submitted assignment is complete from the employee's side.
+                // Approval (not submission) is what stamps completed_at.
+                'progress_percentage' => 100,
+                'completed_at' => null,
                 'remarks' => $remarks,
             ]);
 
+            if ($submission !== []) {
+                app(TaskSubmissionService::class)->create(
+                    $assignment,
+                    (int) ($employee->user_id ?? $employee->user?->id),
+                    $submission,
+                    $files,
+                );
+            }
+
             $this->recordActivity($assignment->task, 'task.submitted', $employee->user);
+
+            app(TaskService::class)->syncAggregateStatus($assignment->task);
 
             TaskSubmitted::dispatch($assignment->fresh());
 
@@ -145,8 +170,11 @@ class TaskAssignmentService
 
     /**
      * Resubmit a rejected assignment (rejected → submitted).
+     *
+     * @param  array<string, mixed>  $submission
+     * @param  array<int, UploadedFile>  $files
      */
-    public function resubmitAssignment(TaskAssignment $assignment, Employee $employee): TaskAssignment
+    public function resubmitAssignment(TaskAssignment $assignment, Employee $employee, array $submission = [], array $files = []): TaskAssignment
     {
         $this->guardEmployeeOwnsAssignment($assignment, $employee);
 
@@ -154,13 +182,26 @@ class TaskAssignmentService
             throw InvalidTaskStatusTransitionException::from($assignment->status, 'submitted');
         }
 
-        return DB::transaction(function () use ($assignment, $employee) {
+        return DB::transaction(function () use ($assignment, $employee, $submission, $files) {
             $assignment->update([
                 'status' => 'submitted',
+                'progress_percentage' => 100,
+                'completed_at' => null,
                 'remarks' => null,
             ]);
 
+            if ($submission !== []) {
+                app(TaskSubmissionService::class)->create(
+                    $assignment,
+                    (int) ($employee->user_id ?? $employee->user?->id),
+                    $submission,
+                    $files,
+                );
+            }
+
             $this->recordActivity($assignment->task, 'task.resubmitted', $employee->user);
+
+            app(TaskService::class)->syncAggregateStatus($assignment->task);
 
             TaskResubmitted::dispatch($assignment->fresh());
 

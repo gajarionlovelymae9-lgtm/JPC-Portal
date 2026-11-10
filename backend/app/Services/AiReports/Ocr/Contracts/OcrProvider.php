@@ -3,6 +3,8 @@
 namespace App\Services\AiReports\Ocr\Contracts;
 
 use App\Models\ReportFile;
+use App\Services\AiReports\Ocr\Exceptions\OcrConfigurationException;
+use App\Services\AiReports\Ocr\Exceptions\OcrProcessingException;
 
 /**
  * Pluggable OCR engine contract (Phase 3.3-K).
@@ -21,8 +23,8 @@ interface OcrProvider
     /**
      * Extract text from the uploaded report document.
      *
-     * @throws \App\Services\AiReports\Ocr\Exceptions\OcrConfigurationException
-     * @throws \App\Services\AiReports\Ocr\Exceptions\OcrProcessingException
+     * @throws OcrConfigurationException
+     * @throws OcrProcessingException
      */
     public function extract(ReportFile $file): OcrResult;
 }

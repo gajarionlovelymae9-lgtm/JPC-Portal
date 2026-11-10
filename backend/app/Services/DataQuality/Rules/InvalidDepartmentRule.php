@@ -36,7 +36,7 @@ class InvalidDepartmentRule implements DataQualityRuleInterface
 
     public function check(mixed $entity): ?array
     {
-        if (!($entity instanceof Employee)) {
+        if (! ($entity instanceof Employee)) {
             return null;
         }
 
@@ -45,7 +45,7 @@ class InvalidDepartmentRule implements DataQualityRuleInterface
                 'issue_type' => DataQualityIssueType::INVALID_DEPARTMENT,
                 'severity' => $this->getSeverity(),
                 'title' => "Employee #{$entity->employee_number} has no assigned department",
-                'description' => "The employee profile does not specify any valid department_id.",
+                'description' => 'The employee profile does not specify any valid department_id.',
                 'detected_value' => ['department_id' => null],
                 'expected_value' => ['department_id' => 'valid_active_department_id'],
                 'department_id' => null,
@@ -54,12 +54,12 @@ class InvalidDepartmentRule implements DataQualityRuleInterface
         }
 
         $deptExists = Department::query()->where('id', $entity->department_id)->exists();
-        if (!$deptExists) {
+        if (! $deptExists) {
             return [
                 'issue_type' => DataQualityIssueType::INVALID_DEPARTMENT_REFERENCE,
                 'severity' => DataQualityIssueSeverity::CRITICAL,
                 'title' => "Employee #{$entity->employee_number} points to non-existent Department ID {$entity->department_id}",
-                'description' => "Foreign key reference points to a department that does not exist in the database.",
+                'description' => 'Foreign key reference points to a department that does not exist in the database.',
                 'detected_value' => ['department_id' => $entity->department_id],
                 'expected_value' => ['exists_in_departments_table' => true],
                 'department_id' => null,

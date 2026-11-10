@@ -6,6 +6,7 @@ use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Database\Seeders\UserSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
@@ -66,6 +67,30 @@ class MiddlewareTest extends TestCase
             ->getJson('/api/v1/_test/perm-blocked')
             ->assertStatus(403)
             ->assertJsonPath('message', 'Forbidden');
+    }
+
+    public function test_group_level_permission_middleware_is_not_overwritten_by_throttle(): void
+    {
+        // RouteRegistrar::attribute() assigns rather than merges, so two separate
+        // ->middleware() calls in one chain silently drop the first. The
+        // notifications and messages groups once lost their permission guard to a
+        // trailing throttle call; lock both middleware onto those routes.
+        foreach ([
+            'api/v1/notifications',
+            'api/v1/notifications/unread-count',
+            'api/v1/messages/conversations',
+            'api/v1/messages/recipients',
+        ] as $uri) {
+            $route = Route::getRoutes()->match(
+                Request::create('/'.$uri, 'GET')
+            );
+
+            $this->assertContains(
+                'permission:notifications.view',
+                $route->gatherMiddleware(),
+                "Route [{$uri}] must keep its permission guard alongside throttle middleware.",
+            );
+        }
     }
 
     private function user(string $email): User
