@@ -55,7 +55,10 @@ export default function TaskOverview({ tasks }: { tasks: EmployeeDashboardTask[]
                     </p>
                   ) : null}
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-gray-500">
-                    <StatusPill status={task.status} />
+                    <StatusPill
+                      status={task.status}
+                      decision={task.latest_review_decision}
+                    />
                     <UrgencyPill urgency={task.urgency} />
                     {task.priority ? (
                       <span className={`capitalize ${PRIORITY_TONE[task.priority] ?? 'text-gray-500'}`}>

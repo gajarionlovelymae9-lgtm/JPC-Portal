@@ -50,6 +50,33 @@ describe('TaskTable', () => {
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '40')
   })
 
+  it('averages progress across every assignment on the task', () => {
+    const multiAssignment: Task = {
+      ...task,
+      id: 12,
+      task_code: 'TASK-2026-0012',
+      title: 'Two-assignee task',
+      assignments: [
+        { ...task.assignments![0], id: 22, employee_id: 3, completion_percentage: 40 },
+        {
+          ...task.assignments![0],
+          id: 23,
+          employee_id: 4,
+          status: 'completed',
+          completion_percentage: 100,
+        },
+      ],
+    }
+
+    render(
+      <MemoryRouter>
+        <TaskTable tasks={[multiAssignment]} detailPath={(id) => `/tasks/${id}`} />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '70')
+  })
+
   it('renders an empty state when there are no tasks', () => {
     render(
       <MemoryRouter>

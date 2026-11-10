@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { statusLabel } from '../../utils/task'
 
 /**
  * Shared presentational primitives for the employee workspace.
@@ -139,8 +140,10 @@ const STATUS_TONES: Record<string, string> = {
   resubmitted: 'bg-blue-100 text-blue-700',
   under_review: 'bg-yellow-100 text-yellow-700',
   assigned: 'bg-gray-100 text-gray-700',
+  not_started: 'bg-gray-100 text-gray-700',
   accepted: 'bg-gray-100 text-gray-700',
   draft: 'bg-gray-100 text-gray-700',
+  revision_requested: 'bg-orange-100 text-orange-700',
   revision_required: 'bg-orange-100 text-orange-700',
   rejected: 'bg-red-100 text-red-700',
   cancelled: 'bg-gray-100 text-gray-500',
@@ -150,13 +153,23 @@ const STATUS_TONES: Record<string, string> = {
   low: 'bg-gray-100 text-gray-600',
 }
 
-export function StatusPill({ status }: { status: string }) {
-  const tone = STATUS_TONES[status] ?? 'bg-gray-100 text-gray-600'
+export function StatusPill({
+  status,
+  decision,
+}: {
+  status: string
+  decision?: string | null
+}) {
+  const isRevision = status === 'rejected' && decision === 'needs_revision'
+  const key = isRevision ? 'revision_requested' : status
+  const tone = STATUS_TONES[key] ?? 'bg-gray-100 text-gray-600'
+  const label = isRevision ? 'Revision Requested' : statusLabel(status)
+
   return (
     <span
-      className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold capitalize whitespace-nowrap ${tone}`}
+      className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${tone}`}
     >
-      {status.replace(/_/g, ' ')}
+      {label}
     </span>
   )
 }

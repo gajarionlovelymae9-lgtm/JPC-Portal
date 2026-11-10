@@ -50,6 +50,7 @@ export interface EmployeeDashboardTask {
   description: string | null
   priority: string | null
   status: string
+  latest_review_decision: string | null
   progress: number
   deadline: string | null
   deadline_date: string | null
@@ -379,9 +380,11 @@ export interface EmployeePortalTask {
   deadline: string | null
   progress: number
   status: string
+  latest_review_decision?: string | null
   is_overdue: boolean
   is_late: boolean
   submitted_at: string | null
+  completed_at?: string | null
   requirements?: string | null
   instructions?: string | null
   target?: unknown

@@ -754,7 +754,7 @@ class EmployeePortalService
     {
         return TaskAssignment::query()
             ->where('employee_id', $employee->id)
-            ->with(['task', 'progress'])
+            ->with(['task', 'progress', 'reviews'])
             ->get();
     }
 
@@ -1044,6 +1044,7 @@ class EmployeePortalService
             'description' => $a->task?->description,
             'priority' => $a->task?->priority,
             'status' => $a->status,
+            'latest_review_decision' => $a->reviews?->sortByDesc('reviewed_at')->first()?->decision,
             'progress' => (int) ($a->progress_percentage ?? 0),
             'deadline' => $due?->toIso8601String(),
             'deadline_date' => $due?->toDateString(),
@@ -1473,6 +1474,7 @@ class EmployeePortalService
             'deadline' => $due?->toIso8601String(),
             'progress' => (int) ($a->progress_percentage ?? 0),
             'status' => $a->status,
+            'latest_review_decision' => $a->reviews?->sortByDesc('reviewed_at')->first()?->decision,
             'is_overdue' => $this->assignmentIsOverdue($a),
             'is_late' => $submittedAt !== null && $due !== null ? $submittedAt->gt($due) : false,
             'submitted_at' => optional($submittedAt)->toIso8601String(),
