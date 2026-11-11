@@ -1,4 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom'
+import { Menu } from 'lucide-react'
 import { NAVIGATION_ITEMS } from '../constants/navigation'
 import { NotificationBell } from './NotificationBell'
 import { useAuth } from '../auth/useAuth'
@@ -58,12 +59,12 @@ export function Header({ onMenuClick }: HeaderProps) {
         onClick={onMenuClick}
         aria-label="Toggle navigation"
       >
-        <span aria-hidden="true">☰</span>
+        <Menu size={20} aria-hidden="true" />
       </button>
 
       <div className="header__brand">
         <span className="header__brand-mark" aria-hidden="true">
-          JPC
+          <img src="/logo.png" alt="JPC Crest" className="header__brand-logo" />
         </span>
         <span className="header__brand-name">JPC Portal</span>
       </div>

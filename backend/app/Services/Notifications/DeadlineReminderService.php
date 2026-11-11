@@ -31,7 +31,7 @@ class DeadlineReminderService
         $sent = 0;
 
         foreach ($intervals as $daysBefore) {
-            $targetDate = now()->addDays($daysBefore)->startOfDay();
+            $targetDate = now()->addDays($daysBefore)->toDateString();
 
             $assignments = TaskAssignment::query()
                 ->whereNotIn('status', ['completed', 'cancelled', 'submitted'])
@@ -66,7 +66,7 @@ class DeadlineReminderService
 
         $assignments = TaskAssignment::query()
             ->whereNotIn('status', ['completed', 'cancelled', 'submitted'])
-            ->whereDate('due_date', '<', now()->startOfDay())
+            ->whereDate('due_date', '<', now()->toDateString())
             ->whereHas('employee.user')
             ->with(['employee.user', 'task'])
             ->get();

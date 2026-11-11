@@ -140,9 +140,10 @@ class HrAchievementService
         $tiers = DB::table('badges')->whereNotNull('tier')->distinct()->orderBy('tier')->pluck('tier')
             ->map(fn ($t) => ['value' => (string) $t, 'label' => (string) $t])->values()->all();
 
+        $yearExpr = DB::connection()->getDriverName() === 'sqlite' ? "strftime('%Y', awarded_at)" : 'year(awarded_at)';
         $years = DB::table('employee_badges')
             ->whereNotNull('awarded_at')
-            ->selectRaw('distinct year(awarded_at) as y')
+            ->selectRaw("distinct {$yearExpr} as y")
             ->orderByDesc('y')
             ->pluck('y')
             ->map(fn ($y) => ['value' => (int) $y, 'label' => (string) $y])->all();

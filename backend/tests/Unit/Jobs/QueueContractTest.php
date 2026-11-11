@@ -10,6 +10,7 @@ use App\Models\Report;
 use App\Services\AiReports\ReportAnalysisService;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -26,6 +27,8 @@ use Tests\TestCase;
  */
 class QueueContractTest extends TestCase
 {
+    use RefreshDatabase;
+
     #[Test]
     public function ai_stub_jobs_are_queues_but_handles_are_empty_contracts(): void
     {

@@ -470,10 +470,14 @@ class HrDashboardService
             ];
         }
 
+        $periodExpr = DB::connection()->getDriverName() === 'sqlite'
+            ? "strftime('%Y-%m', created_at) as period"
+            : 'date_format(created_at, "%Y-%m") as period';
+
         $reportRows = DB::table('reports')
             ->whereNull('deleted_at')
             ->where('created_at', '>=', $from->startOfDay())
-            ->selectRaw('date_format(created_at, "%Y-%m") as period')
+            ->selectRaw($periodExpr)
             ->selectRaw('count(*) as total')
             ->selectRaw('coalesce(sum(is_late = 1), 0) as late')
             ->selectRaw('coalesce(sum(status = "approved"), 0) as approved')
@@ -483,7 +487,7 @@ class HrDashboardService
         $taskRows = DB::table('task_assignments')
             ->whereNull('deleted_at')
             ->where('created_at', '>=', $from->startOfDay())
-            ->selectRaw('date_format(created_at, "%Y-%m") as period')
+            ->selectRaw($periodExpr)
             ->selectRaw('count(*) as total')
             ->selectRaw('coalesce(sum(status in ('.$this->placeholders(self::ASSIGNMENT_DONE).')), 0) as completed', self::ASSIGNMENT_DONE)
             ->groupBy('period')

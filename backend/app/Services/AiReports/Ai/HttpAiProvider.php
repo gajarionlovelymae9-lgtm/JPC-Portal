@@ -40,41 +40,66 @@ final class HttpAiProvider implements AiProvider
             throw new AiProviderConfigurationException('An API key is required for the configured OpenAI-compatible endpoint.');
         }
 
-        try {
-            $response = $this->http->acceptJson()
-                ->when($token !== '', fn ($client) => $client->withToken($token))
-                ->when($apiKey !== '', fn ($client) => $client->withToken($apiKey))
-                ->timeout((int) config('ai_reports.ai.http.timeout', 60))
-                ->post($endpoint, [
-                    'model' => $request->model,
-                    'messages' => [
-                        ['role' => 'system', 'content' => $system],
-                        ['role' => 'user', 'content' => $user],
-                    ],
-                    'temperature' => $request->temperature,
-                    'max_tokens' => $request->maxTokens,
-                    'response_format' => $request->expectJson ? ['type' => 'json_object'] : null,
-                ]);
-        } catch (\Throwable $e) {
-            throw new AiProviderException('AI provider request failed: '.$e->getMessage(), 0, $e);
+        $candidateModels = array_values(array_unique(array_filter([
+            $request->model,
+            'gemini-3.5-flash-lite',
+            'gemini-3.1-flash-lite',
+            'gemini-2.5-flash-lite',
+            'gemini-flash-lite-latest',
+        ])));
+
+        $lastException = null;
+
+        foreach ($candidateModels as $model) {
+            try {
+                $response = $this->http->acceptJson()
+                    ->when($token !== '', fn ($client) => $client->withToken($token))
+                    ->when($apiKey !== '', fn ($client) => $client->withToken($apiKey))
+                    ->timeout((int) config('ai_reports.ai.http.timeout', 60))
+                    ->post($endpoint, [
+                        'model' => $model,
+                        'messages' => [
+                            ['role' => 'system', 'content' => $system],
+                            ['role' => 'user', 'content' => $user],
+                        ],
+                        'temperature' => $request->temperature,
+                        'max_tokens' => $request->maxTokens,
+                        'response_format' => $request->expectJson ? ['type' => 'json_object'] : null,
+                    ]);
+
+                if ($response->successful()) {
+                    $decoded = $response->json();
+                    $content = data_get($decoded, 'choices.0.message.content');
+
+                    if (is_string($content) && trim($content) !== '') {
+                        $cleanContent = trim($content);
+                        if ($request->expectJson && preg_match('/^```(?:json)?\s*([\s\S]*?)\s*```$/i', $cleanContent, $matches)) {
+                            $cleanContent = trim($matches[1]);
+                        }
+
+                        return new AiCompletion(
+                            text: $cleanContent,
+                            provider: $this->name(),
+                            model: $model,
+                            metadata: ['status' => $response->status()],
+                        );
+                    }
+                }
+
+                // If 429 quota or 503 spike, try next candidate model
+                if ($response->status() === 429 || $response->status() === 503) {
+                    $lastException = new AiProviderException('AI provider rate limit for '.$model.': '.substr($response->body(), 0, 300));
+                    continue;
+                }
+
+                throw new AiProviderException('AI provider returned HTTP '.$response->status().': '.substr($response->body(), 0, 300));
+            } catch (AiProviderException $e) {
+                $lastException = $e;
+            } catch (\Throwable $e) {
+                $lastException = new AiProviderException('AI provider request failed: '.$e->getMessage(), 0, $e);
+            }
         }
 
-        if ($response->failed()) {
-            throw new AiProviderException('AI provider returned HTTP '.$response->status().': '.substr($response->body(), 0, 300));
-        }
-
-        $decoded = $response->json();
-        $content = data_get($decoded, 'choices.0.message.content');
-
-        if (! is_string($content) || trim($content) === '') {
-            throw new AiProviderException('AI provider returned an empty completion.');
-        }
-
-        return new AiCompletion(
-            text: trim($content),
-            provider: $this->name(),
-            model: $request->model,
-            metadata: ['status' => $response->status()],
-        );
+        throw $lastException ?? new AiProviderException('AI provider returned an empty completion.');
     }
 }

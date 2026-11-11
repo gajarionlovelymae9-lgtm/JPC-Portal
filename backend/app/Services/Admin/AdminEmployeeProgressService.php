@@ -196,7 +196,7 @@ class AdminEmployeeProgressService
             ->selectRaw('count(task_assignments.id) as assigned')
             ->selectRaw('sum(case when task_assignments.status in ("completed","approved") then 1 else 0 end) as completed')
             ->selectRaw('sum(case when task_assignments.status in ("assigned","accepted") then 1 else 0 end) as pending')
-            ->selectRaw('sum(case when task_assignments.status not in ("completed","approved","cancelled") and coalesce(task_assignments.due_date, (select tasks.due_date from tasks where tasks.id = task_assignments.task_id)) is not null and coalesce(task_assignments.due_date, (select tasks.due_date from tasks where tasks.id = task_assignments.task_id)) < curdate() then 1 else 0 end) as late')
+            ->selectRaw('sum(case when task_assignments.status not in ("completed","approved","cancelled") and coalesce(task_assignments.due_date, (select tasks.due_date from tasks where tasks.id = task_assignments.task_id)) is not null and coalesce(task_assignments.due_date, (select tasks.due_date from tasks where tasks.id = task_assignments.task_id)) < CURRENT_DATE then 1 else 0 end) as late')
             ->first();
 
         $totalEmployees = (int) ($stats->employees ?? 0);
@@ -233,7 +233,7 @@ class AdminEmployeeProgressService
             ->selectRaw('sum(case when status in ("assigned","accepted","not_started") then 1 else 0 end) as pending')
             ->selectRaw('sum(case when status in ("in_progress","submitted") then 1 else 0 end) as in_progress')
             ->selectRaw('sum(case when status in ("completed","approved") and due_date is not null and completed_at is not null and completed_at > due_date then 1 else 0 end) as completed_late')
-            ->selectRaw('sum(case when status not in ("completed","approved","cancelled") and coalesce(due_date, (select tasks.due_date from tasks where tasks.id = task_assignments.task_id)) is not null and coalesce(due_date, (select tasks.due_date from tasks where tasks.id = task_assignments.task_id)) < curdate() then 1 else 0 end) as overdue')
+            ->selectRaw('sum(case when status not in ("completed","approved","cancelled") and coalesce(due_date, (select tasks.due_date from tasks where tasks.id = task_assignments.task_id)) is not null and coalesce(due_date, (select tasks.due_date from tasks where tasks.id = task_assignments.task_id)) < CURRENT_DATE then 1 else 0 end) as overdue')
             ->first();
 
         $assigned = (int) ($task->assigned ?? 0);

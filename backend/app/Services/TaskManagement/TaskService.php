@@ -114,11 +114,26 @@ class TaskService
         $prefix = "TASK-{$year}-";
 
         for ($attempt = 0; $attempt < 100; $attempt++) {
-            $max = DB::table('tasks')
-                ->where('task_code', 'like', "{$prefix}%")
-                ->lockForUpdate()
-                ->select(DB::raw('IFNULL(MAX(CAST(SUBSTRING_INDEX(task_code, "-", -1) AS UNSIGNED)), 0) AS seq'))
-                ->value('seq');
+            if (DB::connection()->getDriverName() === 'sqlite') {
+                $codes = DB::table('tasks')
+                    ->where('task_code', 'like', "{$prefix}%")
+                    ->pluck('task_code');
+                $max = 0;
+                foreach ($codes as $c) {
+                    if (preg_match('/-(\d+)$/', (string) $c, $m)) {
+                        $seq = (int) $m[1];
+                        if ($seq > $max) {
+                            $max = $seq;
+                        }
+                    }
+                }
+            } else {
+                $max = DB::table('tasks')
+                    ->where('task_code', 'like', "{$prefix}%")
+                    ->lockForUpdate()
+                    ->select(DB::raw('IFNULL(MAX(CAST(SUBSTRING_INDEX(task_code, "-", -1) AS UNSIGNED)), 0) AS seq'))
+                    ->value('seq');
+            }
 
             $code = $prefix.str_pad((string) ((int) $max + 1), 4, '0', STR_PAD_LEFT);
 

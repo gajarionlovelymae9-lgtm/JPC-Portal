@@ -1531,10 +1531,10 @@ class EmployeePortalService
 
     private function reportDetailShape(Report $report): array
     {
-        $latestAnalysis = $report->aiAnalyses()->sortByDesc('id')->first();
-        $latestSummary = $report->aiSummaries()->sortByDesc('id')->first();
-        $latestValidation = $report->aiValidationResults()->sortByDesc('id')->first();
-        $latestSimilarity = $report->aiSimilarityResults()->sortByDesc('id')->first();
+        $latestAnalysis = $report->aiAnalyses()->latest('id')->first();
+        $latestSummary = $report->aiSummaries()->latest('id')->first();
+        $latestValidation = $report->aiValidationResults()->latest('id')->first();
+        $latestSimilarity = $report->aiSimilarityResults()->latest('id')->first();
         $latestOcr = method_exists($report, 'ocrProcessings')
             ? $report->ocrProcessings()->latest('id')->first()
             : null;

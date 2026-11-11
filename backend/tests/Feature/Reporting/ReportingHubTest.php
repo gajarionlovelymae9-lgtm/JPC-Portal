@@ -41,6 +41,12 @@ class ReportingHubTest extends TestCase
         $this->seed(RolePermissionSeeder::class);
     }
 
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+        parent::tearDown();
+    }
+
     private function adminUser(): User
     {
         $user = User::factory()->create();
@@ -724,6 +730,8 @@ class ReportingHubTest extends TestCase
         $this->assertTrue($revision['is_overdue']);
         $this->assertGreaterThan(0, $revision['days_overdue']);
         $this->assertSame(0, $revision['days_remaining']);
+
+        Carbon::setTestNow();
     }
 
     public function test_table_report_pagination_accepts_the_100_row_ceiling_and_rejects_more(): void

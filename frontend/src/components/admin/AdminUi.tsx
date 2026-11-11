@@ -353,6 +353,7 @@ export function Button({
   disabled = false,
   ariaDisabled = false,
   className = '',
+  title,
 }: {
   children: ReactNode
   onClick?: () => void
@@ -366,6 +367,7 @@ export function Button({
    */
   ariaDisabled?: boolean
   className?: string
+  title?: string
 }) {
   const variants: Record<string, string> = {
     primary: 'bg-jpc-600 text-white hover:bg-jpc-700',
@@ -379,6 +381,7 @@ export function Button({
       onClick={onClick}
       disabled={disabled}
       aria-disabled={ariaDisabled || undefined}
+      title={title}
       className={`px-4 py-2 rounded-lg text-sm font-bold transition disabled:opacity-50 disabled:cursor-not-allowed ${ariaDisabled ? 'opacity-50 cursor-not-allowed' : ''} ${variants[variant]} ${className}`}
     >
       {children}

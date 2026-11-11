@@ -422,7 +422,7 @@ class AdminExecutiveDashboardService
                 'sum(case when task_assignments.id is not null'
                 .' and task_assignments.status not in ("completed","approved")'
                 .' and coalesce(task_assignments.due_date, tasks.due_date) is not null'
-                .' and coalesce(task_assignments.due_date, tasks.due_date) < curdate()'
+                .' and coalesce(task_assignments.due_date, tasks.due_date) < CURRENT_DATE'
                 .' then 1 else 0 end) as overdue_count'
             )
             ->orderBy('departments.name')
@@ -479,6 +479,9 @@ class AdminExecutiveDashboardService
      */
     private function monthlyAchievements(): array
     {
+        $isSqlite = DB::connection()->getDriverName() === 'sqlite';
+        $nameExpr = $isSqlite ? "(employees.first_name || ' ' || employees.last_name)" : 'concat(employees.first_name, " ", employees.last_name)';
+
         return DB::table('employees')
             ->leftJoin('task_assignments', 'task_assignments.employee_id', '=', 'employees.id')
             ->leftJoin('departments', 'departments.id', '=', 'employees.department_id')
@@ -486,13 +489,14 @@ class AdminExecutiveDashboardService
             ->where('employees.employment_status', 'active')
             ->groupBy('employees.id', 'employees.first_name', 'employees.last_name', 'departments.name')
             ->select('employees.id')
-            ->selectRaw('concat(employees.first_name, " ", employees.last_name) as name')
+            ->selectRaw("{$nameExpr} as name")
             ->selectRaw('departments.name as department_name')
             ->selectRaw('count(task_assignments.id) as total')
             ->selectRaw('sum(case when task_assignments.status in ("completed","approved") then 1 else 0 end) as completed')
-            ->orderByRaw('case when count(task_assignments.id) = 0 then 0 else (sum(case when task_assignments.status in ("completed","approved") then 1 else 0 end) / count(task_assignments.id)) end desc')
-            ->limit(5)
             ->get()
+            ->sortByDesc(fn ($row) => (int) $row->total === 0 ? 0 : ((int) $row->completed / (int) $row->total))
+            ->take(5)
+            ->values()
             ->map(function ($row) {
                 $rate = $this->rate((int) $row->completed, (int) $row->total);
 

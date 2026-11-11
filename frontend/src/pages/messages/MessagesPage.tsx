@@ -150,7 +150,7 @@ function Avatar({
     <span
       style={{ width: size, height: size }}
       className={`rounded-full flex items-center justify-center font-bold flex-shrink-0 ${
-        group ? 'bg-[#EAF6EF] text-[#1E3A8A]' : 'bg-[#1E3A8A] text-white'
+        group ? 'bg-[#EFF6FF] text-[#1E3A8A]' : 'bg-[#1E3A8A] text-white'
       }`}
     >
       {group ? <Users size={Math.round(size / 2)} /> : initialsOf(name)}
@@ -291,15 +291,21 @@ export default function MessagesPage() {
     threadEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [detail?.messages, detail?.id])
 
+  const isFirstSearch = useRef(true)
   // Debounced server-side conversation search.
   useEffect(() => {
+    if (isFirstSearch.current) {
+      isFirstSearch.current = false
+      return
+    }
     if (searchTimer.current) clearTimeout(searchTimer.current)
-    searchTimer.current = setTimeout(() => refreshList(), 300)
+    searchTimer.current = setTimeout(() => {
+      refreshList()
+    }, 300)
     return () => {
       if (searchTimer.current) clearTimeout(searchTimer.current)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search])
+  }, [search, refreshList])
 
   const openConversation = async (id: number) => {
     setActiveId(id)
@@ -532,7 +538,7 @@ export default function MessagesPage() {
 
   // ── Render ────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-[#F4FBF7] p-3 sm:p-5 md:p-8">
+    <div className="min-h-screen bg-[#F8FAFC] p-3 sm:p-5 md:p-8">
       <div className="mx-auto max-w-7xl">
         {/* Header */}
         <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -556,7 +562,7 @@ export default function MessagesPage() {
                 setDirectorySearch('')
                 setError(null)
               }}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#1E4ED8] bg-white px-5 py-2.5 text-sm font-bold text-[#1E4ED8] shadow-sm transition hover:bg-[#EAF6EF]"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[#1E4ED8] bg-white px-5 py-2.5 text-sm font-bold text-[#1E4ED8] shadow-sm transition hover:bg-[#EFF6FF]"
             >
               <Users size={18} /> New Group
             </button>
@@ -587,12 +593,12 @@ export default function MessagesPage() {
         )}
 
         {/* Two panel layout */}
-        <div className="grid min-h-[640px] grid-cols-1 overflow-hidden rounded-3xl border border-[#EAF6EF] bg-white shadow-sm md:grid-cols-12">
+        <div className="grid min-h-[640px] grid-cols-1 overflow-hidden rounded-3xl border border-[#EFF6FF] bg-white shadow-sm md:grid-cols-12">
           {/* LEFT PANEL */}
           <aside
-            className={`${activeId ? 'hidden md:flex' : 'flex'} flex-col border-b border-[#EAF6EF] md:col-span-4 md:border-b-0 md:border-r lg:col-span-4`}
+            className={`${activeId ? 'hidden md:flex' : 'flex'} flex-col border-b border-[#EFF6FF] md:col-span-4 md:border-b-0 md:border-r lg:col-span-4`}
           >
-            <div className="border-b border-[#EAF6EF] p-3">
+            <div className="border-b border-[#EFF6FF] p-3">
               <div className="relative">
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#64748B]" />
                 <input
@@ -600,7 +606,7 @@ export default function MessagesPage() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search conversations"
-                  className="w-full rounded-xl border border-[#EAF6EF] bg-[#F4FBF7] py-2 pl-9 pr-3 text-sm text-[#111827] outline-none focus:ring-2 focus:ring-[#1E4ED8]"
+                  className="w-full rounded-xl border border-[#EFF6FF] bg-[#F8FAFC] py-2 pl-9 pr-3 text-sm text-[#111827] outline-none focus:ring-2 focus:ring-[#1E4ED8]"
                 />
               </div>
 
@@ -613,7 +619,7 @@ export default function MessagesPage() {
                     className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
                       filter === f.key
                         ? 'bg-[#1E4ED8] text-white'
-                        : 'bg-[#EAF6EF] text-[#1E3A8A] hover:bg-[#d9efe3]'
+                        : 'bg-[#EFF6FF] text-[#1E3A8A] hover:bg-[#DBEAFE]'
                     }`}
                   >
                     {f.label}
@@ -627,7 +633,7 @@ export default function MessagesPage() {
               </div>
             </div>
 
-            <div className="flex-1 divide-y divide-[#F4FBF7] overflow-y-auto">
+            <div className="flex-1 divide-y divide-[#F8FAFC] overflow-y-auto">
               {loadingList ? (
                 <div className="p-8 text-center text-sm text-[#64748B]">Loading conversations…</div>
               ) : conversations.length === 0 ? (
@@ -653,7 +659,7 @@ export default function MessagesPage() {
                       type="button"
                       onClick={() => openConversation(conv.id)}
                       className={`flex w-full items-start gap-3 p-3 text-left transition ${
-                        isActive ? 'bg-[#EAF6EF]' : 'hover:bg-[#F4FBF7]'
+                        isActive ? 'bg-[#EFF6FF]' : 'hover:bg-[#F8FAFC]'
                       }`}
                     >
                       <Avatar name={title} url={counterpart?.avatar_url} group={conv.is_group} />
@@ -680,7 +686,7 @@ export default function MessagesPage() {
             </div>
 
             {unreadTotal > 0 && (
-              <div className="border-t border-[#EAF6EF] px-3 py-2 text-[11px] font-semibold text-[#64748B]">
+              <div className="border-t border-[#EFF6FF] px-3 py-2 text-[11px] font-semibold text-[#64748B]">
                 {unreadTotal} unread message{unreadTotal === 1 ? '' : 's'}
               </div>
             )}
@@ -688,17 +694,17 @@ export default function MessagesPage() {
 
           {/* RIGHT PANEL */}
           <section
-            className={`${activeId ? 'flex' : 'hidden md:flex'} flex-col bg-[#F4FBF7] md:col-span-8 lg:col-span-8`}
+            className={`${activeId ? 'flex' : 'hidden md:flex'} flex-col bg-[#F8FAFC] md:col-span-8 lg:col-span-8`}
           >
             {detail ? (
               <>
                 {/* Thread header */}
-                <header className="flex items-center justify-between gap-3 border-b border-[#EAF6EF] bg-white p-3">
+                <header className="flex items-center justify-between gap-3 border-b border-[#EFF6FF] bg-white p-3">
                   <div className="flex min-w-0 items-center gap-3">
                     <button
                       type="button"
                       onClick={() => setActiveId(null)}
-                      className="rounded-lg p-1 text-[#1E3A8A] hover:bg-[#EAF6EF] md:hidden"
+                      className="rounded-lg p-1 text-[#1E3A8A] hover:bg-[#EFF6FF] md:hidden"
                       aria-label="Back to conversations"
                     >
                       <ChevronLeft size={20} />
@@ -727,7 +733,7 @@ export default function MessagesPage() {
                       <button
                         type="button"
                         onClick={() => setShowMembers((v) => !v)}
-                        className="rounded-lg p-2 text-[#1E3A8A] hover:bg-[#EAF6EF]"
+                        className="rounded-lg p-2 text-[#1E3A8A] hover:bg-[#EFF6FF]"
                         aria-label="Group information"
                       >
                         <Info size={18} />
@@ -737,7 +743,7 @@ export default function MessagesPage() {
                       <button
                         type="button"
                         onClick={() => handleArchiveToggle(detail.id)}
-                        className="rounded-lg p-2 text-[#1E3A8A] hover:bg-[#EAF6EF]"
+                        className="rounded-lg p-2 text-[#1E3A8A] hover:bg-[#EFF6FF]"
                         aria-label="Restore conversation"
                       >
                         <ArchiveRestore size={18} />
@@ -746,7 +752,7 @@ export default function MessagesPage() {
                       <button
                         type="button"
                         onClick={() => handleArchiveToggle(detail.id)}
-                        className="rounded-lg p-2 text-[#1E3A8A] hover:bg-[#EAF6EF]"
+                        className="rounded-lg p-2 text-[#1E3A8A] hover:bg-[#EFF6FF]"
                         aria-label="Archive conversation"
                       >
                         <Archive size={18} />
@@ -756,7 +762,7 @@ export default function MessagesPage() {
                 </header>
 
                 {showMembers && detail.is_group && (
-                  <div className="border-b border-[#EAF6EF] bg-white px-3 py-3">
+                  <div className="border-b border-[#EFF6FF] bg-white px-3 py-3">
                     <div className="mb-2 flex items-center justify-between">
                       <h4 className="text-xs font-bold uppercase tracking-wide text-[#64748B]">
                         Members ({detail.participants.length})
@@ -769,7 +775,7 @@ export default function MessagesPage() {
                               setShowAddMembers(true)
                               setAddSelected([])
                             }}
-                            className="inline-flex items-center gap-1 rounded-lg bg-[#EAF6EF] px-2 py-1 text-[11px] font-bold text-[#1E3A8A]"
+                            className="inline-flex items-center gap-1 rounded-lg bg-[#EFF6FF] px-2 py-1 text-[11px] font-bold text-[#1E3A8A]"
                           >
                             <UserPlus size={14} /> Add
                           </button>
@@ -851,7 +857,7 @@ export default function MessagesPage() {
                                 className={`group relative max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm shadow-sm ${
                                   mine
                                     ? 'rounded-br-sm bg-[#1E4ED8] text-white'
-                                    : 'rounded-bl-sm border border-[#EAF6EF] bg-white text-[#111827]'
+                                    : 'rounded-bl-sm border border-[#EFF6FF] bg-white text-[#111827]'
                                 }`}
                               >
                                 {msg.reply_to && (
@@ -859,7 +865,7 @@ export default function MessagesPage() {
                                     className={`mb-1.5 rounded-lg border-l-2 px-2 py-1 text-[11px] ${
                                       mine
                                         ? 'border-white/60 bg-white/10 text-white/90'
-                                        : 'border-[#1E4ED8] bg-[#F4FBF7] text-[#64748B]'
+                                        : 'border-[#1E4ED8] bg-[#F8FAFC] text-[#64748B]'
                                     }`}
                                   >
                                     <span className="font-semibold">
@@ -878,7 +884,7 @@ export default function MessagesPage() {
                                     className={`mt-1.5 flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs font-semibold ${
                                       mine
                                         ? 'bg-white/15 text-white hover:bg-white/25'
-                                        : 'bg-[#F4FBF7] text-[#1E3A8A] hover:bg-[#EAF6EF]'
+                                        : 'bg-[#F8FAFC] text-[#1E3A8A] hover:bg-[#EFF6FF]'
                                     }`}
                                   >
                                     <FileText size={14} />
@@ -902,7 +908,7 @@ export default function MessagesPage() {
                                 <button
                                   type="button"
                                   onClick={() => setReplyTo(msg)}
-                                  className="absolute -top-3 right-2 hidden rounded-full border border-[#EAF6EF] bg-white p-1 text-[#1E3A8A] shadow-sm group-hover:block"
+                                  className="absolute -top-3 right-2 hidden rounded-full border border-[#EFF6FF] bg-white p-1 text-[#1E3A8A] shadow-sm group-hover:block"
                                   aria-label="Reply"
                                 >
                                   <Reply size={13} />
@@ -920,10 +926,10 @@ export default function MessagesPage() {
                 {/* Composer */}
                 <form
                   onSubmit={handleSend}
-                  className="border-t border-[#EAF6EF] bg-white p-3"
+                  className="border-t border-[#EFF6FF] bg-white p-3"
                 >
                   {replyTo && (
-                    <div className="mb-2 flex items-start justify-between gap-2 rounded-lg border-l-2 border-[#1E4ED8] bg-[#F4FBF7] px-3 py-2 text-xs">
+                    <div className="mb-2 flex items-start justify-between gap-2 rounded-lg border-l-2 border-[#1E4ED8] bg-[#F8FAFC] px-3 py-2 text-xs">
                       <div className="min-w-0">
                         <p className="font-semibold text-[#1E3A8A]">Replying to {replyTo.sender.name}</p>
                         <p className="truncate text-[#64748B]">{replyTo.body || 'Attachment'}</p>
@@ -940,7 +946,7 @@ export default function MessagesPage() {
                   )}
 
                   {attachment && (
-                    <div className="mb-2 flex items-center justify-between gap-2 rounded-lg bg-[#EAF6EF] px-3 py-2 text-xs text-[#1E3A8A]">
+                    <div className="mb-2 flex items-center justify-between gap-2 rounded-lg bg-[#EFF6FF] px-3 py-2 text-xs text-[#1E3A8A]">
                       <span className="flex min-w-0 items-center gap-2">
                         <Paperclip size={14} />
                         <span className="truncate">
@@ -980,7 +986,7 @@ export default function MessagesPage() {
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="rounded-xl border border-[#EAF6EF] p-2.5 text-[#1E3A8A] hover:bg-[#EAF6EF]"
+                      className="rounded-xl border border-[#EFF6FF] p-2.5 text-[#1E3A8A] hover:bg-[#EFF6FF]"
                       aria-label="Attach a file"
                     >
                       <Paperclip size={18} />
@@ -996,7 +1002,7 @@ export default function MessagesPage() {
                         }
                       }}
                       placeholder="Type your message…"
-                      className="max-h-32 min-h-[44px] flex-1 resize-y rounded-xl border border-[#EAF6EF] bg-[#F4FBF7] px-3 py-2.5 text-sm text-[#111827] outline-none focus:ring-2 focus:ring-[#1E4ED8]"
+                      className="max-h-32 min-h-[44px] flex-1 resize-y rounded-xl border border-[#EFF6FF] bg-[#F8FAFC] px-3 py-2.5 text-sm text-[#111827] outline-none focus:ring-2 focus:ring-[#1E4ED8]"
                     />
                     <button
                       type="submit"
@@ -1010,7 +1016,7 @@ export default function MessagesPage() {
               </>
             ) : (
               <div className="flex flex-1 flex-col items-center justify-center p-12 text-center">
-                <span className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-[#EAF6EF] text-[#1E3A8A]">
+                <span className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-[#EFF6FF] text-[#1E3A8A]">
                   <MessageSquarePlus size={26} />
                 </span>
                 <p className="text-base font-bold text-[#111827]">No conversation selected</p>
@@ -1029,7 +1035,7 @@ export default function MessagesPage() {
         <ModalShell onClose={() => setShowDirectory(false)} title="New Message" icon={<MessageSquarePlus size={18} />}>
           {directTarget ? (
             <form onSubmit={handleStartDirect} className="space-y-4">
-              <div className="flex items-center gap-3 rounded-xl bg-[#F4FBF7] p-3">
+              <div className="flex items-center gap-3 rounded-xl bg-[#F8FAFC] p-3">
                 <Avatar name={directTarget.name} url={directTarget.avatar_url} />
                 <div className="min-w-0">
                   <p className="truncate text-sm font-bold text-[#111827]">{directTarget.name}</p>
@@ -1051,7 +1057,7 @@ export default function MessagesPage() {
                 value={directBody}
                 onChange={(e) => setDirectBody(e.target.value)}
                 placeholder="Write your message…"
-                className="w-full rounded-xl border border-[#EAF6EF] bg-[#F4FBF7] px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#1E4ED8]"
+                className="w-full rounded-xl border border-[#EFF6FF] bg-[#F8FAFC] px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[#1E4ED8]"
               />
               <div className="flex justify-end gap-2">
                 <SecondaryButton onClick={() => setDirectTarget(null)}>Back</SecondaryButton>
@@ -1177,8 +1183,8 @@ function ModalShell({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#111827]/50 p-3 backdrop-blur-sm">
-      <div className="w-full max-w-lg rounded-3xl border border-[#EAF6EF] bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-[#EAF6EF] p-4">
+      <div className="w-full max-w-lg rounded-3xl border border-[#EFF6FF] bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-[#EFF6FF] p-4">
           <h3 className="flex items-center gap-2 text-base font-extrabold text-[#1E3A8A]">
             {icon} {title}
           </h3>
@@ -1220,7 +1226,7 @@ function SecondaryButton({ children, onClick }: { children: React.ReactNode; onC
     <button
       type="button"
       onClick={onClick}
-      className="rounded-xl px-4 py-2 text-sm font-bold text-[#64748B] transition hover:bg-[#F4FBF7]"
+      className="rounded-xl px-4 py-2 text-sm font-bold text-[#64748B] transition hover:bg-[#F8FAFC]"
     >
       {children}
     </button>
@@ -1250,7 +1256,7 @@ function Input({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-xl border border-[#EAF6EF] bg-[#F4FBF7] px-3 py-2.5 text-sm text-[#111827] outline-none focus:ring-2 focus:ring-[#1E4ED8]"
+        className="w-full rounded-xl border border-[#EFF6FF] bg-[#F8FAFC] px-3 py-2.5 text-sm text-[#111827] outline-none focus:ring-2 focus:ring-[#1E4ED8]"
       />
     </div>
   )
@@ -1276,7 +1282,7 @@ function DirectorySearch({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="Search by name, department or position"
-          className="w-full rounded-xl border border-[#EAF6EF] bg-[#F4FBF7] py-2 pl-9 pr-3 text-sm text-[#111827] outline-none focus:ring-2 focus:ring-[#1E4ED8]"
+          className="w-full rounded-xl border border-[#EFF6FF] bg-[#F8FAFC] py-2 pl-9 pr-3 text-sm text-[#111827] outline-none focus:ring-2 focus:ring-[#1E4ED8]"
         />
       </div>
       <div className="flex flex-wrap gap-1.5">
@@ -1288,7 +1294,7 @@ function DirectorySearch({
             className={`rounded-full px-2.5 py-1 text-[11px] font-semibold transition ${
               roleValue === r.key
                 ? 'bg-[#1E4ED8] text-white'
-                : 'bg-[#EAF6EF] text-[#1E3A8A] hover:bg-[#d9efe3]'
+                : 'bg-[#EFF6FF] text-[#1E3A8A] hover:bg-[#DBEAFE]'
             }`}
           >
             {r.label}
@@ -1329,7 +1335,7 @@ function DirectoryList({
     )
   }
   return (
-    <ul className="max-h-64 divide-y divide-[#F4FBF7] overflow-y-auto rounded-xl border border-[#EAF6EF]">
+    <ul className="max-h-64 divide-y divide-[#F8FAFC] overflow-y-auto rounded-xl border border-[#EFF6FF]">
       {users.map((u) => {
         const selected = selectedIds.includes(u.id)
         return (
@@ -1337,8 +1343,8 @@ function DirectoryList({
             <button
               type="button"
               onClick={() => (multi ? onToggle?.(u.id) : onSelect?.(u))}
-              className={`flex w-full items-center gap-3 p-2.5 text-left transition hover:bg-[#F4FBF7] ${
-                selected ? 'bg-[#EAF6EF]' : ''
+              className={`flex w-full items-center gap-3 p-2.5 text-left transition hover:bg-[#F8FAFC] ${
+                selected ? 'bg-[#EFF6FF]' : ''
               }`}
             >
               <Avatar name={u.name} url={u.avatar_url} size={36} />
@@ -1350,7 +1356,7 @@ function DirectoryList({
                   {u.position ? ` · ${u.position}` : ''}
                 </p>
               </div>
-              <span className="flex-shrink-0 rounded-full bg-[#EAF6EF] px-2 py-0.5 text-[10px] font-bold text-[#1E3A8A]">
+              <span className="flex-shrink-0 rounded-full bg-[#EFF6FF] px-2 py-0.5 text-[10px] font-bold text-[#1E3A8A]">
                 {u.status}
               </span>
               {multi ? (

@@ -165,7 +165,7 @@ function statValue(label: string): string | null {
   if (!card) {
     throw new Error(`KPI card for "${label}" not found`)
   }
-  const values = within(card).getAllByText((_, element) => element?.tagName === 'P')
+  const values = within(card as HTMLElement).getAllByText((_, element) => element?.tagName === 'P')
   const match = values
     .map((element) => element.textContent?.trim() ?? '')
     .find((text) => text !== label && text !== '')

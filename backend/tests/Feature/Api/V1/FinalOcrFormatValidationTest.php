@@ -46,12 +46,20 @@ class FinalOcrFormatValidationTest extends TestCase
             ->where('name', Role::Employee->value)
             ->firstOrFail();
 
-        return User::factory()->create(['role_id' => $role->id]);
+        $user = User::factory()->create(['role_id' => $role->id]);
+        \App\Models\Employee::factory()->create(['user_id' => $user->id]);
+
+        return $user;
     }
 
-    private function makeReportWithVersion(): Report
+    private function makeReportWithVersion(?User $owner = null): Report
     {
-        $report = Report::factory()->create();
+        $attributes = [];
+        if ($owner && $owner->employee) {
+            $attributes['employee_id'] = $owner->employee->id;
+        }
+
+        $report = Report::factory()->create($attributes);
         $report->versions()->create([
             'version_number' => 1,
             'title' => $report->title,
@@ -66,7 +74,7 @@ class FinalOcrFormatValidationTest extends TestCase
     public function test_report_document_upload_accepts_all_supported_formats(): void
     {
         $user = $this->ownerWithReportsUpdate();
-        $report = $this->makeReportWithVersion();
+        $report = $this->makeReportWithVersion($user);
 
         foreach (self::FORMATS as $format) {
             $fixture = base_path("tests/Fixtures/ocr/sample-q3.{$format}");
@@ -94,7 +102,7 @@ class FinalOcrFormatValidationTest extends TestCase
     public function test_ocr_pipeline_processes_all_supported_formats(): void
     {
         $user = $this->ownerWithReportsUpdate();
-        $report = $this->makeReportWithVersion();
+        $report = $this->makeReportWithVersion($user);
 
         foreach (self::FORMATS as $format) {
             $fixture = base_path("tests/Fixtures/ocr/sample-q3.{$format}");
@@ -127,7 +135,7 @@ class FinalOcrFormatValidationTest extends TestCase
     public function test_every_uploaded_format_ends_in_completed_ocr_record(): void
     {
         $user = $this->ownerWithReportsUpdate();
-        $report = $this->makeReportWithVersion();
+        $report = $this->makeReportWithVersion($user);
 
         foreach (self::FORMATS as $format) {
             $fixture = base_path("tests/Fixtures/ocr/sample-q3.{$format}");

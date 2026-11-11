@@ -250,9 +250,9 @@ class PortalSurfaceRegressionTest extends TestCase
 
     public function test_ai_insights_load_without_has_role_error(): void
     {
-        $employee = $this->employeeUser();
+        $admin = $this->admin();
 
-        $this->login($employee);
+        $this->login($admin);
 
         $this->getJson('/api/v1/ai/insights')->assertOk()->assertJsonPath('success', true);
         $this->getJson('/api/v1/ai/insights/performance')->assertOk();

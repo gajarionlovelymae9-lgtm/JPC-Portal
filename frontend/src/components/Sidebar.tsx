@@ -514,10 +514,13 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       />
       <aside className={`sidebar${isHr ? ' sidebar--hr' : ''}${open ? ' sidebar--open' : ''}`}>
         <div className="sidebar__brand">
-          <span className="sidebar__brand-mark" aria-hidden="true">
-            JPC
-          </span>
-          <span className="sidebar__brand-name">JPC Portal</span>
+          <div className="sidebar__brand-mark" aria-hidden="true">
+            <img src="/logo.png" alt="JPC Crest" className="sidebar__brand-logo" />
+          </div>
+          <div className="sidebar__brand-text">
+            <span className="sidebar__brand-name">JPC Portal</span>
+            <span className="sidebar__brand-sub">John Paul College</span>
+          </div>
         </div>
 
         <nav className="sidebar__nav" aria-label="Main navigation">

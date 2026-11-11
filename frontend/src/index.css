@@ -20,20 +20,20 @@
 /* Department Head and Employee) at once.                              */
 /* ------------------------------------------------------------------ */
 :root {
-  /* Royal Blue — identity, navigation and primary actions */
+  /* Royal Blue — identity, navigation and primary actions (John Paul College) */
   --color-primary-dark: #1e3a8a; /* Deep Royal Blue */
   --color-primary: #1e4ed8; /* Royal Blue */
   --color-primary-bright: #2563eb; /* Bright Blue */
-  --color-primary-light: #eaf6ef; /* soft tint used behind icons/avatars */
+  --color-primary-light: #eff6ff; /* soft royal blue tint used behind icons/avatars */
   --color-accent: #2563eb; /* Information / accents */
 
-  /* Soft Mint + Pure White — backgrounds and surfaces */
-  --color-bg: #f4fbf7; /* main application background */
-  --color-bg-secondary: #f8fcf9; /* secondary page sections */
-  --color-mint: #eaf6ef; /* highlighted sections (used sparingly) */
+  /* John Paul College Pure White & Slate Palette — backgrounds and surfaces */
+  --color-bg: #f8fafc; /* main application background (clean slate-50) */
+  --color-bg-secondary: #f1f5f9; /* secondary page sections (slate-100) */
+  --color-mint: #eff6ff; /* highlighted sections / active pills (soft blue-50 tint) */
   --color-surface: #ffffff; /* cards, tables, forms, modals */
-  --color-border: #e1efe6; /* mint border */
-  --color-border-strong: #cfe3d8;
+  --color-border: #e2e8f0; /* clean slate-200 border */
+  --color-border-strong: #cbd5e1; /* slate-300 border */
 
   /* Typography */
   --color-text: #111827; /* primary text */
@@ -146,7 +146,7 @@ a {
 .sidebar__brand {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
+  gap: 0.75rem;
   padding: 1.1rem 1.25rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 }
@@ -154,21 +154,43 @@ a {
 .sidebar__brand-mark {
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 9px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
   background: #ffffff;
-  color: var(--color-primary-dark);
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  font-size: 0.8rem;
+  padding: 2px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.sidebar__brand-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 50%;
+}
+
+.sidebar__brand-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .sidebar__brand-name {
   font-weight: 700;
   font-size: 1.05rem;
   color: #ffffff;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+}
+
+.sidebar__brand-sub {
+  font-size: 0.72rem;
+  color: #93b4fd;
+  letter-spacing: 0.04em;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .sidebar__nav {
@@ -428,12 +450,19 @@ a {
   place-items: center;
   width: 34px;
   height: 34px;
-  border-radius: 8px;
-  background: var(--color-primary);
-  color: #ffffff;
-  font-weight: 800;
-  font-size: 0.7rem;
-  letter-spacing: 0.04em;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1px solid var(--color-border);
+  padding: 1px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.header__brand-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 50%;
 }
 
 .header__brand-name {
@@ -847,7 +876,7 @@ a {
 .auth-card__field select {
   width: 100%;
   min-height: 46px;
-  border: 1px solid #e1efe6;
+  border: 1px solid var(--color-border);
   border-radius: 10px;
   padding: 0.65rem 0.9rem 0.65rem 2.4rem;
   font-size: 0.95rem;

@@ -133,14 +133,19 @@ class EmployeeDataIntegrityTest extends TestCase
      */
     private function assertIndexes(string $table, array $expected): void
     {
-        $database = DB::connection()->getDatabaseName();
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            $indexes = \Illuminate\Support\Facades\Schema::getIndexes($table);
+            $actual = array_column($indexes, 'name');
+        } else {
+            $database = DB::connection()->getDatabaseName();
 
-        $actual = DB::table('information_schema.statistics')
-            ->where('table_schema', $database)
-            ->where('table_name', $table)
-            ->distinct()
-            ->pluck('INDEX_NAME')
-            ->all();
+            $actual = DB::table('information_schema.statistics')
+                ->where('table_schema', $database)
+                ->where('table_name', $table)
+                ->distinct()
+                ->pluck('INDEX_NAME')
+                ->all();
+        }
 
         foreach ($expected as $index) {
             $this->assertContains($index, $actual, "Missing index {$index} on {$table}");

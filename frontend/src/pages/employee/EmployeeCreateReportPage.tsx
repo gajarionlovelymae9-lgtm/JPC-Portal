@@ -5,8 +5,6 @@ import type { CreateReportPayload, EmployeePortalTask } from '../../services/emp
 import { clearSummaryTransfer, getSummaryTransfer } from '../../services/employeeAiAssistantService'
 import { PATHS } from '../../routes/paths'
 
-const REPORT_TYPES = ['Weekly Report', 'Monthly Report', 'Quarterly Report', 'Project Report', 'Activity Report', 'Accomplishment Report', 'Other']
-
 type FormState = {
   task_id: string
   title: string
@@ -32,10 +30,6 @@ const initialForm: FormState = {
   next_plans: '',
   references: '',
 }
-
-const requiredForSubmit: Array<keyof FormState> = [
-  'task_id', 'title', 'report_type', 'reporting_period', 'report_description', 'accomplishments', 'completed_tasks', 'challenges_encountered', 'next_plans',
-]
 
 function sectionText(content: string, labels: string[]): string {
   const normalized = content.replace(/\r\n/g, '\n')
@@ -130,21 +124,16 @@ export default function EmployeeCreateReportPage() {
     attachments,
   })
 
-  const validate = (forSubmit: boolean) => {
+  const validate = (_forSubmit: boolean = false) => {
     const next: Partial<Record<keyof FormState, string>> = {}
     if (!form.task_id) next.task_id = 'Select the task this report is for.'
     if (!form.title.trim()) next.title = 'Report title is required.'
-    if (forSubmit) {
-      for (const key of requiredForSubmit) {
-        if (!String(form[key] ?? '').trim()) next[key] = 'This field is required before submission.'
-      }
-    }
     setFieldErrors(next)
     return Object.keys(next).length === 0
   }
 
   const handleSaveDraft = async () => {
-    if (!validate(false)) { setError('Please fix the highlighted fields.'); return }
+    if (!validate(false)) { setError('Task and title are required.'); return }
     setSaving(true); setError(null)
     try {
       const r = await createMyReport(payload())
@@ -210,14 +199,13 @@ export default function EmployeeCreateReportPage() {
             <label className="mb-1 block text-sm font-semibold text-gray-700">Related Task *</label>
             <select value={form.task_id} onChange={(e) => setField('task_id', e.target.value)} className={inputClass('task_id')}>
               <option value="">Select task...</option>
-              {tasks.map((t) => <option key={t.id} value={t.task_id ?? t.id}>{t.title ?? `Task #${t.task_id ?? t.id}`}</option>)}
+              {tasks.map((t) => <option key={t.id} value={t.id}>{t.title ?? `Task #${t.id}`}</option>)}
             </select>
             {fieldErrors.task_id && <p className="mt-1 text-xs text-red-600">{fieldErrors.task_id}</p>}
           </div>
           <div>
             <label className="mb-1 block text-sm font-semibold text-gray-700">Report Type *</label>
-            <input list="report-type-options" value={form.report_type} onChange={(e) => setField('report_type', e.target.value)} className={inputClass('report_type')} placeholder="e.g. Weekly Report" />
-            <datalist id="report-type-options">{REPORT_TYPES.map((type) => <option key={type} value={type} />)}</datalist>
+            <input value={form.report_type} onChange={(e) => setField('report_type', e.target.value)} className={inputClass('report_type')} placeholder="e.g. Weekly Report" />
             {fieldErrors.report_type && <p className="mt-1 text-xs text-red-600">{fieldErrors.report_type}</p>}
           </div>
         </div>
@@ -225,7 +213,7 @@ export default function EmployeeCreateReportPage() {
         <div className="grid gap-5 md:grid-cols-2">
           <div>
             <label className="mb-1 block text-sm font-semibold text-gray-700">Report Title *</label>
-            <input value={form.title} onChange={(e) => setField('title', e.target.value)} className={inputClass('title')} placeholder="Enter report title" />
+            <input value={form.title} onChange={(e) => setField('title', e.target.value)} className={inputClass('title')} placeholder="Enter report title..." />
             {fieldErrors.title && <p className="mt-1 text-xs text-red-600">{fieldErrors.title}</p>}
           </div>
           <div>
@@ -266,7 +254,7 @@ export default function EmployeeCreateReportPage() {
 
       <div className="flex flex-wrap justify-end gap-3">
         <button type="button" onClick={handleSaveDraft} disabled={saving || submitting} className="rounded-lg border border-gray-300 px-5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
-          {saving ? 'Saving...' : draftId ? 'Save Draft Again' : 'Save as Draft'}
+          {saving ? 'Saving...' : 'Save Draft'}
         </button>
         <button type="button" onClick={() => setConfirm(true)} disabled={saving || submitting} className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
           Submit Report
@@ -276,11 +264,11 @@ export default function EmployeeCreateReportPage() {
       {confirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="text-lg font-bold text-gray-900">Submit report for review?</h3>
+            <h3 className="text-lg font-bold text-gray-900">Submit Report?</h3>
             <p className="mt-2 text-sm text-gray-600">After submission, the report enters the review workflow and an AI summary will be generated automatically from the submitted content. Draft editing is only available through the revision workflow when requested.</p>
             <div className="mt-5 flex justify-end gap-3">
               <button type="button" onClick={() => setConfirm(false)} className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700">Cancel</button>
-              <button type="button" onClick={handleSubmit} disabled={submitting} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{submitting ? 'Submitting...' : 'Submit Report'}</button>
+              <button type="button" onClick={handleSubmit} disabled={submitting} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{submitting ? 'Submitting...' : 'Yes, Submit'}</button>
             </div>
           </div>
         </div>

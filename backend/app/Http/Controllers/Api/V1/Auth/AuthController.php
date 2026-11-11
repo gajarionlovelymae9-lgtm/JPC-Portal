@@ -38,13 +38,6 @@ class AuthController extends Controller
 
         $user = User::query()->with('role')->where('email', $email)->first();
 
-        \Illuminate\Support\Facades\Log::info('Login debug', [
-            'email' => $email,
-            'user_found' => (bool) $user,
-            'password_match' => $user ? \Illuminate\Support\Facades\Hash::check($credentials['password'], $user->password) : false,
-            'status' => $user?->status?->value,
-        ]);
-
         if (! $user || ! Hash::check($credentials['password'], $user->password)) {
             $this->activity->recordFailed($email, $request);
 

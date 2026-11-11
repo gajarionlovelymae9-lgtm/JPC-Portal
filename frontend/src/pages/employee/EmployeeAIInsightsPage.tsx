@@ -8,7 +8,7 @@ import { AiScoreCard } from '../../components/employee/AIInsights/AiScoreCard'
 import { AiMetricGrid } from '../../components/employee/AIInsights/AiMetricGrid'
 import { AiAlertList, AiRecommendationList } from '../../components/employee/AIInsights/AiAlertList'
 import { AiForecastCard, AiTransparencyPanel } from '../../components/employee/AIInsights/AiTransparency'
-import { JpcAideLogo, JPC_AIDE_NAME } from '../../components/ai/JpcAideLogo'
+import { JpcAideLogo } from '../../components/ai/JpcAideLogo'
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -54,7 +54,7 @@ export default function EmployeeAIInsightsPage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-              {JPC_AIDE_NAME} - AI Insights
+              My AI Insights
             </h1>
             <p className="text-sm font-medium text-indigo-700 mt-0.5">
               Intelligent Performance Analysis and Productivity Recommendations

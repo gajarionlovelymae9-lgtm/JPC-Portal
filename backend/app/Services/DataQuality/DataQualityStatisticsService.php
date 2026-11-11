@@ -78,10 +78,11 @@ class DataQualityStatisticsService
         $recordsWithIssues = 0;
         $totalRecords = (int) ($scanSummary['records_checked'] ?? 0);
         if ($totalRecords > 0 && ($scan = DataQualityScan::query()->where('status', DataQualityScanStatus::COMPLETED)->orderByDesc('completed_at')->orderByDesc('id')->first())) {
+            $concatExpr = DB::connection()->getDriverName() === 'sqlite' ? "entity_type || '-' || entity_id" : "CONCAT(entity_type, '-', entity_id)";
             $recordsWithIssues = DataQualityIssue::query()
                 ->where('scan_id', $scan->id)
                 ->distinct()
-                ->count(DB::raw("CONCAT(entity_type, '-', entity_id)"));
+                ->count(DB::raw($concatExpr));
         }
 
         return [

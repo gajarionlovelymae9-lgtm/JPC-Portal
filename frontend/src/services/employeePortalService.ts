@@ -50,7 +50,7 @@ export interface EmployeeDashboardTask {
   description: string | null
   priority: string | null
   status: string
-  latest_review_decision: string | null
+  latest_review_decision?: string | null
   progress: number
   deadline: string | null
   deadline_date: string | null

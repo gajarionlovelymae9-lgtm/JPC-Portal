@@ -33,12 +33,12 @@ export default {
           900: '#16255c',
           950: '#0f1a44',
         },
-        // Soft Mint Green surfaces — mirrors --color-bg* / --color-mint
+        // Crisp neutral & blue-slate surfaces — mirrors --color-bg* / --color-mint
         mint: {
-          50: '#f4fbf7',
-          100: '#f8fcf9',
-          200: '#eaf6ef',
-          300: '#e1efe6',
+          50: '#f8fafc',
+          100: '#f1f5f9',
+          200: '#eff6ff',
+          300: '#e2e8f0',
         },
         // Semantic status colours — mirrors --color-ok / --color-error / --color-warning
         ok: '#059669',
@@ -50,8 +50,8 @@ export default {
         info: '#2563eb',
         'info-soft': '#e0f2fe',
         surface: '#ffffff',
-        canvas: '#f4fbf7',
-        line: '#e1efe6',
+        canvas: '#f8fafc',
+        line: '#e2e8f0',
       },
       fontFamily: {
         // The hand-written design system in src/index.css already declares this stack

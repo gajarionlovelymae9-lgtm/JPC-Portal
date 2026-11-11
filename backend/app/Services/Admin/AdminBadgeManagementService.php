@@ -478,11 +478,15 @@ class AdminBadgeManagementService
      */
     private function monthlyAwardCounts(array $filters): array
     {
+        $isSqlite = DB::connection()->getDriverName() === 'sqlite';
+        $yearExpr = $isSqlite ? "CAST(strftime('%Y', employee_badges.awarded_at) AS INTEGER)" : 'year(employee_badges.awarded_at)';
+        $monthExpr = $isSqlite ? "CAST(strftime('%m', employee_badges.awarded_at) AS INTEGER)" : 'month(employee_badges.awarded_at)';
+
         return (clone $this->scopedAwards($filters))
             ->where('employee_badges.verification_status', 'verified')
             ->whereNotNull('employee_badges.awarded_at')
-            ->groupBy(DB::raw('year(employee_badges.awarded_at)'), DB::raw('month(employee_badges.awarded_at)'))
-            ->selectRaw('year(employee_badges.awarded_at) as year, month(employee_badges.awarded_at) as month, count(*) as total')
+            ->groupBy(DB::raw($yearExpr), DB::raw($monthExpr))
+            ->selectRaw("{$yearExpr} as year, {$monthExpr} as month, count(*) as total")
             ->orderBy('year')
             ->orderBy('month')
             ->get()

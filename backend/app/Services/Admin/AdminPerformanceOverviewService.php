@@ -107,7 +107,7 @@ class AdminPerformanceOverviewService
             ->select('departments.id', 'departments.name')
             ->selectRaw('count(task_assignments.id) as tasks_total')
             ->selectRaw('sum(case when task_assignments.status in ("completed","approved") then 1 else 0 end) as tasks_completed')
-            ->selectRaw('sum(case when task_assignments.status not in ("completed","approved") and coalesce(task_assignments.due_date, (select tasks.due_date from tasks where tasks.id = task_assignments.task_id)) is not null and coalesce(task_assignments.due_date, (select tasks.due_date from tasks where tasks.id = task_assignments.task_id)) < curdate() then 1 else 0 end) as tasks_overdue')
+            ->selectRaw('sum(case when task_assignments.status not in ("completed","approved") and coalesce(task_assignments.due_date, (select tasks.due_date from tasks where tasks.id = task_assignments.task_id)) is not null and coalesce(task_assignments.due_date, (select tasks.due_date from tasks where tasks.id = task_assignments.task_id)) < CURRENT_DATE then 1 else 0 end) as tasks_overdue')
             ->get()
             ->keyBy('id');
 
@@ -192,13 +192,17 @@ class AdminPerformanceOverviewService
      */
     public function monthlyProgress(int $year, ?int $departmentId = null): array
     {
+        $isSqlite = DB::connection()->getDriverName() === 'sqlite';
+        $assignedMonthExpr = $isSqlite ? "CAST(strftime('%m', assigned_at) AS INTEGER)" : 'month(assigned_at)';
+        $submittedMonthExpr = $isSqlite ? "CAST(strftime('%m', submitted_at) AS INTEGER)" : 'month(submitted_at)';
+
         $assignmentRows = TaskAssignment::query()
             ->when($departmentId !== null, fn (Builder $q) => $q->whereHas(
                 'employee',
                 fn (Builder $e) => $e->where('department_id', $departmentId),
             ))
             ->whereYear('assigned_at', $year)
-            ->selectRaw('month(assigned_at) as month')
+            ->selectRaw("{$assignedMonthExpr} as month")
             ->selectRaw('count(*) as total')
             ->selectRaw('sum(case when status in ("completed","approved") then 1 else 0 end) as completed')
             ->selectRaw('sum(case when status in ("completed","approved") and due_date is not null and completed_at is not null and completed_at > due_date then 1 else 0 end) as late')
@@ -212,7 +216,7 @@ class AdminPerformanceOverviewService
                 fn (Builder $e) => $e->where('department_id', $departmentId),
             ))
             ->whereYear('submitted_at', $year)
-            ->selectRaw('month(submitted_at) as month')
+            ->selectRaw("{$submittedMonthExpr} as month")
             ->selectRaw('count(*) as reports')
             ->groupBy('month')
             ->pluck('reports', 'month');

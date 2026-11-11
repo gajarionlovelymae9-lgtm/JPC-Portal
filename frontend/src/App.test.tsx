@@ -697,7 +697,7 @@ describe('App', () => {
   it('separates the operational digest from AI output on the executive dashboard', async () => {
     renderApp('/admin/dashboard')
 
-    await findPageHeading(/Executive Dashboard/)
+    await findPageHeading('John Paul College · Executive Dashboard')
 
     // The digest is deterministic and must be labelled as not-AI.
     expect(screen.getByText('Operational Digest')).toBeInTheDocument()
