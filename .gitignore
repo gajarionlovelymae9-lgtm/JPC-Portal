@@ -59,7 +59,6 @@ Desktop.ini
 *.sln
 *.sw?
 
-# Misc
-npm-debug.log*
-yarn-error.log*
-coverage/
+# Local offline collaborator guides with pre-configured keys
+JPC_Portal_Setup_Guide.docx
+JPC_Portal_Setup_and_Collaborator_Guide.txt
