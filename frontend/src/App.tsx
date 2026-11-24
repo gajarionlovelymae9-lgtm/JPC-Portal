@@ -65,6 +65,7 @@ import AdminExecutiveReportPage from './pages/admin/AdminExecutiveReportPage'
 import AdminPerformanceOverviewPage from './pages/admin/AdminPerformanceOverviewPage'
 import AdminKpiTargetsPage from './pages/admin/AdminKpiTargetsPage'
 import AdminTargetAdjustmentsPage from './pages/admin/AdminTargetAdjustmentsPage'
+import AdminPasswordChangeRequestsPage from './pages/admin/AdminPasswordChangeRequestsPage'
 import AdminEmployeeProgressPage from './pages/admin/AdminEmployeeProgressPage'
 import AdminTaskMonitoringPage from './pages/admin/AdminTaskMonitoringPage'
 import AdminTaskCreatePage from './pages/admin/AdminTaskCreatePage'
@@ -519,6 +520,14 @@ export default function App() {
             element={
               <ProtectedRoute role="admin">
                 <AdminTargetAdjustmentsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path={PATHS.adminPasswordRequests}
+            element={
+              <ProtectedRoute role="admin">
+                <AdminPasswordChangeRequestsPage />
               </ProtectedRoute>
             }
           />

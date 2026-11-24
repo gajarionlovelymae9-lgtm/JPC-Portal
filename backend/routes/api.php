@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\V1\Admin\AdminMonitoringController;
 use App\Http\Controllers\Api\V1\Admin\AdminNotificationController;
 use App\Http\Controllers\Api\V1\Admin\AdminPeopleManagementController;
 use App\Http\Controllers\Api\V1\Admin\AdminPerformanceOverviewController;
+use App\Http\Controllers\Api\V1\Admin\AdminPasswordChangeRequestController;
 use App\Http\Controllers\Api\V1\Admin\AdminPlatformStatusController;
 use App\Http\Controllers\Api\V1\Admin\AdminReportController as AdminReportPortalController;
 use App\Http\Controllers\Api\V1\Admin\AdminRoleController;
@@ -689,9 +690,13 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
                 ->middleware('permission:reports.view')->name('profile.show');
             Route::put('/profile', [EmployeePortalController::class, 'updateProfile'])
                 ->middleware('permission:reports.view')->name('profile.update');
+            Route::post('/profile/photo', [EmployeePortalController::class, 'updateProfilePhoto'])
+                ->middleware('permission:reports.view')->name('profile.photo');
 
-            Route::put('/security/password', [EmployeePortalController::class, 'changePassword'])
-                ->middleware('permission:reports.view')->name('security.password');
+            Route::get('/security/password-requests', [EmployeePortalController::class, 'passwordChangeStatus'])
+                ->middleware('permission:reports.view')->name('security.password-requests.index');
+            Route::post('/security/password-requests', [EmployeePortalController::class, 'requestPasswordChange'])
+                ->middleware('permission:reports.view')->name('security.password-requests.store');
 
             // Employee AI Assistant — conversational, history, saved summaries.
             Route::prefix('ai-assistant')->name('ai-assistant.')->middleware(['role:employee', 'ai.access'])->group(function () {
@@ -930,6 +935,18 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
                 ->middleware('permission:targets.update')->name('target-adjustments.approve');
             Route::post('/target-adjustments/{adjustment}/reject', [AdminTargetAdjustmentController::class, 'reject'])
                 ->middleware('permission:targets.update')->name('target-adjustments.reject');
+
+            // Password change requests — employee-initiated password changes
+            // that only take effect once an admin approves. Reads require
+            // `users.view`, decisions require `users.update`.
+            Route::get('/password-change-requests', [AdminPasswordChangeRequestController::class, 'index'])
+                ->middleware('permission:users.view')->name('password-change-requests.index');
+            Route::get('/password-change-requests/{passwordRequest}', [AdminPasswordChangeRequestController::class, 'show'])
+                ->middleware('permission:users.view')->name('password-change-requests.show');
+            Route::post('/password-change-requests/{passwordRequest}/approve', [AdminPasswordChangeRequestController::class, 'approve'])
+                ->middleware('permission:users.update')->name('password-change-requests.approve');
+            Route::post('/password-change-requests/{passwordRequest}/reject', [AdminPasswordChangeRequestController::class, 'reject'])
+                ->middleware('permission:users.update')->name('password-change-requests.reject');
 
             // Admin read of a single target with its breakdowns, milestones and
             // achievement notes for review.

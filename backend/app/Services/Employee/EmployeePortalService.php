@@ -22,7 +22,6 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
@@ -145,6 +144,9 @@ class EmployeePortalService
                         'employee_no' => $employee->employee_no ?? $employee->employee_number ?? null,
                         'department' => $employee->department?->name,
                         'position' => $employee->position?->name ?? $employee->position_title ?? null,
+                        'profile_photo_url' => $employee->profile_photo_path
+                            ? Storage::disk('public')->url($employee->profile_photo_path)
+                            : null,
                     ],
                     'generated_at' => Carbon::now()->toIso8601String(),
                     'kpis' => array_merge($taskKpis, $reportKpis, ['on_time_rate' => $onTimeRate]),
@@ -659,36 +661,85 @@ class EmployeePortalService
 
         return [
             'name' => $employee->full_name ?? ($employee->first_name.' '.$employee->last_name),
+            'first_name' => $employee->first_name,
+            'middle_name' => $employee->middle_name,
+            'last_name' => $employee->last_name,
+            'suffix' => $employee->suffix,
             'email' => $user->email,
             'employee_no' => $employee->employee_no ?? $employee->employee_number ?? null,
             'department' => $employee->department?->name,
             'position' => $employee->position?->name ?? $employee->position_title ?? null,
-            'employee_type' => $employee->employee_type ?? null,
-            'status' => $employee->status ?? null,
+            'employee_type' => $employee->employment_type ?? $employee->employee_type ?? null,
+            'status' => $employee->employment_status ?? $employee->status ?? null,
+
+            // Personal information
+            'phone' => $employee->phone,
+            'address' => $employee->address,
+            'date_of_birth' => $employee->date_of_birth,
+
+            // Employment information
+            'date_hired' => $employee->date_hired,
+
+            // Account details
+            'username' => $user->username,
+            'updated_at' => $user->updated_at?->toIso8601String(),
+
+            // Profile photo
+            'profile_photo_url' => $employee->profile_photo_path
+                ? Storage::disk('public')->url($employee->profile_photo_path)
+                : null,
         ];
     }
 
     public function updateProfile(User $user, array $data): array
     {
-        // Only allow updating email (and other permitted fields)
-        if (isset($data['email'])) {
+        $employee = $this->requireEmployee($user);
+
+        // Only personal fields are self-editable. Employment data, position,
+        // department, and status are managed by HR and cannot be changed here.
+        if (array_key_exists('email', $data)) {
             $user->update(['email' => $data['email']]);
         }
 
-        $this->invalidate($this->requireEmployee($user));
+        if (array_key_exists('username', $data)) {
+            $user->update(['username' => $data['username']]);
+        }
+
+        $employee->fill([
+            'first_name' => $data['first_name'] ?? null,
+            'middle_name' => $data['middle_name'] ?? null,
+            'last_name' => $data['last_name'] ?? null,
+            'suffix' => $data['suffix'] ?? null,
+            'phone' => $data['phone'] ?? null,
+            'address' => $data['address'] ?? null,
+            'date_of_birth' => $data['date_of_birth'] ?? null,
+        ])->save();
+
+        $this->invalidate($employee);
 
         return $this->profile($user);
     }
 
-    public function changePassword(User $user, string $currentPassword, string $newPassword): void
+    /**
+     * Replace the employee's profile photo. The previous file is deleted so the
+     * public disk does not accumulate orphaned uploads.
+     */
+    public function updateProfilePhoto(User $user, UploadedFile $file): array
     {
-        if (! Hash::check($currentPassword, $user->password)) {
-            throw ValidationException::withMessages([
-                'current_password' => ['The current password is incorrect.'],
-            ]);
+        $employee = $this->requireEmployee($user);
+
+        $previous = $employee->profile_photo_path;
+        $path = $file->store("employees/{$employee->id}", 'public');
+
+        $employee->update(['profile_photo_path' => $path]);
+
+        if ($previous && $previous !== $path) {
+            Storage::disk('public')->delete($previous);
         }
 
-        $user->update(['password' => Hash::make($newPassword)]);
+        $this->invalidate($employee);
+
+        return $this->profile($user);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -1249,6 +1300,8 @@ class EmployeePortalService
                 'name' => $badge->name,
                 'description' => $badge->description,
                 'icon' => $badge->icon,
+                'category' => $badge->category,
+                'tier' => $badge->tier,
                 'criteria' => $badge->criteria,
                 'earned_at' => $this->toIso($badge->pivot?->awarded_at ?? $badge->pivot?->created_at ?? $badge->awarded_at),
             ])

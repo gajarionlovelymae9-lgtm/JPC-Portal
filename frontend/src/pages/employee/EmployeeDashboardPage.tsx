@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { useAuth } from '../../auth/useAuth'
 import AchievementOverview from '../../components/employee/AchievementOverview'
 import ActionRequired from '../../components/employee/ActionRequired'
-import CalendarPreview from '../../components/employee/CalendarPreview'
+import DashboardCalendar from '../../components/employee/DashboardCalendar'
 import EmployeeSummaryCards from '../../components/employee/EmployeeSummaryCards'
 import EmployeeWelcome from '../../components/employee/EmployeeWelcome'
 import MonthlyProgress from '../../components/employee/MonthlyProgress'
@@ -13,7 +13,6 @@ import QuickActions from '../../components/employee/QuickActions'
 import ReportOverview from '../../components/employee/ReportOverview'
 import TargetOverview from '../../components/employee/TargetOverview'
 import TaskOverview from '../../components/employee/TaskOverview'
-import UpcomingDeadlines from '../../components/employee/UpcomingDeadlines'
 import { SkeletonBlock, SkeletonCards } from '../../components/employee/primitives'
 import { useEmployeeDashboard } from '../../hooks/useEmployeeDashboard'
 import { DashboardAiAssistant } from '../../components/ai/DashboardAiAssistant'
@@ -123,15 +122,13 @@ export default function EmployeeDashboardPage() {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <div className="xl:col-span-2 space-y-4">
           <TaskOverview tasks={data.tasks} />
-          <ReportOverview reports={data.reports} />
+          <MonthlyProgress progress={data.monthly_progress} />
         </div>
         <div className="space-y-4">
-          <UpcomingDeadlines deadlines={data.deadlines} />
           <OverdueItems tasks={data.overdue} reports={data.overdue_reports} />
+          <ReportOverview reports={data.reports} />
         </div>
       </div>
-
-      <MonthlyProgress progress={data.monthly_progress} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <TargetOverview annual={data.targets.annual} items={data.targets.items} />
@@ -140,7 +137,7 @@ export default function EmployeeDashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <AchievementOverview badges={data.achievements.badges} />
-        <CalendarPreview events={data.schedule} />
+        <DashboardCalendar />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

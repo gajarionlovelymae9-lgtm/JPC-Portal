@@ -37,7 +37,7 @@ class RouteSurfaceTest extends TestCase
             'api/v1/employee/calendar',
             'api/v1/employee/notifications',
             'api/v1/employee/profile',
-            'api/v1/employee/security/password',
+            'api/v1/employee/security/password-requests',
             'api/v1/employee/performance',
             'api/v1/employee/achievements',
         ],

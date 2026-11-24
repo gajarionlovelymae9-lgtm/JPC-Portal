@@ -178,6 +178,7 @@ const employeeDashboard: EmployeeDashboard = {
     employee_no: '2025-0004',
     department: 'College of Engineering',
     position: 'Instructor',
+    profile_photo_url: null,
   },
   generated_at: '2026-09-29T08:00:00.000000Z',
   kpis: {

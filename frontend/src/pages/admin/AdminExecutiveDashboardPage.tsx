@@ -51,24 +51,37 @@ export default function AdminExecutiveDashboardPage() {
   const overallTone = platform.data?.overall === 'ok' ? 'ok' : platform.data?.overall === 'degraded' ? 'warn' : 'danger'
 
   return (
-    <AdminPage
-      title={`${institution.name} · Executive Dashboard`}
-      subtitle={`${institution.academic_year} (${institution.academic_year_status}) · ${institution.current_term}`}
-      actions={
+    <AdminPage>
+      {/* Header */}
+      <section className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-[#EEF2FF] border border-[#C7D2FE] p-6 sm:p-8 rounded-2xl shadow-sm">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="bg-[#4F46E5] text-white text-xs px-2.5 py-1 rounded-md font-semibold tracking-wide uppercase">
+              Admin
+            </span>
+            <span className="text-[#433F70] text-sm font-medium">
+              Academic Year:{' '}
+              <span className="text-[#312E81] font-semibold">
+                {`${institution.academic_year} (${institution.academic_year_status}) · ${institution.current_term}`}
+              </span>
+            </span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold mt-2 tracking-tight text-[#312E81]">{`${institution.name} · Executive Dashboard`}</h1>
+        </div>
         <Link
           to={PATHS.adminPlatformStatus}
-          className={`px-4 py-2 rounded-lg text-sm font-bold border ${
-            overallTone === 'ok'
-              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-              : overallTone === 'warn'
-                ? 'bg-amber-50 text-amber-700 border-amber-200'
-                : 'bg-red-50 text-red-700 border-red-200'
-          }`}
+          className="flex-1 md:flex-none justify-center px-4 py-2.5 bg-white hover:bg-[#EEF2FF] text-[#4F46E5] font-medium rounded-xl text-sm transition-all shadow-sm border border-[#C7D2FE] flex items-center gap-2"
         >
+          <span
+            className={`inline-block w-2 h-2 rounded-full ${
+              overallTone === 'ok' ? 'bg-emerald-500' : overallTone === 'warn' ? 'bg-amber-500' : 'bg-red-500'
+            }`}
+            aria-hidden="true"
+          />
           System: {platform.data?.overall ?? 'unknown'}
         </Link>
-      }
-    >
+      </section>
+
       {/* Section 1 - headline KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard label="Total Employees" value={num(kpis.total_employees)} hint={`${num(kpis.active_employees)} active`} />

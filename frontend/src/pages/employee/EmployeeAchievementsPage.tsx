@@ -1,5 +1,5 @@
-﻿import { useEffect, useMemo, useState } from 'react'
-import { Trophy } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Award, Lock, TrendingUp, Trophy } from 'lucide-react'
 import { getMyAchievements } from '../../services/employeePortalService'
 import type { EmployeeAchievement } from '../../services/employeePortalService'
 import { performanceService } from '../../services/performanceService'
@@ -40,7 +40,7 @@ export default function EmployeeAchievementsPage() {
    * carry their award date there, so the legacy earned list only contributes
    * entries the tracker does not know about (matched by name).
    */
-  const rows = useMemo(() => {
+  const mergedRows = useMemo(() => {
     const merged: Array<{
       badge: AchievementProgressItem
       earnedAt: string | null
@@ -68,7 +68,26 @@ export default function EmployeeAchievementsPage() {
       }
     }
 
-    const filtered = merged.filter(({ badge, earnedAt }) => {
+    return merged
+  }, [achievements, progress])
+
+  /**
+   * Catalogue-wide counters. Computed from the unfiltered list so the summary
+   * strip always describes the whole badge catalogue, not the current view.
+   */
+  const stats = useMemo(() => {
+    const total = mergedRows.length
+    const earned = mergedRows.filter(r => r.earnedAt || r.badge.earned).length
+    return {
+      total,
+      earned,
+      locked: total - earned,
+      completion: total > 0 ? Math.round((earned / total) * 100) : 0,
+    }
+  }, [mergedRows])
+
+  const rows = useMemo(() => {
+    const filtered = mergedRows.filter(({ badge, earnedAt }) => {
       if (visibility === 'earned' && !earnedAt && !badge.earned) return false
       if (visibility === 'in-progress' && (earnedAt || badge.earned)) return false
       if (search) {
@@ -84,9 +103,9 @@ export default function EmployeeAchievementsPage() {
       if (aEarned !== bEarned) return bEarned - aEarned
       return (b.badge.progress ?? 0) - (a.badge.progress ?? 0)
     })
-  }, [achievements, progress, visibility, search])
+  }, [mergedRows, visibility, search])
 
-  const earnedCount = rows.filter(r => r.earnedAt || r.badge.earned).length
+  const earnedCount = stats.earned
 
   if (loading) return <div className="p-6 grid grid-cols-2 md:grid-cols-3 gap-4">{[...Array(6)].map((_,i) => <div key={i} className="h-32 bg-gray-100 rounded-xl animate-pulse"/>)}</div>
 
@@ -99,6 +118,26 @@ export default function EmployeeAchievementsPage() {
             {earnedCount} earned {earnedCount === 1 ? 'badge' : 'badges'} · progress toward the rest of the catalogue
           </p>
         </div>
+      </div>
+
+      {/* Achievement statistics */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {[
+          { label: 'Total Badges', value: stats.total, Icon: Trophy, tone: 'text-blue-600 bg-blue-50 border-blue-100' },
+          { label: 'Earned', value: stats.earned, Icon: Award, tone: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
+          { label: 'Locked', value: stats.locked, Icon: Lock, tone: 'text-slate-500 bg-slate-50 border-slate-200' },
+          { label: 'Completion', value: `${stats.completion}%`, Icon: TrendingUp, tone: 'text-purple-600 bg-purple-50 border-purple-100' },
+        ].map(({ label, value, Icon, tone }) => (
+          <div key={label} className="flex items-center gap-3 bg-white border border-gray-200 rounded-2xl p-4">
+            <span className={`grid place-items-center w-11 h-11 shrink-0 rounded-xl border ${tone}`} aria-hidden="true">
+              <Icon size={22} strokeWidth={1.9} />
+            </span>
+            <div className="min-w-0">
+              <p className="text-2xl font-bold text-gray-900 leading-none">{value}</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mt-1">{label}</p>
+            </div>
+          </div>
+        ))}
       </div>
 
       {error && <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">{error}</div>}

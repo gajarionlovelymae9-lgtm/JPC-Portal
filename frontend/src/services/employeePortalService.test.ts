@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from './api'
 import {
-  changeMyPassword,
   createMyReport,
   createMyReportRevision,
   getEmployeeDashboard,
@@ -15,6 +14,7 @@ import {
   getMyTargets,
   getMyTask,
   getMyTasks,
+  requestPasswordChange,
   submitMyReport,
   submitMyTask,
   updateMyProfile,
@@ -67,7 +67,7 @@ describe('employeePortalService', () => {
     await getMyNotifications()
     await getMyProfile()
     await updateMyProfile({ email: 'new@jpc.local' })
-    await changeMyPassword({ current_password: 'x', password: 'y', password_confirmation: 'y' })
+    await requestPasswordChange({ current_password: 'x', password: 'y', password_confirmation: 'y' })
 
     const expectations: Array<[number, string, string]> = [
       [0, '/employee/dashboard', 'GET'],
@@ -88,7 +88,7 @@ describe('employeePortalService', () => {
       [15, '/employee/notifications', 'GET'],
       [16, '/employee/profile', 'GET'],
       [17, '/employee/profile', 'PUT'],
-      [18, '/employee/security/password', 'PUT'],
+      [18, '/employee/security/password-requests', 'POST'],
     ]
 
     expect(fetchMock.mock.calls.length).toBe(expectations.length)
@@ -115,14 +115,14 @@ describe('employeePortalService', () => {
       422,
     )
 
-    const error = await changeMyPassword({
+    const error = await requestPasswordChange({
       current_password: 'wrong',
       password: 'newsecret',
       password_confirmation: 'newsecret',
     }).catch((e) => e)
 
     const { url } = callAt(fetchMock, 0)
-    expect(url).toContain('/employee/security/password')
+    expect(url).toContain('/employee/security/password-requests')
     expect(error).toBeInstanceOf(ApiError)
     expect((error as ApiError).status).toBe(422)
     expect((error as ApiError).message).toBe('The password does not match.')

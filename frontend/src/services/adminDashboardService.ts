@@ -281,6 +281,88 @@ export const rejectAdminTargetAdjustment = (id: number | string, decisionNote?: 
   })
 
 /* ------------------------------------------------------------------ */
+/* Password change requests — employee-initiated changes awaiting admin */
+/* ------------------------------------------------------------------ */
+
+export interface PasswordChangeRequestItem {
+  id: number
+  status: 'pending' | 'approved' | 'rejected'
+  reason: string | null
+  requester_name: string | null
+  requester_email: string | null
+  employee_number: string | null
+  department_name: string | null
+  requested_by: string | null
+  reviewed_by: string | null
+  reviewed_at: string | null
+  decision_note: string | null
+  applied_at: string | null
+  created_at: string | null
+}
+
+export interface PasswordChangeRequestSummary {
+  total: number
+  pending: number
+  approved: number
+  rejected: number
+}
+
+export interface PasswordChangeRequestQueueData {
+  items: PasswordChangeRequestItem[]
+  meta: { current_page: number; last_page: number; per_page: number; total: number }
+  summary: PasswordChangeRequestSummary
+}
+
+interface RawPasswordChangeQueue {
+  items: {
+    data: PasswordChangeRequestItem[]
+    current_page: number
+    last_page: number
+    per_page: number
+    total: number
+  }
+  summary: PasswordChangeRequestSummary
+}
+
+export const getAdminPasswordChangeRequests = async (
+  params: Record<string, unknown> = {},
+): Promise<ApiResponse<PasswordChangeRequestQueueData>> => {
+  const response = await apiRequest<RawPasswordChangeQueue | null>(
+    `${BASE}/password-change-requests${toQueryString(params)}`,
+  )
+  const raw = response.data
+
+  return {
+    ...response,
+    data: {
+      items: raw?.items?.data ?? [],
+      meta: {
+        current_page: raw?.items?.current_page ?? 1,
+        last_page: raw?.items?.last_page ?? 1,
+        per_page: raw?.items?.per_page ?? 0,
+        total: raw?.items?.total ?? 0,
+      },
+      summary: raw?.summary ?? { total: 0, pending: 0, approved: 0, rejected: 0 },
+    },
+  }
+}
+
+export const getAdminPasswordChangeRequest = (id: number | string) =>
+  apiRequest<PasswordChangeRequestItem>(`${BASE}/password-change-requests/${id}`)
+
+export const approveAdminPasswordChangeRequest = (id: number | string, decisionNote?: string | null) =>
+  apiRequest<PasswordChangeRequestItem>(`${BASE}/password-change-requests/${id}/approve`, {
+    method: 'POST',
+    body: { decision_note: decisionNote ?? null },
+  })
+
+export const rejectAdminPasswordChangeRequest = (id: number | string, decisionNote?: string | null) =>
+  apiRequest<PasswordChangeRequestItem>(`${BASE}/password-change-requests/${id}/reject`, {
+    method: 'POST',
+    body: { decision_note: decisionNote ?? null },
+  })
+
+/* ------------------------------------------------------------------ */
 /* Sections 5 + 9 - Task and report monitoring                         */
 /* ------------------------------------------------------------------ */
 

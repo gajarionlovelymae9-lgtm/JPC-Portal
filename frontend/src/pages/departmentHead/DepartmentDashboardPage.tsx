@@ -46,27 +46,27 @@ export default function DepartmentDashboardPage() {
   return (
     <div className="p-6 space-y-8 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gradient-to-r from-blue-900 to-indigo-800 p-6 rounded-2xl text-white shadow-md">
-        <div>
-          <div className="flex items-center gap-3">
-            <span className="bg-blue-600/60 text-xs px-2.5 py-1 rounded-full font-medium tracking-wide uppercase">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-[#EEF2FF] border border-[#C7D2FE] p-6 sm:p-8 rounded-2xl shadow-sm">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="bg-[#4F46E5] text-white text-xs px-2.5 py-1 rounded-md font-semibold tracking-wide uppercase">
               {department.code}
             </span>
-            <span className="text-blue-200 text-sm">Academic Year: {department.academic_year}</span>
+            <span className="text-[#433F70] text-sm font-medium">Academic Year: {department.academic_year}</span>
           </div>
-          <h1 className="text-3xl font-extrabold mt-1 tracking-tight">{department.name}</h1>
-          <p className="text-blue-100 text-sm mt-1">Department Head: <span className="font-semibold">{department.department_head}</span></p>
+          <h1 className="text-2xl sm:text-3xl font-extrabold mt-2 tracking-tight text-[#312E81]">{department.name}</h1>
+          <p className="text-[#433F70] text-sm mt-1.5">Department Head: <span className="font-semibold text-[#312E81]">{department.department_head}</span></p>
         </div>
-        <div className="flex gap-3 flex-wrap">
+        <div className="flex gap-3 flex-wrap w-full md:w-auto">
           <Link
             to={PATHS.departmentHeadTaskCreate}
-            className="px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-xl text-sm transition-all shadow-sm flex items-center gap-1.5"
+            className="flex-1 md:flex-none justify-center px-4 py-2.5 bg-[#4F46E5] hover:bg-indigo-700 text-white font-medium rounded-xl text-sm transition-all shadow-sm hover:shadow flex items-center gap-1.5"
           >
             <span>+</span> Assign Task
           </Link>
           <Link
             to={PATHS.departmentHeadReports}
-            className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white font-medium rounded-xl text-sm backdrop-blur transition-all border border-white/20"
+            className="flex-1 md:flex-none justify-center px-4 py-2.5 bg-white hover:bg-[#EEF2FF] text-[#4F46E5] font-medium rounded-xl text-sm transition-all shadow-sm border border-[#C7D2FE]"
           >
             Review Reports ({kpis.pending_reviews})
           </Link>

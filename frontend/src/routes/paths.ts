@@ -70,6 +70,7 @@ export const PATHS = {
   adminPerformanceOverview: '/admin/performance',
   adminKpiTargets: '/admin/kpi-targets',
   adminTargetAdjustments: '/admin/target-adjustments',
+  adminPasswordRequests: '/admin/password-change-requests',
   adminEmployeeProgress: '/admin/employee-progress',
   adminTaskMonitoring: '/admin/task-monitoring',
   adminTaskCreate: '/admin/tasks/create',

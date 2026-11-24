@@ -26,16 +26,21 @@ class AchievementProgressService
      * @return array<string, array{metric: string, target_key: string, default: float, label: string}>
      */
     private const ENGINE_RULES = [
-        'TOP_PERFORMER' => ['metric' => 'overall_score', 'target_key' => 'score', 'default' => 95.0, 'label' => 'Reach %s productivity score in a month'],
-        'OUTSTANDING' => ['metric' => 'overall_score', 'target_key' => 'score', 'default' => 90.0, 'label' => 'Reach %s productivity score in a month'],
-        'ON_TIME_HERO' => ['metric' => 'on_time_rate', 'target_key' => 'rate', 'default' => 100.0, 'label' => 'Achieve %s on-time delivery in a month'],
-        'PERFECT_SUBMISSION' => ['metric' => 'combined_rate', 'target_key' => 'rate', 'default' => 100.0, 'label' => 'Reach %s completion and on-time rates in a month'],
-        'TASK_CHAMPION' => ['metric' => 'completed_tasks', 'target_key' => 'tasks', 'default' => 10.0, 'label' => 'Complete %s tasks in a month'],
-        'REPORT_EXCELLENCE' => ['metric' => 'approved_reports', 'target_key' => 'reports', 'default' => 5.0, 'label' => 'Earn %s approved reports in a month'],
-        'EMPLOYEE_OF_MONTH' => ['metric' => 'employee_of_month', 'target_key' => 'none', 'default' => 1.0, 'label' => 'Be ranked first for a month'],
-        'CONSISTENT_PROGRESS' => ['metric' => 'consistent_months', 'target_key' => 'none', 'default' => 3.0, 'label' => 'Hold 3 consecutive scored months at 85 or more'],
-        'MOST_IMPROVED' => ['metric' => 'improvement', 'target_key' => 'score', 'default' => 10.0, 'label' => 'Improve the productivity score by %s points month over month'],
-        'GOAL_ACHIEVER' => ['metric' => 'goal_completion', 'target_key' => 'none', 'default' => 100.0, 'label' => 'Complete every KPI target for the period'],
+        'TOP_PERFORMER'      => ['metric' => 'overall_score',    'target_key' => 'score',   'default' => 95.0,  'label' => 'Reach %s productivity score in a month'],
+        'OUTSTANDING'        => ['metric' => 'overall_score',    'target_key' => 'score',   'default' => 90.0,  'label' => 'Reach %s productivity score in a month'],
+        'ON_TIME_HERO'       => ['metric' => 'on_time_rate',     'target_key' => 'rate',    'default' => 100.0, 'label' => 'Achieve %s%% on-time delivery in a month'],
+        'PERFECT_SUBMISSION' => ['metric' => 'combined_rate',    'target_key' => 'rate',    'default' => 100.0, 'label' => 'Reach %s%% completion and on-time rates in a month'],
+        'TASK_CHAMPION'      => ['metric' => 'completed_tasks',  'target_key' => 'tasks',   'default' => 10.0,  'label' => 'Complete %s tasks in a month'],
+        'REPORT_EXCELLENCE'  => ['metric' => 'approved_reports', 'target_key' => 'reports', 'default' => 6.0,   'label' => 'Earn %s approved reports in a month'],
+        'QUALITY_EXCELLENCE' => ['metric' => 'approved_reports', 'target_key' => 'reports', 'default' => 6.0,   'label' => 'Earn %s approved reports with high quality ratings'],
+        'EMPLOYEE_OF_MONTH'  => ['metric' => 'employee_of_month','target_key' => 'none',    'default' => 1.0,   'label' => 'Be ranked first for a month'],
+        'CONSISTENT_PROGRESS'=> ['metric' => 'consistent_months','target_key' => 'none',    'default' => 1.0,   'label' => 'Score 85 or more in a scored month'],
+        'CONSISTENCY'        => ['metric' => 'consistent_months','target_key' => 'none',    'default' => 3.0,   'label' => 'Hold 3 consecutive scored months at 85 or more'],
+        'DEDICATED_EMPLOYEE' => ['metric' => 'consistent_months','target_key' => 'none',    'default' => 6.0,   'label' => 'Maintain performance at 85+ for 6 consecutive months'],
+        'MOST_IMPROVED'      => ['metric' => 'improvement',      'target_key' => 'score',   'default' => 10.0,  'label' => 'Improve the productivity score by %s points month over month'],
+        'RISING_STAR'        => ['metric' => 'improvement',      'target_key' => 'score',   'default' => 10.0,  'label' => 'Improve the productivity score by %s points month over month'],
+        'GOAL_ACHIEVER'      => ['metric' => 'goal_completion',  'target_key' => 'none',    'default' => 100.0, 'label' => 'Complete every KPI target for the period'],
+        'QUICK_FINISHER'     => ['metric' => 'early_completions','target_key' => 'tasks',   'default' => 1.0,   'label' => 'Complete at least %s task(s) ahead of their deadline'],
     ];
 
     /**

@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Api\V1\Employee;
 
 use App\Http\Controllers\Controller;
 use App\Services\Employee\EmployeePortalService;
+use App\Services\Security\PasswordChangeRequestService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Validation\Rule;
 
 /**
  * Employee Portal (Phase 3.3-V) — self-service surface.
@@ -23,7 +25,10 @@ use Illuminate\Http\UploadedFile;
  */
 class EmployeePortalController extends Controller
 {
-    public function __construct(private readonly EmployeePortalService $employeePortalService) {}
+    public function __construct(
+        private readonly EmployeePortalService $employeePortalService,
+        private readonly PasswordChangeRequestService $passwordChangeRequestService,
+    ) {}
 
     // ─────────────────────────────────────────────────────────────────────────
     // Dashboard
@@ -325,8 +330,18 @@ class EmployeePortalController extends Controller
 
     public function updateProfile(Request $request): JsonResponse
     {
+        $userId = $request->user()->id;
+
         $validated = $request->validate([
-            'email' => ['nullable', 'email', 'max:255'],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],
+            'username' => ['nullable', 'string', 'max:255', Rule::unique('users', 'username')->ignore($userId)],
+            'first_name' => ['nullable', 'string', 'max:255'],
+            'middle_name' => ['nullable', 'string', 'max:255'],
+            'last_name' => ['nullable', 'string', 'max:255'],
+            'suffix' => ['nullable', 'string', 'max:20'],
+            'phone' => ['nullable', 'string', 'max:30'],
+            'address' => ['nullable', 'string', 'max:255'],
+            'date_of_birth' => ['nullable', 'date'],
         ]);
 
         return ApiResponse::success(
@@ -335,20 +350,50 @@ class EmployeePortalController extends Controller
         );
     }
 
-    public function changePassword(Request $request): JsonResponse
+    public function updateProfilePhoto(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'photo' => ['required', 'image', 'max:2048'],
+        ]);
+
+        return ApiResponse::success(
+            'Profile photo updated',
+            $this->employeePortalService->updateProfilePhoto($request->user(), $validated['photo'])
+        );
+    }
+
+    /**
+     * Submit a password change request for admin approval. The password is not
+     * changed here — an administrator must approve the request first.
+     */
+    public function requestPasswordChange(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'current_password' => ['required', 'string'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'password_confirmation' => ['required', 'string'],
+            'reason' => ['sometimes', 'nullable', 'string', 'max:500'],
         ]);
 
-        $this->employeePortalService->changePassword(
-            $request->user(),
-            $validated['current_password'],
-            $validated['password']
+        return ApiResponse::success(
+            'Password change request submitted for approval',
+            $this->passwordChangeRequestService->request(
+                $request->user(),
+                $validated['current_password'],
+                $validated['password'],
+                $validated['reason'] ?? null,
+            )
         );
+    }
 
-        return ApiResponse::success('Password changed successfully', []);
+    /**
+     * The signed-in user's most recent password change request, if any.
+     */
+    public function passwordChangeStatus(Request $request): JsonResponse
+    {
+        return ApiResponse::success(
+            'Password change request status loaded',
+            $this->passwordChangeRequestService->latestFor($request->user())
+        );
     }
 }

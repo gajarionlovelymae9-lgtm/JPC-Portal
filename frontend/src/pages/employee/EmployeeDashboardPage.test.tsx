@@ -31,6 +31,7 @@ const employee = {
   employee_no: '2025-0004',
   department: 'College of Engineering',
   position: 'Instructor',
+  profile_photo_url: null,
 }
 
 const populated: EmployeeDashboard = {
@@ -346,7 +347,6 @@ describe('EmployeeDashboardPage', () => {
     for (const title of [
       'My Tasks',
       'My Reports',
-      'Upcoming Deadlines',
       'Monthly Progress',
       'My Targets',
       'Performance',

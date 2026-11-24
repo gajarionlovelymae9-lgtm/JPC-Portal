@@ -1,4 +1,4 @@
-﻿import { apiRequest, toQueryString } from './api'
+import { apiRequest, toQueryString } from './api'
 
 const BASE = '/employee'
 
@@ -21,6 +21,7 @@ export interface EmployeeDashboardEmployee {
   employee_no: string | null
   department: string | null
   position: string | null
+  profile_photo_url: string | null
 }
 
 export interface EmployeeDashboardKpis {
@@ -299,6 +300,8 @@ export interface EmployeeAchievementItem {
   name: string
   description: string | null
   icon: string | null
+  category?: string | null
+  tier?: string | null
   criteria: string | null
   earned_at: string | null
 }
@@ -589,12 +592,23 @@ export interface EmployeeNotificationsPayload {
 
 export interface EmployeeProfile {
   name: string
+  first_name: string | null
+  middle_name: string | null
+  last_name: string | null
+  suffix: string | null
   email: string
   employee_no: string | null
   department: string | null
   position: string | null
   employee_type: string | null
   status: string | null
+  phone: string | null
+  address: string | null
+  date_of_birth: string | null
+  date_hired: string | null
+  username: string | null
+  updated_at: string | null
+  profile_photo_url: string | null
 }
 
 /** Backwards-compatible aliases used by the existing employee pages. */
@@ -859,14 +873,62 @@ export const getMyNotifications = () =>
 
 export const getMyProfile = () => apiRequest<EmployeeProfile>(BASE + '/profile')
 
-export const updateMyProfile = (payload: { email?: string }) =>
-  apiRequest<EmployeeProfile>(BASE + '/profile', { method: 'PUT', body: payload })
+export const updateMyProfile = (payload: {
+  email?: string
+  username?: string | null
+  first_name?: string | null
+  middle_name?: string | null
+  last_name?: string | null
+  suffix?: string | null
+  phone?: string | null
+  address?: string | null
+  date_of_birth?: string | null
+}) => apiRequest<EmployeeProfile>(BASE + '/profile', { method: 'PUT', body: payload })
 
-export const changeMyPassword = (payload: {
+export const uploadMyProfilePhoto = (file: File) => {
+  const form = new FormData()
+  form.append('photo', file)
+  return apiRequest<EmployeeProfile>(BASE + '/profile/photo', { method: 'POST', body: form })
+}
+
+/**
+ * A password change request. The password itself never travels back to the
+ * client — only the request's review state does.
+ */
+export interface PasswordChangeRequest {
+  id: number
+  status: 'pending' | 'approved' | 'rejected'
+  reason: string | null
+  requester_name: string | null
+  requester_email: string | null
+  employee_number: string | null
+  department_name: string | null
+  requested_by: string | null
+  reviewed_by: string | null
+  reviewed_at: string | null
+  decision_note: string | null
+  applied_at: string | null
+  created_at: string | null
+}
+
+/**
+ * Submit a password change request. The password is NOT changed here — an
+ * administrator must approve the request before it takes effect.
+ */
+export const requestPasswordChange = (payload: {
   current_password: string
   password: string
   password_confirmation: string
-}) => apiRequest<null>(BASE + '/security/password', { method: 'PUT', body: payload })
+  reason?: string | null
+}) =>
+  apiRequest<PasswordChangeRequest>(BASE + '/security/password-requests', {
+    method: 'POST',
+    body: payload,
+  })
+
+/** The signed-in user's most recent password change request, if any. */
+export const getMyPasswordChangeRequest = () =>
+  apiRequest<PasswordChangeRequest | null>(BASE + '/security/password-requests')
 
 /**
  * AI Insights — advisory analytics derived only from the signed-in employee's

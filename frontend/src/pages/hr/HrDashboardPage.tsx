@@ -221,13 +221,13 @@ export default function HrDashboardPage() {
         {/* ---------------------------------------------------------------- */}
         <section
           aria-label="Welcome"
-          className="rounded-2xl bg-gradient-to-r from-jpc-600 to-jpc-700 px-5 py-6 sm:px-6 shadow-jpc"
+          className="rounded-2xl bg-[#EEF2FF] border border-[#C7D2FE] px-5 py-6 sm:px-6 shadow-sm"
         >
-          <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white">
+          <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-[#312E81]">
             Good day, {greetingName}!
           </h2>
-          <p className="text-sm text-white/80 mt-1">Here&apos;s what&apos;s happening with your team today.</p>
-          <p className="text-[11px] text-white/70 mt-3">{nowLabel}</p>
+          <p className="text-sm text-[#433F70] mt-1">Here&apos;s what&apos;s happening with your team today.</p>
+          <p className="text-[11px] text-[#433F70]/70 mt-3">{nowLabel}</p>
         </section>
 
         {/* ---------------------------------------------------------------- */}

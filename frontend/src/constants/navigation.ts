@@ -45,6 +45,7 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
   { path: '/admin/employee-progress', label: 'Employee Progress', key: 'admin-employee-progress', permission: 'employees.view', roles: ['admin'] },
   { path: '/admin/kpi-targets', label: 'KPI Targets', key: 'admin-kpi-targets', permission: 'targets.view', roles: ['admin'] },
   { path: '/admin/target-adjustments', label: 'Target Adjustments', key: 'admin-target-adjustments', permission: 'targets.view', roles: ['admin'] },
+  { path: '/admin/password-change-requests', label: 'Password Requests', key: 'admin-password-requests', permission: 'users.view', roles: ['admin'] },
   { path: '/admin/achievements', label: 'Achievement & Badges', key: 'admin-achievements', permission: 'achievements.view', roles: ['admin'] },
   { path: '/admin/task-monitoring', label: 'Task Monitoring', key: 'admin-task-monitoring', permission: 'tasks.view', roles: ['admin'] },
   { path: '/admin/report-monitoring', label: 'Report Monitoring', key: 'admin-report-monitoring', permission: 'reports.view', roles: ['admin'] },
