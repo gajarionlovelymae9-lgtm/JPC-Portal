@@ -45,6 +45,12 @@ class EmployeePortalDashboardTest extends TestCase
         $this->travelTo(Carbon::now()->startOfMonth()->addDays(14)->setTime(10, 0));
     }
 
+    protected function tearDown(): void
+    {
+        $this->travelBack();
+        parent::tearDown();
+    }
+
     private function roleId(Role $role): int
     {
         return RoleModel::query()->where('name', $role->value)->firstOrFail()->id;
