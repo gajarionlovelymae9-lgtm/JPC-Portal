@@ -43,7 +43,10 @@ export async function ensureCsrfToken(): Promise<void> {
     return
   }
   try {
-    await fetch('/sanctum/csrf-cookie', { method: 'GET', credentials: 'include' })
+    const sanctumUrl = API_BASE_URL.startsWith('http')
+      ? `${new URL(API_BASE_URL).origin}/sanctum/csrf-cookie`
+      : '/sanctum/csrf-cookie'
+    await fetch(sanctumUrl, { method: 'GET', credentials: 'include' })
   } catch {
     // Network errors here surface on the actual request that follows.
   }
