@@ -1,37 +1,28 @@
 # Production Dockerfile for Laravel Backend on Render
 FROM php:8.3-fpm-alpine
 
-# Install system dependencies & build tools
+# Install system utilities
 RUN apk add --no-cache \
     nginx \
     supervisor \
     curl \
-    sqlite \
-    sqlite-libs \
-    sqlite-dev \
-    libzip-dev \
-    libzip \
-    oniguruma-dev \
-    oniguruma \
-    icu-dev \
-    icu-libs \
-    dos2unix \
-    && docker-php-ext-configure intl \
-    && docker-php-ext-install -j$(nproc) \
-        pdo_sqlite \
-        curl \
-        mbstring \
-        fileinfo \
-        zip \
-        bcmath \
-        opcache \
-        pcntl \
-        intl \
-    && apk del --no-cache \
-        sqlite-dev \
-        libzip-dev \
-        oniguruma-dev \
-        icu-dev
+    dos2unix
+
+# Install official PHP extension installer
+ADD --chmod=0755 https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
+
+# Install PHP extensions safely and cleanly
+RUN install-php-extensions \
+    pdo_sqlite \
+    sqlite3 \
+    curl \
+    mbstring \
+    fileinfo \
+    zip \
+    bcmath \
+    opcache \
+    pcntl \
+    intl
 
 # Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
