@@ -21,6 +21,19 @@ mkdir -p /var/www/html/database
 chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/database
 chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/database
 
+# Ensure .env file exists for Laravel key storage
+if [ ! -f /var/www/html/.env ]; then
+    touch /var/www/html/.env
+    chown www-data:www-data /var/www/html/.env
+    chmod 664 /var/www/html/.env
+fi
+
+# Ensure APP_KEY exists
+if [ -z "$APP_KEY" ]; then
+    echo "APP_KEY not provided in environment. Generating application key..."
+    php artisan key:generate --force
+fi
+
 # Check or initialize SQLite database
 DB_PATH="/var/www/html/database/database.sqlite"
 IS_NEW_DB=false
