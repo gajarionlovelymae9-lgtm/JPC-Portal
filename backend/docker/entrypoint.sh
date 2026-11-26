@@ -29,12 +29,11 @@ if [ ! -f "$DB_PATH" ]; then
     IS_NEW_DB=true
 fi
 
-# Clear stale caches
+# Clear file-based configuration and route cache
 php artisan config:clear
 php artisan route:clear
-php artisan cache:clear
 
-# Run migrations and seed data
+# Run migrations and seed data FIRST so database tables exist
 if [ "$IS_NEW_DB" = true ]; then
     echo "Running initial migrations and seeding database..."
     php artisan migrate --force
@@ -43,6 +42,9 @@ else
     echo "Applying migrations to existing database..."
     php artisan migrate --force
 fi
+
+# Clear application cache now that tables exist
+php artisan cache:clear || true
 
 echo "Starting Supervisor (Nginx + PHP-FPM)..."
 exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
