@@ -37,7 +37,7 @@ COPY . /var/www/html
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
 # Copy Nginx, Supervisor, and Entrypoint configurations
-COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
+COPY docker/nginx.conf /etc/nginx/nginx.conf
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 
@@ -45,14 +45,16 @@ COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN dos2unix /usr/local/bin/entrypoint.sh \
     && chmod +x /usr/local/bin/entrypoint.sh
 
-# Ensure storage and bootstrap directories exist with proper permissions
-RUN mkdir -p /var/www/html/storage/framework/cache \
+# Ensure storage, runtime, and bootstrap directories exist with proper permissions
+RUN mkdir -p /run/nginx \
+    && mkdir -p /var/log/nginx \
+    && mkdir -p /var/www/html/storage/framework/cache \
     && mkdir -p /var/www/html/storage/framework/sessions \
     && mkdir -p /var/www/html/storage/framework/views \
     && mkdir -p /var/www/html/storage/logs \
     && mkdir -p /var/www/html/bootstrap/cache \
     && mkdir -p /var/www/html/database \
-    && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/database \
+    && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/database /run/nginx /var/log/nginx \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache /var/www/html/database
 
 EXPOSE 80 10000

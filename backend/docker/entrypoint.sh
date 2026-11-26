@@ -3,8 +3,12 @@ set -e
 
 PORT="${PORT:-80}"
 echo "Configuring Nginx to listen on port ${PORT}..."
-sed -i "s/listen 80;/listen ${PORT};/g" /etc/nginx/conf.d/default.conf
-sed -i "s/listen \[::\]:80;/listen \[::\]:${PORT};/g" /etc/nginx/conf.d/default.conf
+sed -i "s/listen 80;/listen ${PORT};/g" /etc/nginx/nginx.conf
+sed -i "s/listen \[::\]:80;/listen \[::\]:${PORT};/g" /etc/nginx/nginx.conf
+
+# Ensure runtime directories exist
+mkdir -p /run/nginx /var/log/nginx
+chown -R www-data:www-data /run/nginx /var/log/nginx
 
 # Ensure storage and cache permissions
 mkdir -p /var/www/html/storage/framework/cache
@@ -45,6 +49,10 @@ fi
 
 # Clear application cache now that tables exist
 php artisan cache:clear || true
+
+# Validate Nginx configuration syntax
+echo "Testing Nginx configuration..."
+nginx -t
 
 echo "Starting Supervisor (Nginx + PHP-FPM)..."
 exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
