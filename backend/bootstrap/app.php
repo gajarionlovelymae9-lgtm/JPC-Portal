@@ -3,6 +3,7 @@
 use App\Http\Middleware\CheckPermission;
 use App\Http\Middleware\CheckRole;
 use App\Http\Middleware\EnsureAiAssistantAccess;
+use App\Http\Middleware\EnsureCrossDomainSessionCookies;
 use App\Support\ApiResponse;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
@@ -44,6 +45,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'api/*',
             'sanctum/csrf-cookie',
         ]);
+
+        // Ensure session cookies are sent with SameSite=None and Partitioned in production
+        // so cross-origin SPA requests maintain authentication across domains.
+        $middleware->append(EnsureCrossDomainSessionCookies::class);
 
         // There is no server-rendered login route in this application: the SPA
         // posts to /api/v1/auth/login and there are no auth-protected web
