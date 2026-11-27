@@ -7,6 +7,14 @@
   "cleanUrls": true,
   "rewrites": [
     {
+      "source": "/api/:path*",
+      "destination": "https://jpc-portal-2.onrender.com/api/:path*"
+    },
+    {
+      "source": "/sanctum/:path*",
+      "destination": "https://jpc-portal-2.onrender.com/sanctum/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

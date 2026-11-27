@@ -66,8 +66,12 @@ class AuthController extends Controller
             );
         }
 
-        Auth::guard('web')->login($user);
-        $request->session()->regenerate();
+        if ($request->hasSession()) {
+            Auth::guard('web')->login($user);
+            $request->session()->regenerate();
+        } else {
+            Auth::guard('web')->login($user);
+        }
 
         $user->forceFill(['last_login_at' => now()])->save();
         $this->activity->recordLogin($user, $request);
@@ -91,9 +95,11 @@ class AuthController extends Controller
         }
 
         Auth::guard('web')->logout();
-        $session = $request->session();
-        $session->invalidate();
-        $session->regenerateToken();
+        if ($request->hasSession()) {
+            $session = $request->session();
+            $session->invalidate();
+            $session->regenerateToken();
+        }
 
         return ApiResponse::success('Logout successful');
     }

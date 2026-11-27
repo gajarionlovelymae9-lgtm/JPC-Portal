@@ -1,6 +1,20 @@
 import type { ApiResponse } from '../types/api'
 
-const API_BASE_URL: string = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api/v1'
+const configuredBase = import.meta.env.VITE_API_BASE_URL as string | undefined
+
+/**
+ * Resolves the API base URL.
+ * When loaded in a browser on production domains (e.g. jpc-portal.com or vercel.app),
+ * requests route through the same-origin proxy (/api/v1) configured in vercel.json.
+ * This guarantees that Sanctum SPA session cookies (laravel_session) and CSRF tokens
+ * (XSRF-TOKEN) remain 100% first-party cookies and are never dropped by browser
+ * privacy or third-party cookie restrictions.
+ */
+const API_BASE_URL: string =
+  typeof window !== 'undefined' &&
+  (window.location.hostname.includes('jpc-portal.com') || window.location.hostname.includes('vercel.app'))
+    ? '/api/v1'
+    : (configuredBase ?? '/api/v1')
 
 export class ApiError extends Error {
   readonly status: number

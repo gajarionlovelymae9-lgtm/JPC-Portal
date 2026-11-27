@@ -29,6 +29,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // Trust all upstream proxies (Cloudflare, Render, Vercel).
+        $middleware->trustProxies(at: '*');
+
         // Global API rate limiting (Phase 1).
         $middleware->throttleApi('60,1');
 
