@@ -4,15 +4,14 @@
   "installCommand": "npm --prefix frontend install",
   "buildCommand": "npm --prefix frontend run build",
   "outputDirectory": "frontend/dist",
-  "cleanUrls": true,
   "rewrites": [
     {
-      "source": "/api/:path*",
-      "destination": "https://jpc-portal-2.onrender.com/api/:path*"
+      "source": "/api/(.*)",
+      "destination": "https://jpc-portal-2.onrender.com/api/$1"
     },
     {
-      "source": "/sanctum/:path*",
-      "destination": "https://jpc-portal-2.onrender.com/sanctum/:path*"
+      "source": "/sanctum/(.*)",
+      "destination": "https://jpc-portal-2.onrender.com/sanctum/$1"
     },
     {
       "source": "/(.*)",

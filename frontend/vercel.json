@@ -1,7 +1,14 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "cleanUrls": true,
   "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://jpc-portal-2.onrender.com/api/$1"
+    },
+    {
+      "source": "/sanctum/(.*)",
+      "destination": "https://jpc-portal-2.onrender.com/sanctum/$1"
+    },
     {
       "source": "/(.*)",
       "destination": "/index.html"
