@@ -30,11 +30,17 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 # Set working directory
 WORKDIR /var/www/html
 
-# Copy application files
+# Copy composer definitions first to leverage Docker layer caching
+COPY composer.json composer.lock ./
+
+# Install vendor dependencies (100% cached on builds where dependencies don't change)
+RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction
+
+# Copy the rest of the application files
 COPY . /var/www/html
 
-# Install production dependencies
-RUN composer install --no-dev --optimize-autoloader --no-interaction
+# Generate optimized production autoloader
+RUN composer dump-autoload --optimize --no-interaction
 
 # Copy Nginx, Supervisor, and Entrypoint configurations
 COPY docker/nginx.conf /etc/nginx/nginx.conf
