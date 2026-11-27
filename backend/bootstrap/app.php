@@ -38,6 +38,13 @@ return Application::configure(basePath: dirname(__DIR__))
         // Sanctum SPA/cookie authentication frontend requests.
         $middleware->statefulApi();
 
+        // Exempt API routes from CSRF token verification so both same-origin proxies
+        // and cross-origin SPA requests can authenticate without cross-domain cookie reading blocks.
+        $middleware->validateCsrfTokens(except: [
+            'api/*',
+            'sanctum/csrf-cookie',
+        ]);
+
         // There is no server-rendered login route in this application: the SPA
         // posts to /api/v1/auth/login and there are no auth-protected web
         // routes. Without this, the `auth` middleware tries to redirect guests
