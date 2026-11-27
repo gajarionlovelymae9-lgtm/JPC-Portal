@@ -60,6 +60,9 @@ else
     php artisan migrate --force
 fi
 
+# Ensure storage symlink exists for public uploads
+php artisan storage:link || true
+
 # Clear application cache now that tables exist
 php artisan cache:clear || true
 

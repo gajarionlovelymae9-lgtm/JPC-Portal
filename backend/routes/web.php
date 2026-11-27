@@ -6,7 +6,9 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-// Redirect login requests to the frontend dev server
+// Redirect login requests to the frontend SPA
 Route::get('/login', function () {
-    return redirect('http://127.0.0.1:5173/login');
+    $frontendUrl = rtrim(env('FRONTEND_URL', app()->environment('production') ? 'https://www.jpc-portal.com' : 'http://127.0.0.1:5173'), '/');
+
+    return redirect($frontendUrl.'/login');
 });
